@@ -6,6 +6,10 @@
   flex-direction: column;
   gap: 28px;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
+  flex: 0 0 260px;
+  width: 260px;
+  height: 100%;
+  overflow: hidden;
 }
 
 .brand {
@@ -129,6 +133,7 @@
 .header-actions {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .button-icon {
@@ -150,6 +155,169 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  flex: 0 0 320px;
+  width: 320px;
+  min-height: 0;
+}
+
+.contacts-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 0 0 320px;
+  width: 320px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.contacts-list-header {
+  padding: 16px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(248, 250, 252, 0.85);
+}
+
+.contacts-list-title {
+  margin: 0;
+  font-size: 18px;
+  font-family: var(--font-display);
+}
+
+.contacts-list-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.contacts-list-import {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+.contacts-list-empty {
+  padding: 16px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.contacts-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.contact-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.contact-card:hover {
+  border-color: #cbd4e5;
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.contact-card.is-active {
+  border-color: rgba(37, 99, 235, 0.45);
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-sm);
+}
+
+.contact-card-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.contact-card-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.contact-card-muted {
+  color: #94a3b8;
+}
+
+.contact-badge {
+  align-self: flex-start;
+  background: var(--accent);
+  color: white;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.import-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.import-contacts-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px dashed #cbd5f5;
+  background: #eef2ff;
+  font-size: 13px;
+  color: #1f2937;
+  transition: 0.2s ease;
+}
+
+.import-contacts-input:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.import-contacts-input::file-selector-button {
+  border: none;
+  background: white;
+  color: #1e3a8a;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-right: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.import-contacts-input::file-selector-button:hover {
+  background: #e0e7ff;
+}
+
+.import-contacts-button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.import-contacts-button:hover {
+  background: var(--accent-strong);
+}
+
+.import-contacts-button:disabled {
+  background: #c7d2fe;
+  cursor: not-allowed;
 }
 
 .chat-list-title {
@@ -181,10 +349,12 @@
 }
 
 .chat-items {
-  overflow-y: auto;
+  overflow: hidden;
   padding: 12px;
   display: grid;
   gap: 10px;
+  flex: 1;
+  min-height: 0;
 }
 
 .empty-state {
@@ -287,6 +457,9 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 .message-list {
@@ -296,6 +469,7 @@
   gap: 14px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
   background: linear-gradient(180deg, rgba(248, 250, 255, 0.6), rgba(255, 255, 255, 0.9));
   scroll-behavior: smooth;
 }
@@ -418,6 +592,8 @@
 @media (max-width: 1200px) {
   .sidebar {
     padding: 24px 12px;
+    flex: 0 0 92px;
+    width: 92px;
   }
 
   .brand {
@@ -450,6 +626,9 @@
     gap: 16px;
     border-right: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    flex: 0 0 auto;
+    width: 100%;
+    height: auto;
   }
 
   .brand {
@@ -536,6 +715,22 @@
   }
 
   .message-input button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-list {
+    width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .contacts-list {
+    width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .chat-window {
     width: 100%;
   }
 }

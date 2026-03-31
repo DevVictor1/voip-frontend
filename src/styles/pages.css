@@ -452,3 +452,48 @@
     min-width: 640px;
   }
 }
+/* 🔥 fix stacking + spacing */
+.contacts-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+/* 🔥 delete button */
+.delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: #999;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.delete-btn:hover {
+  color: red;
+}
+
+.call-btn {
+  background: #1d9bf0;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.call-btn:hover {
+  background: #0c85d0;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+}

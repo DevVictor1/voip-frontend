@@ -1,4 +1,4 @@
-function Header({ title, subtitle, status }) {
+function Header({ title, subtitle, status, actions }) {
   return (
     <div className="header">
       <div className="header-title">
@@ -18,6 +18,7 @@ function Header({ title, subtitle, status }) {
         <button className="button-icon" type="button">
           Options
         </button>
+        {actions}
       </div>
     </div>
   );
