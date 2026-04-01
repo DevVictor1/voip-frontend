@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import CallTable from '../components/CallTable';
 import BASE_URL from '../config/api';
+import socket from '../socket';
 
 const formatDuration = (value) => {
   const seconds = Number(value);
@@ -19,6 +20,7 @@ function CallLogs() {
   const intervalRef = useRef(null);
   const hasLoadedRef = useRef(false);
 
+  // 🔥 FETCH CALLS
   const fetchCalls = async () => {
     try {
       const res = await fetch(`${BASE_URL}/api/calls/logs`);
@@ -26,7 +28,7 @@ function CallLogs() {
 
       const newData = Array.isArray(data) ? data : [];
 
-      // ✅ Prevent unnecessary re-renders (NO flicker)
+      // ✅ Prevent flicker
       setCalls((prev) => {
         if (JSON.stringify(prev) === JSON.stringify(newData)) {
           return prev;
@@ -43,6 +45,7 @@ function CallLogs() {
     }
   };
 
+  // 🚀 INITIAL LOAD + POLLING (fallback safety)
   useEffect(() => {
     if (hasLoadedRef.current) return;
     hasLoadedRef.current = true;
@@ -56,7 +59,38 @@ function CallLogs() {
     return () => clearInterval(intervalRef.current);
   }, []);
 
-  // ✅ STATS BACK AGAIN
+  // 🔥 REAL-TIME SOCKET UPDATE (MAIN FEATURE)
+  useEffect(() => {
+    socket.on('callStatus', (update) => {
+      console.log('📡 LIVE CALL UPDATE:', update);
+
+      setCalls((prevCalls) => {
+        let found = false;
+
+        const updatedCalls = prevCalls.map((call) => {
+          if (call.callSid === update.callSid) {
+            found = true;
+            return {
+              ...call,
+              status: update.status,
+            };
+          }
+          return call;
+        });
+
+        // 🔥 If new call not in list, fetch again
+        if (!found) {
+          fetchCalls();
+        }
+
+        return updatedCalls;
+      });
+    });
+
+    return () => socket.off('callStatus');
+  }, []);
+
+  // ✅ STATS
   const stats = useMemo(() => {
     const total = calls.length;
 
@@ -101,12 +135,12 @@ function CallLogs() {
         <div className="call-logs-meta">
           <div className="call-logs-meta-title">Live feed</div>
           <div className="call-logs-meta-subtitle">
-            Latest calls from your VoIP stack
+            Real-time updates enabled
           </div>
         </div>
       </div>
 
-      {/* ✅ STATS (RESTORED) */}
+      {/* STATS */}
       <div className="call-stats">
         <div className="call-stat-card">
           <div className="call-stat-label">Total calls</div>

@@ -24,7 +24,15 @@ function ContactsList({ list, activeId, onSelect }) {
   };
 
   return (
-    <div className="panel panel-scroll contacts-list">
+    <div
+      className="panel contacts-list"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+      }}
+    >
 
       {/* HEADER */}
       <div className="contacts-list-header">
@@ -47,7 +55,14 @@ function ContactsList({ list, activeId, onSelect }) {
       )}
 
       {/* LIST */}
-      <div className="contacts-list-items">
+      <div
+        className="contacts-list-items"
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          minHeight: 0,
+        }}
+      >
         {list.map((item, index) => (
           <div
             key={index}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import ContactsList from '../components/ContactsList';
 import ChatWindow from '../components/ChatWindow';
+import NewMessageModal from '../components/NewMessageModal';
 import socket from '../socket';
 import BASE_URL from '../config/api';
 
@@ -9,6 +10,7 @@ function MessagesPage() {
   const [contacts, setContacts] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [showModal, setShowModal] = useState(false);
 
   // 📚 FETCH CONVERSATIONS
   const fetchConversations = async () => {
@@ -93,6 +95,12 @@ function MessagesPage() {
     return () => socket.off('newMessage');
   }, [activeChatId]);
 
+  // 🔥 NEW MESSAGE START
+  const handleStartChat = (phone) => {
+    setActiveChatId(phone);
+    setMessages([]);
+  };
+
   // 🔥 MERGE CONTACT + CHAT
   const mergedList = contacts.map((contact) => {
     const chat = chats.find((c) => c.phone === contact.phone);
@@ -104,7 +112,7 @@ function MessagesPage() {
     };
   });
 
-  // 🔥 ADD CHATS THAT ARE NOT CONTACTS
+  // 🔥 ADD NON-CONTACT CHATS
   chats.forEach((chat) => {
     const exists = mergedList.find((c) => c.phone === chat.phone);
     if (!exists) {
@@ -119,16 +127,53 @@ function MessagesPage() {
 
   return (
     <div className="page-shell">
-      <ContactsList
-        list={mergedList}
-        activeId={activeChatId}
-        onSelect={setActiveChatId}
-      />
 
+      {/* 🔥 LEFT PANEL */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          minHeight: 0, // 🔥 VERY IMPORTANT (fix scroll issues)
+        }}
+      >
+        
+        {/* ➕ NEW MESSAGE BUTTON */}
+        <button
+          onClick={() => setShowModal(true)}
+          style={{
+            margin: '10px',
+            padding: '10px',
+            background: '#1d9bf0',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+          }}
+        >
+          ➕ New Message
+        </button>
+
+        <ContactsList
+          list={mergedList}
+          activeId={activeChatId}
+          onSelect={setActiveChatId}
+        />
+      </div>
+
+      {/* 🔥 CHAT WINDOW */}
       <ChatWindow
         chat={activeChat}
         messages={messages}
         setMessages={setMessages}
+      />
+
+      {/* 🔥 MODAL */}
+      <NewMessageModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onStart={handleStartChat}
       />
     </div>
   );

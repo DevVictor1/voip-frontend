@@ -171,6 +171,14 @@ function CallTable({ calls, loading, error, onRetry }) {
                     </td>
                     <td>
                       <span className="call-duration">{formatDuration(call.duration)}</span>
+
+                        {call.recordingUrl && (
+                          <div style={{ marginTop: '5px' }}>
+                            <audio controls style={{ width: '160px' }}>
+                              <source src={call.recordingUrl} type="audio/mpeg" />
+                            </audio>
+                          </div>
+                            )}
                     </td>
                     <td>{formatTime(call.createdAt)}</td>
                   </tr>

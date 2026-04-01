@@ -1,10 +1,14 @@
-function Header({ title, subtitle, status, actions }) {
+function Header({ title, subtitle, status, actions, badge, meta }) {
   return (
     <div className="header">
       <div className="header-title">
-        <div>
-          <h3>{title}</h3>
+        <div className="header-title-text">
+          <div className="header-title-main">
+            <h3>{title}</h3>
+            {badge}
+          </div>
           {subtitle ? <div className="header-meta">{subtitle}</div> : null}
+          {meta ? <div className="header-meta header-meta-strong">{meta}</div> : null}
         </div>
         {status ? <span className="status-pill">{status}</span> : null}
       </div>
