@@ -1,246 +1,238 @@
-﻿import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState, useCallback } from 'react';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import BASE_URL from '../config/api';
 import socket from '../socket';
+import { startCall } from '../services/voice';
+
+const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
 function ChatWindow({ chat, messages, setMessages }) {
   const listRef = useRef(null);
+  const [callLogs, setCallLogs] = useState([]);
+
+  const [callStatus, setCallStatus] = useState(null);
+  const [currentCallSid, setCurrentCallSid] = useState(null);
+
   const safeMessages = messages || [];
 
-  const [calling, setCalling] = useState(false);
-  const [callStatus, setCallStatus] = useState('');
-  const [callDuration, setCallDuration] = useState(0);
-  const [callSummary, setCallSummary] = useState('');
-  const callStartRef = useRef(null);
-  const callTimerRef = useRef(null);
-  const summaryTimeoutRef = useRef(null);
+  // ✅ FORMATTER (moved outside handleCall)
+  const formatPhone = (num) => {
+    if (!num) return '';
 
-  // 🔥 AUTO SCROLL
-  useEffect(() => {
-    if (!listRef.current) return;
+    let cleaned = num.replace(/\D/g, '');
 
-    listRef.current.scrollTo({
-      top: listRef.current.scrollHeight,
-      behavior: 'smooth',
-    });
-  }, [safeMessages]);
+    if (num.startsWith('+')) return num;
 
-  useEffect(() => {
-    if (callStatus === 'in-progress') {
-      if (!callStartRef.current) {
-        callStartRef.current = Date.now();
-      }
-
-      if (callTimerRef.current) {
-        clearInterval(callTimerRef.current);
-      }
-
-      callTimerRef.current = setInterval(() => {
-        const elapsed =
-          Math.floor((Date.now() - callStartRef.current) / 1000);
-        setCallDuration(elapsed);
-      }, 1000);
-    } else if (callTimerRef.current) {
-      clearInterval(callTimerRef.current);
-      callTimerRef.current = null;
+    if (cleaned.length === 11 && cleaned.startsWith('0')) {
+      return '+234' + cleaned.slice(1);
     }
 
-    return () => {
-      if (callTimerRef.current) {
-        clearInterval(callTimerRef.current);
-        callTimerRef.current = null;
-      }
-    };
-  }, [callStatus]);
+    if (cleaned.length === 10 && /^[789]/.test(cleaned)) {
+      return '+234' + cleaned;
+    }
 
-  useEffect(() => {
-    return () => {
-      if (summaryTimeoutRef.current) {
-        clearTimeout(summaryTimeoutRef.current);
-      }
-    };
-  }, []);
+    if (cleaned.length === 10) {
+      return '+1' + cleaned;
+    }
 
-  const formatDuration = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    return '+' + cleaned;
   };
 
-  const formatSummaryDuration = (seconds) => {
-    if (seconds < 60) return `${seconds}s`;
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return secs ? `${mins}m ${secs}s` : `${mins}m`;
-  };
-
-  // 📞 CALL FUNCTION
-  const handleCall = async () => {
-    if (!chat?.phone || calling) return;
-
-    setCalling(true);
-    setCallStatus('initiated');
-    setCallSummary('');
-    setCallDuration(0);
-    callStartRef.current = null;
+  const fetchCalls = useCallback(async () => {
+    if (!chat?.phone) return;
 
     try {
-      const res = await fetch(`${BASE_URL}/api/calls/call`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: chat.phone }),
-      });
-
+      const res = await fetch(
+        `${BASE_URL}/api/calls/by-number/${chat.phone}`
+      );
       const data = await res.json();
-
-      console.log('📞 Call started:', data.callSid);
-
+      setCallLogs(data || []);
     } catch (err) {
-      console.error('❌ Call error:', err);
-      setCallStatus('completed');
-      setCallSummary('Call failed');
-      setCalling(false);
+      console.error('❌ Fetch call logs error:', err);
     }
-  };
+  }, [chat?.phone]);
 
-  // 🔥 LIVE STATUS LISTENER
   useEffect(() => {
-    socket.on('callStatus', (data) => {
-      console.log('📡 LIVE STATUS:', data);
+    fetchCalls();
+  }, [fetchCalls]);
 
-      if (data.status === 'initiated') setCallStatus('initiated');
-      if (data.status === 'ringing') setCallStatus('ringing');
-      if (data.status === 'in-progress') setCallStatus('in-progress');
-      if (data.status === 'completed') {
-        const durationSeconds = callStartRef.current
-          ? Math.floor((Date.now() - callStartRef.current) / 1000)
-          : 0;
+  // 🔥 STATUS (REAL TWILIO STATE)
+  useEffect(() => {
+    const handleStatus = (data) => {
+      console.log('📡 CALL STATUS UPDATE:', data);
 
-        setCallStatus('completed');
-        setCalling(false);
-        setCallDuration(durationSeconds);
-        setCallSummary(
-          `Call ended • Duration: ${formatSummaryDuration(durationSeconds)}`
-        );
+      if (currentCallSid && data.callSid !== currentCallSid) return;
 
-        if (summaryTimeoutRef.current) {
-          clearTimeout(summaryTimeoutRef.current);
-        }
-        summaryTimeoutRef.current = setTimeout(() => {
-          setCallSummary('');
-        }, 5000);
+      setCallStatus(data.status);
+
+      if (
+        ['completed', 'failed', 'no-answer', 'busy', 'canceled'].includes(data.status)
+      ) {
+        setTimeout(() => {
+          setCallStatus(null);
+          setCurrentCallSid(null);
+        }, 1500);
       }
-    });
+    };
 
-    return () => socket.off('callStatus');
-  }, []);
+    socket.on('callStatus', handleStatus);
+    return () => socket.off('callStatus', handleStatus);
+  }, [currentCallSid]);
 
-  const endCall = () => {
-    const durationSeconds = callStartRef.current
-      ? Math.floor((Date.now() - callStartRef.current) / 1000)
-      : 0;
+  // 🔄 REFRESH LOGS
+  useEffect(() => {
+    const handleCallUpdate = () => fetchCalls();
 
-    setCallStatus('completed');
-    setCalling(false);
-    setCallDuration(durationSeconds);
-    setCallSummary(
-      `Call ended • Duration: ${formatSummaryDuration(durationSeconds)}`
-    );
+    socket.on('callStatus', handleCallUpdate);
+    return () => socket.off('callStatus', handleCallUpdate);
+  }, [fetchCalls]);
 
-    if (summaryTimeoutRef.current) {
-      clearTimeout(summaryTimeoutRef.current);
-    }
-    summaryTimeoutRef.current = setTimeout(() => {
-      setCallSummary('');
-    }, 5000);
-  };
+  // 💬 MESSAGE REALTIME
+  useEffect(() => {
+    const handleNewMessage = (msg) => {
+      if (!chat?.phone) return;
 
-  // ❌ NO CHAT
+      const current = normalize(chat.phone);
+
+      if (
+        normalize(msg.from) === current ||
+        normalize(msg.to) === current
+      ) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    };
+
+    socket.on('newMessage', handleNewMessage);
+    return () => socket.off('newMessage', handleNewMessage);
+  }, [chat?.phone, setMessages]);
+
+  const mergedTimeline = [
+    ...safeMessages.map((m) => ({ ...m, type: 'message' })),
+    ...callLogs.map((c) => ({ ...c, type: 'call' }))
+  ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+  useEffect(() => {
+    if (!listRef.current) return;
+    listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [mergedTimeline]);
+
   if (!chat) {
     return (
       <div className="panel chat-window">
         <div className="message-list">
           <div className="empty-state">
             <div className="empty-title">Select a contact</div>
-            <div className="empty-subtitle">
-              Choose a contact to start chatting.
-            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  const subtitle = `SMS • ${chat.phone}`;
-  const isCallActive =
-    callStatus === 'initiated' ||
-    callStatus === 'ringing' ||
-    callStatus === 'in-progress';
+  const displayName =
+    chat.firstName || chat.lastName
+      ? `${chat.firstName || ''} ${chat.lastName || ''}`.trim()
+      : chat.phone;
 
-  const callBadge = callStatus ? (
-    <span className={`call-status-badge is-${callStatus}`}>
-      {callStatus.replace('-', ' ')}
-    </span>
-  ) : null;
+  // ✅ REAL SOFTPHONE CALL (FIXED)
+  const handleCall = async () => {
+    if (callStatus === 'initiated' || callStatus === 'ringing') return;
 
-  const callMeta =
-    callStatus === 'in-progress'
-      ? `Call live • ${formatDuration(callDuration)}`
-      : callSummary;
+    try {
+      setCallStatus('initiated');
+
+      const formatted = formatPhone(chat.phone);
+
+      await startCall(formatted);
+
+      // ❌ DO NOT force "in-progress"
+      // Twilio will update it correctly via socket
+
+    } catch (err) {
+      console.error('❌ Call failed:', err);
+      setCallStatus(null);
+    }
+  };
+
+  const getCallLabel = () => {
+    switch (callStatus) {
+      case 'initiated': return 'Calling...';
+      case 'ringing': return 'Ringing...';
+      case 'in-progress': return 'In Call';
+      default: return '📞 Call';
+    }
+  };
 
   return (
     <div className="panel chat-window">
 
-      {/* 🔥 HEADER */}
       <Header
-        title={chat.phone}
-        subtitle={subtitle}
-        status="Active"
-        badge={callBadge}
-        meta={callMeta}
-        actions={
+        title={displayName}
+        subtitle={
           <>
-            <button
-              onClick={handleCall}
-              disabled={calling}
-              type="button"
-              className="call-btn"
-            >
-              📞 Call
-            </button>
-            {isCallActive && (
-              <button
-                onClick={endCall}
-                type="button"
-                className="end-call-btn"
-              >
-                End Call
-              </button>
-            )}
+            {chat.dba && <div>DBA: {chat.dba}</div>}
+            {chat.mid && <div>MID: {chat.mid}</div>}
           </>
         }
+        status="Active"
+        chat={chat}
+        callStatus={callStatus}
+        callLabel={getCallLabel()}
+        onSwitchNumber={(num) => {
+          window.dispatchEvent(
+            new CustomEvent('switchChatNumber', { detail: num })
+          );
+        }}
+        onCall={handleCall}
       />
 
-      {/* 💬 MESSAGES */}
       <div className="message-list" ref={listRef}>
-        {safeMessages.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-title">Start a conversation</div>
-          </div>
-        ) : (
-          safeMessages.map((message, index) => (
-            <MessageBubble key={index} message={message} />
-          ))
-        )}
+        {mergedTimeline.map((item, index) => {
+
+          if (item.type === 'message') {
+            return <MessageBubble key={index} message={item} />;
+          }
+
+          return (
+            <div
+              key={index}
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-start',
+                padding: '4px 10px'
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: '65%',
+                  background: '#1e1e1e',
+                  borderRadius: '12px',
+                  padding: '10px',
+                  fontSize: '13px',
+                  border: '1px solid #2a2a2a'
+                }}
+              >
+                <div style={{ color: '#aaa', marginBottom: '6px' }}>
+                  📞 Call {item.status}
+                  {item.duration && ` • ${item.duration}s`}
+                </div>
+
+                {item.recordingUrl && (
+                  <audio controls style={{ width: '200px', height: '32px' }}>
+                    <source src={item.recordingUrl} type="audio/mpeg" />
+                  </audio>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* ✉️ INPUT */}
       <MessageInput
         chatId={chat.phone}
-        onMessageSent={(newMessage) => {
-          setMessages((prev) => [...(prev || []), newMessage]);
+        onMessageSent={(msg) => {
+          setMessages((prev) => [...prev, msg]);
         }}
       />
     </div>

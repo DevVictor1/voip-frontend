@@ -1,121 +1,112 @@
 import ImportContacts from "./ImportContacts";
 import BASE_URL from "../config/api";
 
+const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
+
 function ContactsList({ list, activeId, onSelect }) {
 
-  // 🗑 DELETE CONTACT
   const handleDelete = async (id, e) => {
-    e.stopPropagation(); // ❌ prevent opening chat
+    e.stopPropagation();
 
-    const confirmDelete = window.confirm("Delete this contact?");
-    if (!confirmDelete) return;
+    if (!window.confirm("Delete this contact?")) return;
 
-    try {
-      await fetch(`${BASE_URL}/api/contacts/${id}`, {
-        method: "DELETE",
-      });
+    await fetch(`${BASE_URL}/api/contacts/${id}`, {
+      method: "DELETE",
+    });
 
-      // 🔥 quick refresh (safe for now)
-      window.location.reload();
-    } catch (err) {
-      console.error("❌ Delete error:", err);
-      alert("Failed to delete contact");
-    }
+    window.location.reload();
   };
 
   return (
-    <div
-      className="panel contacts-list"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        flex: 1,
-        minHeight: 0,
-      }}
-    >
+    <div className="contacts-wrapper">
 
-      {/* HEADER */}
-      <div className="contacts-list-header">
-        <h3 className="contacts-list-title">Contacts</h3>
-        <div className="contacts-list-subtitle">
-          {list.length} total
-        </div>
+      <div className="contacts-header">
+        <h3>Contacts</h3>
+        <span>{list.length} total</span>
       </div>
 
-      {/* IMPORT */}
-      <div className="contacts-list-import">
+      <div className="contacts-import">
         <ImportContacts onImportSuccess={() => window.location.reload()} />
       </div>
 
-      {/* EMPTY STATE */}
-      {list.length === 0 && (
-        <p className="contacts-list-empty">
-          No contacts or conversations
-        </p>
-      )}
+      <div className="contacts-scroll">
 
-      {/* LIST */}
-      <div
-        className="contacts-list-items"
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          minHeight: 0,
-        }}
-      >
-        {list.map((item, index) => (
-          <div
-            key={index}
-            className={`contact-card ${
-              activeId === item.phone ? "is-active" : ""
-            }`}
-            onClick={() => onSelect(item.phone)}
-            style={{ position: "relative" }} // 🔥 needed for delete btn
-          >
+        {list.map((item, index) => {
+          const phones = item.phones || [];
 
-            {/* 🗑 DELETE BUTTON (ONLY FOR CONTACTS) */}
-            {item._id && (
-              <button
-                className="delete-btn"
-                onClick={(e) => handleDelete(item._id, e)}
-              >
-                ✕
-              </button>
-            )}
+          return (
+            <div
+  key={index}
+  className="contact-card"
+  style={{ position: 'relative' }}
+  onClick={() => {
+    if (item.phone) onSelect(item.phone);
+  }}
+>
 
-            {/* NAME */}
-            <div className="contact-card-name">
-              {item.firstName
-                ? `${item.firstName} ${item.lastName || ""}`
-                : item.name || item.phone}
-            </div>
+  {/* ✅ FIXED DELETE BUTTON */}
+  {item._id && (
+    <button
+      onClick={(e) => handleDelete(item._id, e)}
+      style={{
+        position: 'absolute',
+        top: '8px',
+        right: '8px',
+        background: '#222',
+        border: 'none',
+        color: '#aaa',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        padding: '2px 6px'
+      }}
+    >
+      ✕
+    </button>
+  )}
 
-            {/* PHONE */}
-            <div className="contact-card-meta">
-              {item.phone}
-            </div>
-
-            {/* DBA */}
-            {item.dba && (
-              <div className="contact-card-meta contact-card-muted">
-                {item.dba}
+              <div className="contact-name">
+                {item.firstName
+                  ? `${item.firstName} ${item.lastName || ""}`
+                  : item.name}
               </div>
-            )}
 
-            {/* LAST MESSAGE */}
-            <div className="contact-card-meta contact-card-muted">
-              {item.lastMessage || "No messages yet"}
-            </div>
-
-            {/* UNREAD */}
-            {item.unread > 0 && (
-              <div className="contact-badge">
-                {item.unread}
+              {/* 🔥 MULTI NUMBER */}
+              <div className="contact-phones" style={{ marginTop: '6px' }}>
+                {phones.map((p, i) => (
+                  <div
+                    key={i}
+                    onClick={(e) => {
+                      e.stopPropagation(); // 🔥 prevent overriding card click
+                      onSelect(p.number);
+                    }}
+                    className={`phone-item ${
+                      normalize(activeId) === normalize(p.number) ? 'active' : ''
+                    }`}
+                  >
+                    {p.label} • {p.number}
+                  </div>
+                ))}
               </div>
-            )}
 
-          </div>
-        ))}
+              {/* 🔥 UNREAD DOT (clean, not bulky) */}
+              {item.unread > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '10px',
+                  width: '8px',
+                  height: '8px',
+                  background: '#1d9bf0',
+                  borderRadius: '50%'
+                }} />
+              )}
+
+              {item.lastMessage && (
+                <div className="contact-last">{item.lastMessage}</div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

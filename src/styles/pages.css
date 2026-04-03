@@ -100,8 +100,11 @@
 }
 
 .call-logs-page {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
+  height: 100%;
+  min-height: 0;
 }
 
 .call-logs-header {
@@ -163,8 +166,11 @@
 }
 
 .call-table-card {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
+  flex: 1;
+  min-height: 0;
 }
 
 .call-table-header {
@@ -199,7 +205,8 @@
 }
 
 .call-table-scroll {
-  max-height: 540px;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   border-radius: 16px;
   border: 1px solid var(--border);
@@ -441,7 +448,7 @@
   }
 
   .call-table-scroll {
-    max-height: 420px;
+    max-height: none;
   }
 
   .call-stat-value {
@@ -501,4 +508,84 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px;
+}
+.contacts-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 10px;
+}
+
+.contacts-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.contacts-import {
+  margin-bottom: 10px;
+}
+
+.contacts-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 6px;
+}
+
+/* CARD */
+.contact-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  position: relative;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+/* DELETE */
+.delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  background: #eee;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* NAME */
+.contact-name {
+  font-weight: 600;
+}
+
+/* DBA */
+.contact-dba {
+  font-size: 12px;
+  color: #777;
+}
+
+/* PHONES */
+.contact-phones {
+  margin-top: 8px;
+}
+
+.phone-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 4px;
+  background: #f5f7fb;
+}
+
+.phone-item.active {
+  background: #dbeafe;
+}
+
+.phone-label {
+  font-size: 11px;
+  color: #555;
 }

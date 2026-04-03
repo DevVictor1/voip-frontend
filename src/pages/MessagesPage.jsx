@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import ContactsList from '../components/ContactsList';
 import ChatWindow from '../components/ChatWindow';
 import NewMessageModal from '../components/NewMessageModal';
 import socket from '../socket';
 import BASE_URL from '../config/api';
+
+// 🔥 NORMALIZE PHONE (CRITICAL FIX)
+const normalize = (phone) => {
+  if (!phone) return '';
+  return phone.toString().replace(/\D/g, '').slice(-10);
+};
 
 function MessagesPage() {
   const [chats, setChats] = useState([]);
@@ -13,26 +19,26 @@ function MessagesPage() {
   const [showModal, setShowModal] = useState(false);
 
   // 📚 FETCH CONVERSATIONS
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     try {
       const res = await fetch(`${BASE_URL}/api/sms/conversations`);
       const data = await res.json();
-      setChats(data);
+      setChats(data || []);
     } catch (err) {
       console.error('❌ Fetch conversations error:', err);
     }
-  };
+  }, []);
 
   // 👤 FETCH CONTACTS
-  const fetchContacts = async () => {
+  const fetchContacts = useCallback(async () => {
     try {
       const res = await fetch(`${BASE_URL}/api/contacts`);
       const data = await res.json();
-      setContacts(data);
+      setContacts(data || []);
     } catch (err) {
       console.error('❌ Fetch contacts error:', err);
     }
-  };
+  }, []);
 
   // 💬 FETCH MESSAGES
   const fetchMessages = async (phone) => {
@@ -50,95 +56,127 @@ function MessagesPage() {
   useEffect(() => {
     fetchConversations();
     fetchContacts();
-  }, []);
+  }, [fetchConversations, fetchContacts]);
 
-  // 🔄 LOAD CHAT WHEN CLICKED
+  // 🔄 LOAD CHAT
   useEffect(() => {
     if (!activeChatId) return;
 
     const loadChat = async () => {
-      try {
-        await fetchMessages(activeChatId);
+      const phone = normalize(activeChatId);
 
-        await fetch(`${BASE_URL}/api/sms/read/${activeChatId}`, {
-          method: 'PUT',
-        });
+      await fetchMessages(phone);
 
-        await fetchConversations();
-      } catch (err) {
-        console.error('❌ Chat load error:', err);
-      }
+      await fetch(`${BASE_URL}/api/sms/read/${phone}`, {
+        method: 'PUT',
+      });
+
+      fetchConversations();
     };
 
     loadChat();
-  }, [activeChatId]);
+  }, [activeChatId, fetchConversations]);
+
+  // 🔁 SWITCH NUMBER EVENT
+  useEffect(() => {
+    const handler = (e) => {
+      setActiveChatId(normalize(e.detail));
+    };
+
+    window.addEventListener('switchChatNumber', handler);
+    return () => window.removeEventListener('switchChatNumber', handler);
+  }, []);
 
   // ⚡ REAL-TIME
   useEffect(() => {
-    socket.on('newMessage', async (msg) => {
-      const isCurrent =
-        msg.from === activeChatId || msg.to === activeChatId;
+    const handleMessage = (msg) => {
+      const msgFrom = normalize(msg.from);
+      const msgTo = normalize(msg.to);
+      const active = normalize(activeChatId);
 
-      if (isCurrent) {
+      if (msgFrom === active || msgTo === active) {
         setMessages((prev) => [...prev, msg]);
-
-        if (msg.direction === 'inbound') {
-          await fetch(`${BASE_URL}/api/sms/read/${activeChatId}`, {
-            method: 'PUT',
-          });
-        }
       }
 
       fetchConversations();
-    });
+    };
 
-    return () => socket.off('newMessage');
-  }, [activeChatId]);
+    socket.on('newMessage', handleMessage);
+    return () => socket.off('newMessage', handleMessage);
+  }, [activeChatId, fetchConversations]);
 
-  // 🔥 NEW MESSAGE START
+  // 🔥 START CHAT
   const handleStartChat = (phone) => {
-    setActiveChatId(phone);
+    setActiveChatId(normalize(phone));
     setMessages([]);
   };
 
-  // 🔥 MERGE CONTACT + CHAT
-  const mergedList = contacts.map((contact) => {
-    const chat = chats.find((c) => c.phone === contact.phone);
+  // 🔥 MERGE CONTACTS + CHATS (FIXED)
+const mergedList = contacts.map((contact) => {
+  const phones = contact.phones || [];
 
-    return {
-      ...contact,
-      lastMessage: chat?.lastMessage || '',
-      unread: chat?.unread || 0,
-    };
-  });
+  const numbers = phones.map((p) => normalize(p.number));
 
-  // 🔥 ADD NON-CONTACT CHATS
+  const chat = chats.find((c) =>
+    numbers.includes(normalize(c.phone))
+  );
+
+  return {
+    ...contact,
+    phones, // 🔥 KEEP ORIGINAL FORMAT (IMPORTANT)
+    phone: phones[0]?.number || '', // 🔥 DO NOT normalize here
+    dba: contact.dba,
+    lastMessage: chat?.lastMessage || '',
+    unread: chat?.unread || 0,
+    updatedAt: chat?.updatedAt || 0,
+  };
+});
+
+  // 🔥 ADD UNKNOWN CHATS (FIXED)
   chats.forEach((chat) => {
-    const exists = mergedList.find((c) => c.phone === chat.phone);
+    const phone = normalize(chat.phone);
+
+    const exists = mergedList.find((c) =>
+      (c.phones || []).some(p => p.number === phone)
+    );
+
     if (!exists) {
-      mergedList.push(chat);
+      mergedList.push({
+        phone,
+        name: phone,
+        phones: [{ number: phone, label: 'mobile' }],
+        lastMessage: chat.lastMessage,
+        unread: chat.unread,
+        updatedAt: chat.updatedAt,
+      });
     }
   });
 
+  // 🔥 SORT (UNREAD FIRST + LATEST)
+  const sortedList = [...mergedList].sort((a, b) => {
+    if (b.unread !== a.unread) {
+      return b.unread - a.unread;
+    }
+    return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+  });
+
   // 🔥 ACTIVE CHAT FIX
-  const activeChat =
-    mergedList.find((c) => c.phone === activeChatId) ||
-    (activeChatId ? { phone: activeChatId } : null);
+  const activeChatBase = sortedList.find((c) =>
+    (c.phones || []).some(
+      (p) => normalize(p.number) === normalize(activeChatId)
+    )
+  );
+
+  const activeChat = activeChatBase
+    ? { ...activeChatBase, phone: normalize(activeChatId) }
+    : activeChatId
+    ? { phone: normalize(activeChatId), phones: [] }
+    : null;
 
   return (
     <div className="page-shell">
 
-      {/* 🔥 LEFT PANEL */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100vh',
-          minHeight: 0, // 🔥 VERY IMPORTANT (fix scroll issues)
-        }}
-      >
-        
-        {/* ➕ NEW MESSAGE BUTTON */}
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <button
           onClick={() => setShowModal(true)}
           style={{
@@ -156,20 +194,18 @@ function MessagesPage() {
         </button>
 
         <ContactsList
-          list={mergedList}
-          activeId={activeChatId}
-          onSelect={setActiveChatId}
+          list={sortedList}
+          activeId={normalize(activeChatId)}
+          onSelect={(num) => setActiveChatId(normalize(num))}
         />
       </div>
 
-      {/* 🔥 CHAT WINDOW */}
       <ChatWindow
         chat={activeChat}
         messages={messages}
         setMessages={setMessages}
       />
 
-      {/* 🔥 MODAL */}
       <NewMessageModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
