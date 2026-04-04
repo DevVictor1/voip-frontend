@@ -20,37 +20,49 @@ function MessagesPage() {
 
   // 📚 FETCH CONVERSATIONS
   const fetchConversations = useCallback(async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/api/sms/conversations`);
-      const data = await res.json();
-      setChats(data || []);
-    } catch (err) {
-      console.error('❌ Fetch conversations error:', err);
-    }
-  }, []);
+  try {
+    const res = await fetch(`${BASE_URL}/api/sms/conversations`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    setChats(data || []);
+  } catch (err) {
+    console.error('❌ Fetch conversations error:', err);
+  }
+}, []);
 
-  // 👤 FETCH CONTACTS
-  const fetchContacts = useCallback(async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/api/contacts`);
-      const data = await res.json();
-      setContacts(data || []);
-    } catch (err) {
-      console.error('❌ Fetch contacts error:', err);
-    }
-  }, []);
+  // 👤 FETCH CONTACTS (🔥 WITH ROLE)
+const fetchContacts = useCallback(async () => {
+  try {
+    const role = 'admin';
+    const userId = 'user_1';
+
+    const res = await fetch(
+      `${BASE_URL}/api/contacts?role=${role}&userId=${userId}`
+    );
+
+    if (!res.ok) throw new Error();
+
+    const data = await res.json();
+    setContacts(data || []);
+
+  } catch (err) {
+    console.error('❌ Fetch contacts error:', err);
+  }
+}, []);
 
   // 💬 FETCH MESSAGES
   const fetchMessages = async (phone) => {
-    try {
-      const res = await fetch(`${BASE_URL}/api/sms/messages/${phone}`);
-      const data = await res.json();
-      setMessages(data || []);
-    } catch (err) {
-      console.error('❌ Fetch messages error:', err);
-      setMessages([]);
-    }
-  };
+  try {
+    const res = await fetch(`${BASE_URL}/api/sms/messages/${phone}`);
+    if (!res.ok) throw new Error();
+
+    const data = await res.json();
+    setMessages(data || []);
+  } catch (err) {
+    console.error('❌ Fetch messages error:', err);
+    setMessages([]);
+  }
+};
 
   // 🚀 INITIAL LOAD
   useEffect(() => {

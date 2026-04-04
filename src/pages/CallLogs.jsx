@@ -20,15 +20,17 @@ function CallLogs() {
   const intervalRef = useRef(null);
   const hasLoadedRef = useRef(false);
 
-  // 🔥 FETCH CALLS
   const fetchCalls = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/calls/logs`);
-      const data = await res.json();
+      const res = await fetch(`${BASE_URL}/api/calls/logs`, {
+        method: "GET",
+      });
 
+      if (!res.ok) throw new Error("Failed request");
+
+      const data = await res.json();
       const newData = Array.isArray(data) ? data : [];
 
-      // ✅ Prevent flicker
       setCalls((prev) => {
         if (JSON.stringify(prev) === JSON.stringify(newData)) {
           return prev;
@@ -45,44 +47,30 @@ function CallLogs() {
     }
   };
 
-  // 🚀 INITIAL LOAD + POLLING (fallback safety)
   useEffect(() => {
     if (hasLoadedRef.current) return;
     hasLoadedRef.current = true;
 
     fetchCalls();
 
-    intervalRef.current = setInterval(() => {
-      fetchCalls();
-    }, 5000);
-
+    intervalRef.current = setInterval(fetchCalls, 5000);
     return () => clearInterval(intervalRef.current);
   }, []);
 
-  // 🔥 REAL-TIME SOCKET UPDATE (MAIN FEATURE)
   useEffect(() => {
     socket.on('callStatus', (update) => {
-      console.log('📡 LIVE CALL UPDATE:', update);
-
       setCalls((prevCalls) => {
         let found = false;
 
         const updatedCalls = prevCalls.map((call) => {
           if (call.callSid === update.callSid) {
             found = true;
-            return {
-              ...call,
-              status: update.status,
-            };
+            return { ...call, status: update.status };
           }
           return call;
         });
 
-        // 🔥 If new call not in list, fetch again
-        if (!found) {
-          fetchCalls();
-        }
-
+        if (!found) fetchCalls();
         return updatedCalls;
       });
     });
@@ -90,7 +78,6 @@ function CallLogs() {
     return () => socket.off('callStatus');
   }, []);
 
-  // ✅ STATS
   const stats = useMemo(() => {
     const total = calls.length;
 
@@ -123,7 +110,6 @@ function CallLogs() {
 
   return (
     <div className="call-logs-page">
-      {/* HEADER */}
       <div className="call-logs-header">
         <div>
           <h1 className="page-title">Call Logs</h1>
@@ -140,7 +126,6 @@ function CallLogs() {
         </div>
       </div>
 
-      {/* STATS */}
       <div className="call-stats">
         <div className="call-stat-card">
           <div className="call-stat-label">Total calls</div>
@@ -165,7 +150,6 @@ function CallLogs() {
         </div>
       </div>
 
-      {/* TABLE */}
       <CallTable
         calls={calls}
         loading={loading}

@@ -6,8 +6,13 @@ let currentConnection = null;
 
 export const initVoice = async () => {
   try {
-    const res = await fetch(`${BASE_URL}/api/voice/token`);
-    const data = await res.json();
+    const res = await fetch(`${BASE_URL}/api/voice/token`, {
+  method: "GET",
+});
+
+if (!res.ok) throw new Error("Token fetch failed");
+
+const data = await res.json();
 
     device = new Device(data.token, {
       logLevel: 1,

@@ -17,6 +17,17 @@ function ContactsList({ list, activeId, onSelect }) {
     window.location.reload();
   };
 
+  // ✅ AUTO ASSIGN ON CLICK (REAL CRM BEHAVIOR)
+  const autoAssign = async (item) => {
+    if (!item._id || !item.isUnassigned) return;
+
+    await fetch(`${BASE_URL}/api/contacts/${item._id}/assign`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: "user_1" })
+    });
+  };
+
   return (
     <div className="contacts-wrapper">
 
@@ -36,33 +47,74 @@ function ContactsList({ list, activeId, onSelect }) {
 
           return (
             <div
-  key={index}
-  className="contact-card"
-  style={{ position: 'relative' }}
-  onClick={() => {
-    if (item.phone) onSelect(item.phone);
-  }}
->
+              key={index}
+              className="contact-card"
+              style={{ position: 'relative' }}
+              onClick={async () => {
+  // 🔥 ONLY assign if it's unassigned
+  if (item.isUnassigned) {
+    await autoAssign(item);
+    window.location.reload(); // refresh to reflect new state
+  }
 
-  {/* ✅ FIXED DELETE BUTTON */}
-  {item._id && (
-    <button
-      onClick={(e) => handleDelete(item._id, e)}
-      style={{
-        position: 'absolute',
-        top: '8px',
-        right: '8px',
-        background: '#222',
-        border: 'none',
-        color: '#aaa',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        padding: '2px 6px'
-      }}
-    >
-      ✕
-    </button>
-  )}
+  if (item.phone) onSelect(item.phone);
+}}
+            >
+
+              {/* ❌ DELETE (UNCHANGED) */}
+              {item._id && (
+                <button
+                  onClick={(e) => handleDelete(item._id, e)}
+                  style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    background: '#222',
+                    border: 'none',
+                    color: '#aaa',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    padding: '2px 6px'
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+
+              {/* ✅ STATUS BADGE (CLEAN UX) */}
+              {!item.isUnassigned && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    right: '8px',
+                    background: '#333',
+                    color: '#fff',
+                    borderRadius: '4px',
+                    padding: '3px 6px',
+                    fontSize: '10px'
+                  }}
+                >
+                  Assigned
+                </div>
+              )}
+
+              {item.isUnassigned && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '8px',
+                    right: '8px',
+                    background: '#1d9bf0',
+                    color: '#fff',
+                    borderRadius: '4px',
+                    padding: '3px 6px',
+                    fontSize: '10px'
+                  }}
+                >
+                  Unassigned
+                </div>
+              )}
 
               <div className="contact-name">
                 {item.firstName
@@ -70,13 +122,12 @@ function ContactsList({ list, activeId, onSelect }) {
                   : item.name}
               </div>
 
-              {/* 🔥 MULTI NUMBER */}
               <div className="contact-phones" style={{ marginTop: '6px' }}>
                 {phones.map((p, i) => (
                   <div
                     key={i}
                     onClick={(e) => {
-                      e.stopPropagation(); // 🔥 prevent overriding card click
+                      e.stopPropagation();
                       onSelect(p.number);
                     }}
                     className={`phone-item ${
@@ -88,7 +139,6 @@ function ContactsList({ list, activeId, onSelect }) {
                 ))}
               </div>
 
-              {/* 🔥 UNREAD DOT (clean, not bulky) */}
               {item.unread > 0 && (
                 <div style={{
                   position: 'absolute',
