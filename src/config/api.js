@@ -1,3 +1,3 @@
-const BASE_URL = "https://pluckiest-annetta-oily.ngrok-free.dev";
+const BASE_URL = "https://voip-system-backend.onrender.com";
 
 export default BASE_URL;
