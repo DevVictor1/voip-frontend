@@ -58,25 +58,35 @@ function CallLogs() {
   }, []);
 
   useEffect(() => {
-    socket.on('callStatus', (update) => {
-      setCalls((prevCalls) => {
-        let found = false;
+  socket.on('callStatus', (update) => {
+    setCalls((prevCalls) => {
+      let found = false;
 
-        const updatedCalls = prevCalls.map((call) => {
-          if (call.callSid === update.callSid) {
-            found = true;
-            return { ...call, status: update.status };
-          }
-          return call;
-        });
-
-        if (!found) fetchCalls();
-        return updatedCalls;
+      const updatedCalls = prevCalls.map((call) => {
+        if (call.callSid === update.callSid) {
+          found = true;
+          return { ...call, status: update.status };
+        }
+        return call;
       });
-    });
 
-    return () => socket.off('callStatus');
-  }, []);
+      if (!found) fetchCalls();
+      return updatedCalls;
+    });
+  });
+
+  // 🔥 ADD THIS PART (VERY IMPORTANT)
+  socket.on('callEnded', async () => {
+    console.log('🔄 Refreshing call logs...');
+
+    await fetchCalls(); // 🔥 THIS FIXES YOUR ISSUE
+  });
+
+  return () => {
+    socket.off('callStatus');
+    socket.off('callEnded'); // 🔥 CLEANUP
+  };
+}, []);
 
   const stats = useMemo(() => {
     const total = calls.length;
