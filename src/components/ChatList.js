@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import ChatItem from './ChatItem';
 
 function ChatList({ chats, activeId, onSelect }) {

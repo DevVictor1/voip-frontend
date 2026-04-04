@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+﻿import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import './App.css';
 import MainLayout from './layout/MainLayout';
@@ -20,7 +20,7 @@ function App() {
   const [isMuted, setIsMuted] = useState(false);
   const [onHold, setOnHold] = useState(false);
 
-  // 🔥 INIT VOICE
+  // ðŸ”¥ INIT VOICE
   useEffect(() => {
     const startVoice = async () => {
       await initVoice();
@@ -33,7 +33,7 @@ function App() {
     };
   }, []);
 
-  // 🔥 LISTEN FOR ACCEPTED CALL
+  // ðŸ”¥ LISTEN FOR ACCEPTED CALL
   useEffect(() => {
     const handler = (e) => {
       const conn = e.detail;
@@ -54,19 +54,19 @@ function App() {
   // SOCKET (optional)
   useEffect(() => {
     socket.on('incomingCall', (data) => {
-      console.log('📡 Incoming (socket):', data);
+      console.log('ðŸ“¡ Incoming (socket):', data);
     });
 
     return () => socket.off('incomingCall');
   }, []);
 
-  // 🔴 END
+  // ðŸ”´ END
   const hangUp = () => {
     disconnectCall();
     setConnection(null);
   };
 
-  // 🔇 MUTE
+  // ðŸ”‡ MUTE
   const toggleMute = () => {
     if (!isMuted) {
       muteCall();
@@ -76,19 +76,19 @@ function App() {
     setIsMuted(!isMuted);
   };
 
-  // ⏸ HOLD (enhanced)
+  // â¸ HOLD (enhanced)
   const toggleHold = () => {
   if (!connection) return;
 
   if (!onHold) {
-    // 🔇 Mute mic (user cannot speak)
+    // ðŸ”‡ Mute mic (user cannot speak)
     connection.mute(true);
 
-    console.log('⏸ Call on hold (simulated)');
+    console.log('â¸ Call on hold (simulated)');
   } else {
     connection.mute(false);
 
-    console.log('▶️ Call resumed');
+    console.log('â–¶ï¸ Call resumed');
   }
 
   setOnHold(!onHold);
@@ -97,14 +97,14 @@ function App() {
   return (
     <div className="App">
 
-      {/* 🔥 MAIN POPUP SYSTEM */}
+      {/* ðŸ”¥ MAIN POPUP SYSTEM */}
       <IncomingCallPopup />
 
-      {/* 🟢 ACTIVE CALL UI */}
+      {/* ðŸŸ¢ ACTIVE CALL UI */}
       {connection && (
         <div style={callStyle}>
           <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>
-            🟢 In Call
+            ðŸŸ¢ In Call
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -137,7 +137,7 @@ function App() {
   );
 }
 
-// 🎨 STYLES (UPGRADED)
+// ðŸŽ¨ STYLES (UPGRADED)
 const callStyle = {
   position: 'fixed',
   bottom: '20px',

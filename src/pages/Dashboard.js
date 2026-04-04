@@ -1,4 +1,4 @@
-import { stats, calls } from '../data/mockData';
+﻿import { stats, calls } from '../data/mockData';
 
 function Dashboard() {
   return (

@@ -1,4 +1,4 @@
-import ImportContacts from "./ImportContacts";
+﻿import ImportContacts from "./ImportContacts";
 import BASE_URL from "../config/api";
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
@@ -17,7 +17,7 @@ function ContactsList({ list, activeId, onSelect }) {
     window.location.reload();
   };
 
-  // ✅ AUTO ASSIGN ON CLICK (REAL CRM BEHAVIOR)
+  // âœ… AUTO ASSIGN ON CLICK (REAL CRM BEHAVIOR)
   const autoAssign = async (item) => {
     if (!item._id || !item.isUnassigned) return;
 
@@ -51,7 +51,7 @@ function ContactsList({ list, activeId, onSelect }) {
               className="contact-card"
               style={{ position: 'relative' }}
               onClick={async () => {
-  // 🔥 ONLY assign if it's unassigned
+  // ðŸ”¥ ONLY assign if it's unassigned
   if (item.isUnassigned) {
     await autoAssign(item);
     window.location.reload(); // refresh to reflect new state
@@ -61,7 +61,7 @@ function ContactsList({ list, activeId, onSelect }) {
 }}
             >
 
-              {/* ❌ DELETE (UNCHANGED) */}
+              {/* âŒ DELETE (UNCHANGED) */}
               {item._id && (
                 <button
                   onClick={(e) => handleDelete(item._id, e)}
@@ -77,11 +77,11 @@ function ContactsList({ list, activeId, onSelect }) {
                     padding: '2px 6px'
                   }}
                 >
-                  ✕
+                  âœ•
                 </button>
               )}
 
-              {/* ✅ STATUS BADGE (CLEAN UX) */}
+              {/* âœ… STATUS BADGE (CLEAN UX) */}
               {!item.isUnassigned && (
                 <div
                   style={{
@@ -134,7 +134,7 @@ function ContactsList({ list, activeId, onSelect }) {
                       normalize(activeId) === normalize(p.number) ? 'active' : ''
                     }`}
                   >
-                    {p.label} • {p.number}
+                    {p.label} â€¢ {p.number}
                   </div>
                 ))}
               </div>

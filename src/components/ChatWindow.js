@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+﻿import { useEffect, useRef, useState, useCallback } from 'react';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
@@ -17,7 +17,7 @@ function ChatWindow({ chat, messages, setMessages }) {
 
   const safeMessages = messages || [];
 
-  // ✅ FORMATTER (moved outside handleCall)
+  // âœ… FORMATTER (moved outside handleCall)
   const formatPhone = (num) => {
     if (!num) return '';
 
@@ -50,7 +50,7 @@ function ChatWindow({ chat, messages, setMessages }) {
       const data = await res.json();
       setCallLogs(data || []);
     } catch (err) {
-      console.error('❌ Fetch call logs error:', err);
+      console.error('âŒ Fetch call logs error:', err);
     }
   }, [chat?.phone]);
 
@@ -58,10 +58,10 @@ function ChatWindow({ chat, messages, setMessages }) {
     fetchCalls();
   }, [fetchCalls]);
 
-  // 🔥 STATUS (REAL TWILIO STATE)
+  // ðŸ”¥ STATUS (REAL TWILIO STATE)
   useEffect(() => {
     const handleStatus = (data) => {
-      console.log('📡 CALL STATUS UPDATE:', data);
+      console.log('ðŸ“¡ CALL STATUS UPDATE:', data);
 
       if (currentCallSid && data.callSid !== currentCallSid) return;
 
@@ -81,7 +81,7 @@ function ChatWindow({ chat, messages, setMessages }) {
     return () => socket.off('callStatus', handleStatus);
   }, [currentCallSid]);
 
-  // 🔄 REFRESH LOGS
+  // ðŸ”„ REFRESH LOGS
   useEffect(() => {
     const handleCallUpdate = () => fetchCalls();
 
@@ -89,7 +89,7 @@ function ChatWindow({ chat, messages, setMessages }) {
     return () => socket.off('callStatus', handleCallUpdate);
   }, [fetchCalls]);
 
-  // 💬 MESSAGE REALTIME
+  // ðŸ’¬ MESSAGE REALTIME
   useEffect(() => {
     const handleNewMessage = (msg) => {
       if (!chat?.phone) return;
@@ -135,7 +135,7 @@ function ChatWindow({ chat, messages, setMessages }) {
       ? `${chat.firstName || ''} ${chat.lastName || ''}`.trim()
       : chat.phone;
 
-  // ✅ REAL SOFTPHONE CALL (FIXED)
+  // âœ… REAL SOFTPHONE CALL (FIXED)
   const handleCall = async () => {
     if (callStatus === 'initiated' || callStatus === 'ringing') return;
 
@@ -146,11 +146,11 @@ function ChatWindow({ chat, messages, setMessages }) {
 
       await startCall(formatted);
 
-      // ❌ DO NOT force "in-progress"
+      // âŒ DO NOT force "in-progress"
       // Twilio will update it correctly via socket
 
     } catch (err) {
-      console.error('❌ Call failed:', err);
+      console.error('âŒ Call failed:', err);
       setCallStatus(null);
     }
   };
@@ -160,7 +160,7 @@ function ChatWindow({ chat, messages, setMessages }) {
       case 'initiated': return 'Calling...';
       case 'ringing': return 'Ringing...';
       case 'in-progress': return 'In Call';
-      default: return '📞 Call';
+      default: return 'ðŸ“ž Call';
     }
   };
 
@@ -214,8 +214,8 @@ function ChatWindow({ chat, messages, setMessages }) {
                 }}
               >
                 <div style={{ color: '#aaa', marginBottom: '6px' }}>
-                  📞 Call {item.status}
-                  {item.duration && ` • ${item.duration}s`}
+                  ðŸ“ž Call {item.status}
+                  {item.duration && ` â€¢ ${item.duration}s`}
                 </div>
 
                 {item.recordingUrl && (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import BASE_URL from '../config/api';
 
 function ImportContacts({ onImportSuccess }) {
@@ -21,15 +21,15 @@ function ImportContacts({ onImportSuccess }) {
 
       const data = await res.json();
 
-      alert(`✅ Imported ${data.count} contacts`);
+      alert(`âœ… Imported ${data.count} contacts`);
 
       setFile(null);
 
-      // 🔥 REFRESH CONTACTS
+      // ðŸ”¥ REFRESH CONTACTS
       if (onImportSuccess) onImportSuccess();
 
     } catch (err) {
-      console.error('❌ Import error:', err);
+      console.error('âŒ Import error:', err);
       alert('Failed to import contacts');
     } finally {
       setLoading(false);

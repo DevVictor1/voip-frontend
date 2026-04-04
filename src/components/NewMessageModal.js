@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 
 function NewMessageModal({ isOpen, onClose, onStart }) {
   const [phone, setPhone] = useState('');
@@ -42,7 +42,7 @@ function NewMessageModal({ isOpen, onClose, onStart }) {
 
 export default NewMessageModal;
 
-/* 🔥 STYLES */
+/* ðŸ”¥ STYLES */
 const overlayStyle = {
   position: 'fixed',
   top: 0,

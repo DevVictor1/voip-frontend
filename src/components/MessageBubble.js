@@ -1,4 +1,4 @@
-function MessageBubble({ message }) {
+﻿function MessageBubble({ message }) {
   const getStatusIcon = () => {
     // Only show for sent messages
     if (message.direction !== 'outbound') return null;
@@ -6,17 +6,17 @@ function MessageBubble({ message }) {
     switch (message.status) {
       case 'queued':
       case 'sent':
-        return '✓'; // sent
+        return 'âœ“'; // sent
 
       case 'delivered':
-        return '✓✓'; // delivered
+        return 'âœ“âœ“'; // delivered
 
       case 'undelivered':
       case 'failed':
-        return '❌'; // failed
+        return 'âŒ'; // failed
 
       default:
-        return '✓';
+        return 'âœ“';
     }
   };
 
@@ -32,7 +32,7 @@ function MessageBubble({ message }) {
           minute: '2-digit',
         })}
 
-        {/* 🔥 STATUS ICON */}
+        {/* ðŸ”¥ STATUS ICON */}
         {message.direction === 'outbound' && (
           <span style={{ marginLeft: '6px', fontSize: '12px' }}>
             {getStatusIcon()}

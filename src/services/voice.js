@@ -1,4 +1,4 @@
-import { Device } from '@twilio/voice-sdk';
+﻿import { Device } from '@twilio/voice-sdk';
 import BASE_URL from '../config/api';
 
 let device;
@@ -19,19 +19,19 @@ const data = await res.json();
     });
 
     device.on('registered', () => {
-      console.log('✅ Device ready');
+      console.log('âœ… Device ready');
     });
 
     device.on('error', (err) => {
-      console.error('❌ Device error:', err);
+      console.error('âŒ Device error:', err);
     });
 
     device.on('incoming', (conn) => {
-      console.log('📞 Incoming call');
+      console.log('ðŸ“ž Incoming call');
 
       currentConnection = conn;
 
-      // 🔥 SHOW INCOMING UI
+      // ðŸ”¥ SHOW INCOMING UI
       window.dispatchEvent(
         new CustomEvent('incomingCallUI', { detail: conn })
       );
@@ -44,14 +44,14 @@ const data = await res.json();
 
     await device.register();
   } catch (err) {
-    console.error('❌ Voice init error:', err);
+    console.error('âŒ Voice init error:', err);
   }
 };
 
-// 🔥 OUTGOING CALL (FIXED)
+// ðŸ”¥ OUTGOING CALL (FIXED)
 export const startCall = async (phone) => {
   if (!device) {
-    console.error('❌ Device not ready');
+    console.error('âŒ Device not ready');
     return;
   }
 
@@ -62,7 +62,7 @@ export const startCall = async (phone) => {
 
     currentConnection = conn;
 
-    // 🔥 THIS IS THE MISSING PIECE (VERY IMPORTANT)
+    // ðŸ”¥ THIS IS THE MISSING PIECE (VERY IMPORTANT)
     window.dispatchEvent(
       new CustomEvent('callAccepted', { detail: conn })
     );
@@ -72,12 +72,12 @@ export const startCall = async (phone) => {
       window.dispatchEvent(new Event('callEnded'));
     });
 
-    console.log('📞 Outgoing call started');
+    console.log('ðŸ“ž Outgoing call started');
 
     return conn;
 
   } catch (err) {
-    console.error('❌ Outgoing call error:', err);
+    console.error('âŒ Outgoing call error:', err);
   }
 };
 

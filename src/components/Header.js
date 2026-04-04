@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
@@ -27,7 +27,7 @@ function Header({
           <h3>{title}</h3>
           {subtitle && <div className="header-meta">{subtitle}</div>}
 
-          {/* 🔥 DROPDOWN (UNCHANGED) */}
+          {/* ðŸ”¥ DROPDOWN (UNCHANGED) */}
           {phones.length > 1 && (
             <div style={{ position: 'relative', marginTop: '6px', display: 'inline-block' }}>
               <button
@@ -42,7 +42,7 @@ function Header({
                   border: '1px solid #333'
                 }}
               >
-                {activeLabel.toUpperCase()} ▼
+                {activeLabel.toUpperCase()} â–¼
               </button>
 
               {showDropdown && (
@@ -101,7 +101,7 @@ function Header({
         <button className="button-icon">Notes</button>
         <button className="button-icon">Options</button>
 
-        {/* ✅ CALL BUTTON (FIXED + SAFE) */}
+        {/* âœ… CALL BUTTON (FIXED + SAFE) */}
         <button
           onClick={onCall}
           style={{
@@ -114,7 +114,7 @@ function Header({
             cursor: 'pointer'
           }}
         >
-          {callLabel || '📞 Call'}
+          {callLabel || 'ðŸ“ž Call'}
         </button>
       </div>
     </div>

@@ -1,14 +1,14 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import socket from '../socket';
 
 function IncomingCallPopup() {
   const [call, setCall] = useState(null);
   const [contact, setContact] = useState(null);
 
-  // 🔥 INCOMING CALL
+  // ðŸ”¥ INCOMING CALL
   useEffect(() => {
     socket.on('incomingCall', (data) => {
-      console.log('📡 Incoming:', data);
+      console.log('ðŸ“¡ Incoming:', data);
 
       setContact(data.contact || null);
 
@@ -20,7 +20,7 @@ function IncomingCallPopup() {
     return () => socket.off('incomingCall');
   }, []);
 
-  // 🔥 BIND CONNECTION
+  // ðŸ”¥ BIND CONNECTION
   useEffect(() => {
     const handler = (e) => {
       setCall(e.detail);
@@ -33,10 +33,10 @@ function IncomingCallPopup() {
     };
   }, []);
 
-  // 🔥 CLOSE POPUP WHEN CALL ENDS (CRITICAL FIX)
+  // ðŸ”¥ CLOSE POPUP WHEN CALL ENDS (CRITICAL FIX)
   useEffect(() => {
     socket.on('callEnded', (data) => {
-      console.log('🔴 Call ended (popup close)');
+      console.log('ðŸ”´ Call ended (popup close)');
       setCall(null);
       setContact(null);
     });
@@ -52,7 +52,7 @@ function IncomingCallPopup() {
 
   return (
     <div style={style}>
-      <div style={title}>📞 Incoming Call</div>
+      <div style={title}>ðŸ“ž Incoming Call</div>
 
       <div style={nameStyle}>{name}</div>
 
@@ -94,7 +94,7 @@ function IncomingCallPopup() {
   );
 }
 
-// 🎨 BETTER UI
+// ðŸŽ¨ BETTER UI
 const style = {
   position: 'fixed',
   bottom: '20px',
