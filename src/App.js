@@ -125,15 +125,18 @@ function App() {
       )}
 
       <BrowserRouter>
-        <MainLayout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/messages" element={<Messages />} />
-            <Route path="/calls" element={<CallLogs />} />
-            <Route path="/users" element={<Users />} />
-            <Route path="/opt-in" element={<OptInPage />} />
-          </Routes>
-        </MainLayout>
+
+  {/* Pages WITH layout */}
+  <Routes>
+    <Route path="/" element={<MainLayout><Dashboard /></MainLayout>} />
+    <Route path="/messages" element={<MainLayout><Messages /></MainLayout>} />
+    <Route path="/calls" element={<MainLayout><CallLogs /></MainLayout>} />
+    <Route path="/users" element={<MainLayout><Users /></MainLayout>} />
+
+    {/* ✅ Opt-in WITHOUT layout */}
+    <Route path="/opt-in" element={<OptInPage />} />
+  </Routes>
+
       </BrowserRouter>
     </div>
   );
