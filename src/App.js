@@ -14,6 +14,7 @@ import {
   unmuteCall,
   disconnectCall
 } from './services/voice';
+import OptInPage from './pages/OptInPage';
 
 function App() {
   const [connection, setConnection] = useState(null);
@@ -130,6 +131,7 @@ function App() {
             <Route path="/messages" element={<Messages />} />
             <Route path="/calls" element={<CallLogs />} />
             <Route path="/users" element={<Users />} />
+            <Route path="/opt-in" element={<OptInPage />} />
           </Routes>
         </MainLayout>
       </BrowserRouter>
