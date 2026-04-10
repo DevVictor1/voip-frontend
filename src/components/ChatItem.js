@@ -1,4 +1,4 @@
-﻿function ChatItem({ chat, isActive, onSelect }) {
+function ChatItem({ chat, isActive, onSelect }) {
   const className = `chat-item${isActive ? ' active' : ''}${
     chat.unread ? ' unread' : ''
   }`;

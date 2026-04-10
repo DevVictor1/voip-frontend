@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';

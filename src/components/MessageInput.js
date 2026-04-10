@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import './MessageInput.css';
 import BASE_URL from '../config/api';
 

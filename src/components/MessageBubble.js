@@ -1,4 +1,4 @@
-﻿function MessageBubble({ message }) {
+function MessageBubble({ message }) {
   const getStatusIcon = () => {
     // Only show for sent messages
     if (message.direction !== 'outbound') return null;

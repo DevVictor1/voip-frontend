@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 
 function NewMessageModal({ isOpen, onClose, onStart }) {
   const [phone, setPhone] = useState('');

@@ -1,4 +1,4 @@
-﻿import ImportContacts from "./ImportContacts";
+import ImportContacts from "./ImportContacts";
 import BASE_URL from "../config/api";
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);

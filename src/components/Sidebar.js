@@ -1,4 +1,4 @@
-﻿import { NavLink } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, MessageSquare, Phone, Users } from 'lucide-react';
 
 const navItems = [

@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 

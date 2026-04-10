@@ -1,4 +1,4 @@
-﻿import { calls } from '../data/mockData';
+import { calls } from '../data/mockData';
 
 function Calls() {
   return (

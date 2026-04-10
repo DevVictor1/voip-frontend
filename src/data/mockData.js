@@ -1,4 +1,4 @@
-﻿export const chats = [
+export const chats = [
   {
     id: 'chat-1',
     name: 'Smith & Co. Dental',
