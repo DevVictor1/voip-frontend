@@ -162,18 +162,42 @@ function ChatWindow({ chat, messages, setMessages }) {
             return <MessageBubble key={index} message={item} />;
           }
 
+          // ✅ FIXED CALL UI
+          const isOutbound = item.direction === 'outbound';
+
           return (
-            <div key={index} style={{ padding: '4px 10px' }}>
-              <div style={{
-                background: '#1e1e1e',
-                borderRadius: '12px',
-                padding: '10px',
-                fontSize: '13px'
-              }}>
-                <div style={{ color: '#aaa', marginBottom: '6px' }}>
+            <div
+              key={index}
+              style={{
+                display: 'flex',
+                justifyContent: isOutbound ? 'flex-end' : 'flex-start',
+                padding: '4px 10px'
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: '65%',
+                  background: isOutbound ? '#1d9bf0' : '#1e1e1e',
+                  color: '#fff',
+                  borderRadius: '12px',
+                  padding: '10px',
+                  fontSize: '13px'
+                }}
+              >
+                <div style={{ marginBottom: '6px', opacity: 0.8 }}>
                   <Phone size={14} style={{ marginRight: '5px' }} />
-                  Call {item.status} {item.duration ? `- ${item.duration}s` : ''}
+                  Call {item.status}
+                  {item.duration ? ` - ${item.duration}s` : ''}
                 </div>
+
+                {item.recordingSid && (
+                  <audio controls style={{ width: '200px', height: '32px' }}>
+                    <source
+                      src={`${process.env.REACT_APP_API_URL}/api/recordings/${item.recordingSid}`}
+                      type="audio/mpeg"
+                    />
+                  </audio>
+                )}
               </div>
             </div>
           );
