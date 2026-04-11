@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Phone } from "lucide-react"; // ✅ ADD THIS
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
@@ -27,7 +28,6 @@ function Header({
           <h3>{title}</h3>
           {subtitle && <div className="header-meta">{subtitle}</div>}
 
-          {/* ðŸ”¥ DROPDOWN (UNCHANGED) */}
           {phones.length > 1 && (
             <div style={{ position: 'relative', marginTop: '6px', display: 'inline-block' }}>
               <button
@@ -42,7 +42,7 @@ function Header({
                   border: '1px solid #333'
                 }}
               >
-                {activeLabel.toUpperCase()} â–¼
+                {activeLabel.toUpperCase()} ▼ {/* ✅ FIXED */}
               </button>
 
               {showDropdown && (
@@ -101,7 +101,7 @@ function Header({
         <button className="button-icon">Notes</button>
         <button className="button-icon">Options</button>
 
-        {/* âœ… CALL BUTTON (FIXED + SAFE) */}
+        {/* ✅ CLEAN CALL BUTTON */}
         <button
           onClick={onCall}
           style={{
@@ -111,10 +111,14 @@ function Header({
             padding: '6px 12px',
             borderRadius: '6px',
             marginLeft: '8px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}
         >
-          {callLabel || 'ðŸ“ž Call'}
+          <Phone size={16} />
+          {callLabel || 'Call'}
         </button>
       </div>
     </div>
