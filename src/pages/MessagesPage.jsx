@@ -4,6 +4,7 @@ import ChatWindow from '../components/ChatWindow';
 import NewMessageModal from '../components/NewMessageModal';
 import socket from '../socket';
 import BASE_URL from '../config/api';
+import { Plus } from 'lucide-react';
 
 // 🔥 NORMALIZE PHONE (CRITICAL FIX)
 const normalize = (phone) => {
@@ -190,20 +191,24 @@ const mergedList = contacts.map((contact) => {
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <button
-          onClick={() => setShowModal(true)}
-          style={{
-            margin: '10px',
-            padding: '10px',
-            background: '#1d9bf0',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          ➕ New Message
-        </button>
+  onClick={() => setShowModal(true)}
+  style={{
+    margin: '10px',
+    padding: '10px',
+    background: '#1d9bf0',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  }}
+>
+  <Plus size={16} />
+  New Message
+</button>
 
         <ContactsList
           list={sortedList}

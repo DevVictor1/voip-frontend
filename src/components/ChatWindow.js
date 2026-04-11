@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { Phone } from 'lucide-react';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
@@ -11,13 +12,11 @@ const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 function ChatWindow({ chat, messages, setMessages }) {
   const listRef = useRef(null);
   const [callLogs, setCallLogs] = useState([]);
-
   const [callStatus, setCallStatus] = useState(null);
   const [currentCallSid, setCurrentCallSid] = useState(null);
 
   const safeMessages = messages || [];
 
-  // âœ… FORMATTER (moved outside handleCall)
   const formatPhone = (num) => {
     if (!num) return '';
 
@@ -44,13 +43,11 @@ function ChatWindow({ chat, messages, setMessages }) {
     if (!chat?.phone) return;
 
     try {
-      const res = await fetch(
-        `${BASE_URL}/api/calls/by-number/${chat.phone}`
-      );
+      const res = await fetch(`${BASE_URL}/api/calls/by-number/${chat.phone}`);
       const data = await res.json();
       setCallLogs(data || []);
     } catch (err) {
-      console.error('âŒ Fetch call logs error:', err);
+      console.error('Fetch call logs error:', err);
     }
   }, [chat?.phone]);
 
@@ -58,18 +55,13 @@ function ChatWindow({ chat, messages, setMessages }) {
     fetchCalls();
   }, [fetchCalls]);
 
-  // ðŸ”¥ STATUS (REAL TWILIO STATE)
   useEffect(() => {
     const handleStatus = (data) => {
-      console.log('ðŸ“¡ CALL STATUS UPDATE:', data);
-
       if (currentCallSid && data.callSid !== currentCallSid) return;
 
       setCallStatus(data.status);
 
-      if (
-        ['completed', 'failed', 'no-answer', 'busy', 'canceled'].includes(data.status)
-      ) {
+      if (['completed', 'failed', 'no-answer', 'busy', 'canceled'].includes(data.status)) {
         setTimeout(() => {
           setCallStatus(null);
           setCurrentCallSid(null);
@@ -81,25 +73,18 @@ function ChatWindow({ chat, messages, setMessages }) {
     return () => socket.off('callStatus', handleStatus);
   }, [currentCallSid]);
 
-  // ðŸ”„ REFRESH LOGS
   useEffect(() => {
-    const handleCallUpdate = () => fetchCalls();
-
-    socket.on('callStatus', handleCallUpdate);
-    return () => socket.off('callStatus', handleCallUpdate);
+    socket.on('callStatus', fetchCalls);
+    return () => socket.off('callStatus', fetchCalls);
   }, [fetchCalls]);
 
-  // ðŸ’¬ MESSAGE REALTIME
   useEffect(() => {
     const handleNewMessage = (msg) => {
       if (!chat?.phone) return;
 
       const current = normalize(chat.phone);
 
-      if (
-        normalize(msg.from) === current ||
-        normalize(msg.to) === current
-      ) {
+      if (normalize(msg.from) === current || normalize(msg.to) === current) {
         setMessages((prev) => [...prev, msg]);
       }
     };
@@ -114,8 +99,9 @@ function ChatWindow({ chat, messages, setMessages }) {
   ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   useEffect(() => {
-    if (!listRef.current) return;
-    listRef.current.scrollTop = listRef.current.scrollHeight;
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
+    }
   }, [mergedTimeline]);
 
   if (!chat) {
@@ -135,22 +121,15 @@ function ChatWindow({ chat, messages, setMessages }) {
       ? `${chat.firstName || ''} ${chat.lastName || ''}`.trim()
       : chat.phone;
 
-  // âœ… REAL SOFTPHONE CALL (FIXED)
   const handleCall = async () => {
     if (callStatus === 'initiated' || callStatus === 'ringing') return;
 
     try {
       setCallStatus('initiated');
-
       const formatted = formatPhone(chat.phone);
-
       await startCall(formatted);
-
-      // âŒ DO NOT force "in-progress"
-      // Twilio will update it correctly via socket
-
     } catch (err) {
-      console.error('âŒ Call failed:', err);
+      console.error('Call failed:', err);
       setCallStatus(null);
     }
   };
@@ -160,7 +139,7 @@ function ChatWindow({ chat, messages, setMessages }) {
       case 'initiated': return 'Calling...';
       case 'ringing': return 'Ringing...';
       case 'in-progress': return 'In Call';
-      default: return 'ðŸ“ž Call';
+      default: return 'Call';
     }
   };
 
@@ -169,21 +148,10 @@ function ChatWindow({ chat, messages, setMessages }) {
 
       <Header
         title={displayName}
-        subtitle={
-          <>
-            {chat.dba && <div>DBA: {chat.dba}</div>}
-            {chat.mid && <div>MID: {chat.mid}</div>}
-          </>
-        }
         status="Active"
         chat={chat}
         callStatus={callStatus}
         callLabel={getCallLabel()}
-        onSwitchNumber={(num) => {
-          window.dispatchEvent(
-            new CustomEvent('switchChatNumber', { detail: num })
-          );
-        }}
         onCall={handleCall}
       />
 
@@ -195,34 +163,17 @@ function ChatWindow({ chat, messages, setMessages }) {
           }
 
           return (
-            <div
-              key={index}
-              style={{
-                display: 'flex',
-                justifyContent: 'flex-start',
-                padding: '4px 10px'
-              }}
-            >
-              <div
-                style={{
-                  maxWidth: '65%',
-                  background: '#1e1e1e',
-                  borderRadius: '12px',
-                  padding: '10px',
-                  fontSize: '13px',
-                  border: '1px solid #2a2a2a'
-                }}
-              >
+            <div key={index} style={{ padding: '4px 10px' }}>
+              <div style={{
+                background: '#1e1e1e',
+                borderRadius: '12px',
+                padding: '10px',
+                fontSize: '13px'
+              }}>
                 <div style={{ color: '#aaa', marginBottom: '6px' }}>
-                  ðŸ“ž Call {item.status}
-                  {item.duration && ` â€¢ ${item.duration}s`}
+                  <Phone size={14} style={{ marginRight: '5px' }} />
+                  Call {item.status} {item.duration ? `- ${item.duration}s` : ''}
                 </div>
-
-                {item.recordingUrl && (
-                  <audio controls style={{ width: '200px', height: '32px' }}>
-                    <source src={item.recordingUrl} type="audio/mpeg" />
-                  </audio>
-                )}
               </div>
             </div>
           );

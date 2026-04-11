@@ -1,4 +1,5 @@
 import ImportContacts from "./ImportContacts";
+import { X } from "lucide-react";
 import BASE_URL from "../config/api";
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
@@ -17,7 +18,6 @@ function ContactsList({ list, activeId, onSelect }) {
     window.location.reload();
   };
 
-  // âœ… AUTO ASSIGN ON CLICK (REAL CRM BEHAVIOR)
   const autoAssign = async (item) => {
     if (!item._id || !item.isUnassigned) return;
 
@@ -51,17 +51,16 @@ function ContactsList({ list, activeId, onSelect }) {
               className="contact-card"
               style={{ position: 'relative' }}
               onClick={async () => {
-  // ðŸ”¥ ONLY assign if it's unassigned
-  if (item.isUnassigned) {
-    await autoAssign(item);
-    window.location.reload(); // refresh to reflect new state
-  }
+                if (item.isUnassigned) {
+                  await autoAssign(item);
+                  window.location.reload();
+                }
 
-  if (item.phone) onSelect(item.phone);
-}}
+                if (item.phone) onSelect(item.phone);
+              }}
             >
 
-              {/* âŒ DELETE (UNCHANGED) */}
+              {/* DELETE */}
               {item._id && (
                 <button
                   onClick={(e) => handleDelete(item._id, e)}
@@ -77,41 +76,37 @@ function ContactsList({ list, activeId, onSelect }) {
                     padding: '2px 6px'
                   }}
                 >
-                  âœ•
+                  <X size={12} />
                 </button>
               )}
 
-              {/* âœ… STATUS BADGE (CLEAN UX) */}
+              {/* STATUS */}
               {!item.isUnassigned && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '8px',
-                    right: '8px',
-                    background: '#333',
-                    color: '#fff',
-                    borderRadius: '4px',
-                    padding: '3px 6px',
-                    fontSize: '10px'
-                  }}
-                >
+                <div style={{
+                  position: 'absolute',
+                  bottom: '8px',
+                  right: '8px',
+                  background: '#333',
+                  color: '#fff',
+                  borderRadius: '4px',
+                  padding: '3px 6px',
+                  fontSize: '10px'
+                }}>
                   Assigned
                 </div>
               )}
 
               {item.isUnassigned && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '8px',
-                    right: '8px',
-                    background: '#1d9bf0',
-                    color: '#fff',
-                    borderRadius: '4px',
-                    padding: '3px 6px',
-                    fontSize: '10px'
-                  }}
-                >
+                <div style={{
+                  position: 'absolute',
+                  bottom: '8px',
+                  right: '8px',
+                  background: '#1d9bf0',
+                  color: '#fff',
+                  borderRadius: '4px',
+                  padding: '3px 6px',
+                  fontSize: '10px'
+                }}>
                   Unassigned
                 </div>
               )}
@@ -134,7 +129,7 @@ function ContactsList({ list, activeId, onSelect }) {
                       normalize(activeId) === normalize(p.number) ? 'active' : ''
                     }`}
                   >
-                    {p.label} â€¢ {p.number}
+                    {p.label} - {p.number} {/* FIXED */}
                   </div>
                 ))}
               </div>

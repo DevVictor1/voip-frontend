@@ -40,7 +40,7 @@ function Sidebar() {
       <div className="sidebar-footer">
         <span>Workspace</span>
         <strong>New York, NY</strong>
-        <span>Enterprise plan â€¢ 42 seats</span>
+        <span>Enterprise plan • 42 seats</span> {/* ✅ FIXED */}
       </div>
     </aside>
   );
