@@ -163,7 +163,8 @@ function ChatWindow({ chat, messages, setMessages }) {
           }
 
           // ✅ FIXED CALL UI
-          const isOutbound = item.direction === 'outbound';
+          const isOutbound =
+  normalize(item.from) === normalize(chat.phone);
 
           return (
             <div
