@@ -15,12 +15,26 @@ body {
 
 html,
 body {
+  min-height: 100vh;
   height: 100%;
   overflow: hidden;
 }
 
 #root {
+  min-height: 100vh;
   height: 100%;
+}
+
+@media (max-width: 768px) {
+  html,
+  body {
+    height: auto;
+    overflow-y: auto;
+  }
+
+  #root {
+    height: auto;
+  }
 }
 
 a {

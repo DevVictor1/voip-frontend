@@ -78,6 +78,19 @@
   .page-shell {
     flex-direction: column;
   }
+
+  .app-root,
+  .app-shell,
+  .app-main,
+  .page-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .app-main {
+    overflow-y: auto;
+  }
 }
 
 @media (max-width: 480px) {

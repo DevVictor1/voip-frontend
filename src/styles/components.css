@@ -119,6 +119,17 @@
   gap: 14px;
 }
 
+.header-back {
+  display: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
 .header-title-text {
   display: grid;
   gap: 4px;
@@ -532,6 +543,7 @@
   min-height: 0;
   background: linear-gradient(180deg, rgba(248, 250, 255, 0.6), rgba(255, 255, 255, 0.9));
   scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 .message-row {
@@ -792,6 +804,23 @@
 
   .chat-window {
     width: 100%;
+  }
+
+  .header-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .button-icon {
+    padding: 10px 14px;
+    min-height: 40px;
+  }
+
+  .message-input button,
+  .call-btn,
+  .import-contacts-button {
+    min-height: 40px;
   }
 }
 

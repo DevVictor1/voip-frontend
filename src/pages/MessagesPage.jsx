@@ -213,10 +213,12 @@ function MessagesPage() {
     ? { phone: normalize(activeChatId), phones: [] }
     : null;
 
-  return (
-    <div className="page-shell">
+  const isChatOpen = Boolean(activeChatId);
 
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+  return (
+    <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}`}>
+
+      <div className="messages-contacts-pane">
 
         <div style={{ display: 'flex', gap: '8px', padding: '10px' }}>
 
@@ -291,13 +293,17 @@ function MessagesPage() {
         />
       </div>
 
-      <ChatWindow
-        chat={activeChat}
-        messages={messages}
-        setMessages={setMessages}
-        onSwitchNumber={(num) => setActiveChatId(normalize(num))}
-        onAssignContact={handleAssignContact} // ✅ PASS DOWN
-      />
+      <div className="messages-chat-pane">
+        <ChatWindow
+          chat={activeChat}
+          messages={messages}
+          setMessages={setMessages}
+          onSwitchNumber={(num) => setActiveChatId(normalize(num))}
+          onAssignContact={handleAssignContact} // ✅ PASS DOWN
+          onBack={() => setActiveChatId(null)}
+          showBack={isChatOpen}
+        />
+      </div>
 
       <NewMessageModal
         isOpen={showModal}

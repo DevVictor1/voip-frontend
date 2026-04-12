@@ -9,6 +9,8 @@ function Header({
   status,
   chat,
   onSwitchNumber,
+  onBack,
+  showBack,
   onCall,
   callLabel,
   onAssignContact
@@ -64,6 +66,15 @@ function Header({
     <div className="header">
 
       <div className="header-title">
+        {showBack && (
+          <button
+            className="header-back"
+            type="button"
+            onClick={onBack}
+          >
+            Back
+          </button>
+        )}
         <div>
           <h3>{title}</h3>
           {subtitle && <div className="header-meta">{subtitle}</div>}

@@ -9,7 +9,15 @@ import { startCall } from '../services/voice';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
-function ChatWindow({ chat, messages, setMessages, onSwitchNumber, onAssignContact }) {
+function ChatWindow({
+  chat,
+  messages,
+  setMessages,
+  onSwitchNumber,
+  onAssignContact,
+  onBack,
+  showBack
+}) {
   const listRef = useRef(null);
   const [callLogs, setCallLogs] = useState([]);
   const [callStatus, setCallStatus] = useState(null);
@@ -155,6 +163,8 @@ function ChatWindow({ chat, messages, setMessages, onSwitchNumber, onAssignConta
         onCall={handleCall}
         onSwitchNumber={onSwitchNumber}
         onAssignContact={onAssignContact}
+        onBack={onBack}
+        showBack={showBack}
       />
 
       <div className="message-list" ref={listRef}>
