@@ -21,7 +21,7 @@ function App() {
   const [isMuted, setIsMuted] = useState(false);
   const [onHold, setOnHold] = useState(false);
 
-  // ðŸ”¥ INIT VOICE
+  // INIT VOICE
   useEffect(() => {
     const startVoice = async () => {
       await initVoice();
@@ -34,7 +34,7 @@ function App() {
     };
   }, []);
 
-  // ðŸ”¥ LISTEN FOR ACCEPTED CALL
+  // LISTEN FOR ACCEPTED CALL
   useEffect(() => {
     const handler = (e) => {
       const conn = e.detail;
@@ -55,19 +55,19 @@ function App() {
   // SOCKET (optional)
   useEffect(() => {
     socket.on('incomingCall', (data) => {
-      console.log('ðŸ“¡ Incoming (socket):', data);
+      console.log('Incoming (socket):', data);
     });
 
     return () => socket.off('incomingCall');
   }, []);
 
-  // ðŸ”´ END
+  // END CALL
   const hangUp = () => {
     disconnectCall();
     setConnection(null);
   };
 
-  // ðŸ”‡ MUTE
+  // MUTE
   const toggleMute = () => {
     if (!isMuted) {
       muteCall();
@@ -77,35 +77,32 @@ function App() {
     setIsMuted(!isMuted);
   };
 
-  // â¸ HOLD (enhanced)
+  // HOLD
   const toggleHold = () => {
-  if (!connection) return;
+    if (!connection) return;
 
-  if (!onHold) {
-    // ðŸ”‡ Mute mic (user cannot speak)
-    connection.mute(true);
+    if (!onHold) {
+      connection.mute(true);
+      console.log('Call on hold (simulated)');
+    } else {
+      connection.mute(false);
+      console.log('Call resumed');
+    }
 
-    console.log('â¸ Call on hold (simulated)');
-  } else {
-    connection.mute(false);
-
-    console.log('â–¶ï¸ Call resumed');
-  }
-
-  setOnHold(!onHold);
-};
+    setOnHold(!onHold);
+  };
 
   return (
     <div className="App">
 
-      {/* ðŸ”¥ MAIN POPUP SYSTEM */}
+      {/* MAIN POPUP SYSTEM */}
       <IncomingCallPopup />
 
-      {/* ðŸŸ¢ ACTIVE CALL UI */}
+      {/* ACTIVE CALL UI */}
       {connection && (
         <div style={callStyle}>
           <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>
-            ðŸŸ¢ In Call
+            In Call
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -114,7 +111,7 @@ function App() {
             </button>
 
             <button onClick={toggleHold} style={btn}>
-              {onHold ? 'Resume' : 'Mute (Hold)'}
+              {onHold ? 'Resume' : 'Hold'}
             </button>
 
             <button onClick={hangUp} style={endBtn}>
@@ -126,23 +123,23 @@ function App() {
 
       <BrowserRouter>
 
-  {/* Pages WITH layout */}
-  <Routes>
-    <Route path="/" element={<MainLayout><Dashboard /></MainLayout>} />
-    <Route path="/messages" element={<MainLayout><Messages /></MainLayout>} />
-    <Route path="/calls" element={<MainLayout><CallLogs /></MainLayout>} />
-    <Route path="/users" element={<MainLayout><Users /></MainLayout>} />
+        {/* Pages WITH layout */}
+        <Routes>
+          <Route path="/" element={<MainLayout><Dashboard /></MainLayout>} />
+          <Route path="/messages" element={<MainLayout><Messages /></MainLayout>} />
+          <Route path="/calls" element={<MainLayout><CallLogs /></MainLayout>} />
+          <Route path="/users" element={<MainLayout><Users /></MainLayout>} />
 
-    {/* ✅ Opt-in WITHOUT layout */}
-    <Route path="/opt-in" element={<OptInPage />} />
-  </Routes>
+          {/* Opt-in WITHOUT layout */}
+          <Route path="/opt-in" element={<OptInPage />} />
+        </Routes>
 
       </BrowserRouter>
     </div>
   );
 }
 
-// ðŸŽ¨ STYLES (UPGRADED)
+// STYLES
 const callStyle = {
   position: 'fixed',
   bottom: '20px',
