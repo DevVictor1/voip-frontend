@@ -208,6 +208,8 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  width: 100%;
+  overflow-x: auto;
   border-radius: 16px;
   border: 1px solid var(--border);
 }
@@ -350,6 +352,10 @@
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
+.dashboard-page > * {
+  min-width: 0;
+}
+
 @keyframes pulse {
   0% {
     opacity: 0.6;
@@ -374,6 +380,7 @@
   .table {
     display: block;
     overflow-x: auto;
+    max-width: 100%;
     white-space: nowrap;
   }
 
