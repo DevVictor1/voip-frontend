@@ -274,6 +274,7 @@ function MessagesPage() {
         chat={activeChat}
         messages={messages}
         setMessages={setMessages}
+        onSwitchNumber={(num) => setActiveChatId(normalize(num))}
       />
 
       <NewMessageModal

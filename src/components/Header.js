@@ -68,6 +68,7 @@ function Header({
                       <div
                         key={i}
                         onClick={() => {
+                          if (!onSwitchNumber) return;
                           onSwitchNumber(p.number);
                           setShowDropdown(false);
                         }}
