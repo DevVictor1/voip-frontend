@@ -44,12 +44,21 @@ function ContactsList({ list, activeId, onSelect }) {
 
         {list.map((item, index) => {
           const phones = item.phones || [];
+          const isActive =
+            normalize(activeId) === normalize(item.phone);
+
+          const hasUnread = item.unread > 0;
 
           return (
             <div
               key={index}
               className="contact-card"
-              style={{ position: 'relative' }}
+              style={{
+                position: 'relative',
+                background: hasUnread ? '#1a1f2b' : undefined,
+                borderLeft: hasUnread ? '3px solid #1d9bf0' : '3px solid transparent',
+                fontWeight: hasUnread ? 'bold' : 'normal'
+              }}
               onClick={async () => {
                 if (item.isUnassigned) {
                   await autoAssign(item);
@@ -129,25 +138,43 @@ function ContactsList({ list, activeId, onSelect }) {
                       normalize(activeId) === normalize(p.number) ? 'active' : ''
                     }`}
                   >
-                    {p.label} - {p.number} {/* FIXED */}
+                    {p.label} - {p.number}
                   </div>
                 ))}
               </div>
 
-              {item.unread > 0 && (
+              {/* 🔥 UNREAD COUNT BADGE */}
+              {hasUnread && (
                 <div style={{
                   position: 'absolute',
                   right: '10px',
                   top: '10px',
-                  width: '8px',
-                  height: '8px',
+                  minWidth: '18px',
+                  height: '18px',
                   background: '#1d9bf0',
-                  borderRadius: '50%'
-                }} />
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  color: '#fff',
+                  padding: '0 5px'
+                }}>
+                  {item.unread}
+                </div>
               )}
 
               {item.lastMessage && (
-                <div className="contact-last">{item.lastMessage}</div>
+                <div
+                  className="contact-last"
+                  style={{
+                    opacity: hasUnread ? 1 : 0.7,
+                    fontWeight: hasUnread ? 'bold' : 'normal'
+                  }}
+                >
+                  {item.lastMessage}
+                </div>
               )}
             </div>
           );

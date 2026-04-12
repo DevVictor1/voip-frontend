@@ -6,7 +6,7 @@ import socket from '../socket';
 import BASE_URL from '../config/api';
 import { Plus } from 'lucide-react';
 
-// 🔥 NORMALIZE PHONE (CRITICAL FIX)
+// NORMALIZE PHONE
 const normalize = (phone) => {
   if (!phone) return '';
   return phone.toString().replace(/\D/g, '').slice(-10);
@@ -19,59 +19,61 @@ function MessagesPage() {
   const [messages, setMessages] = useState([]);
   const [showModal, setShowModal] = useState(false);
 
-  // 📚 FETCH CONVERSATIONS
+  // ✅ NEW: TAB STATE
+  const [activeTab, setActiveTab] = useState('all');
+
+  // FETCH CONVERSATIONS
   const fetchConversations = useCallback(async () => {
-  try {
-    const res = await fetch(`${BASE_URL}/api/sms/conversations`);
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    setChats(data || []);
-  } catch (err) {
-    console.error('❌ Fetch conversations error:', err);
-  }
-}, []);
+    try {
+      const res = await fetch(`${BASE_URL}/api/sms/conversations`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setChats(data || []);
+    } catch (err) {
+      console.error('Fetch conversations error:', err);
+    }
+  }, []);
 
-  // 👤 FETCH CONTACTS (🔥 WITH ROLE)
-const fetchContacts = useCallback(async () => {
-  try {
-    const role = 'admin';
-    const userId = 'user_1';
+  // FETCH CONTACTS
+  const fetchContacts = useCallback(async () => {
+    try {
+      const role = 'admin';
+      const userId = 'user_1';
 
-    const res = await fetch(
-      `${BASE_URL}/api/contacts?role=${role}&userId=${userId}`
-    );
+      const res = await fetch(
+        `${BASE_URL}/api/contacts?role=${role}&userId=${userId}`
+      );
 
-    if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error();
 
-    const data = await res.json();
-    setContacts(data || []);
+      const data = await res.json();
+      setContacts(data || []);
+    } catch (err) {
+      console.error('Fetch contacts error:', err);
+    }
+  }, []);
 
-  } catch (err) {
-    console.error('❌ Fetch contacts error:', err);
-  }
-}, []);
-
-  // 💬 FETCH MESSAGES
+  // FETCH MESSAGES
   const fetchMessages = async (phone) => {
-  try {
-    const res = await fetch(`${BASE_URL}/api/sms/messages/${phone}`);
-    if (!res.ok) throw new Error();
+    try {
+      const res = await fetch(`${BASE_URL}/api/sms/messages/${phone}`);
+      if (!res.ok) throw new Error();
 
-    const data = await res.json();
-    setMessages(data || []);
-  } catch (err) {
-    console.error('❌ Fetch messages error:', err);
-    setMessages([]);
-  }
-};
+      const data = await res.json();
+      setMessages(data || []);
+    } catch (err) {
+      console.error('Fetch messages error:', err);
+      setMessages([]);
+    }
+  };
 
-  // 🚀 INITIAL LOAD
+  // INITIAL LOAD
   useEffect(() => {
     fetchConversations();
     fetchContacts();
   }, [fetchConversations, fetchContacts]);
 
-  // 🔄 LOAD CHAT
+  // LOAD CHAT
   useEffect(() => {
     if (!activeChatId) return;
 
@@ -90,7 +92,7 @@ const fetchContacts = useCallback(async () => {
     loadChat();
   }, [activeChatId, fetchConversations]);
 
-  // 🔁 SWITCH NUMBER EVENT
+  // SWITCH NUMBER EVENT
   useEffect(() => {
     const handler = (e) => {
       setActiveChatId(normalize(e.detail));
@@ -100,7 +102,7 @@ const fetchContacts = useCallback(async () => {
     return () => window.removeEventListener('switchChatNumber', handler);
   }, []);
 
-  // ⚡ REAL-TIME
+  // REAL-TIME
   useEffect(() => {
     const handleMessage = (msg) => {
       const msgFrom = normalize(msg.from);
@@ -118,34 +120,33 @@ const fetchContacts = useCallback(async () => {
     return () => socket.off('newMessage', handleMessage);
   }, [activeChatId, fetchConversations]);
 
-  // 🔥 START CHAT
   const handleStartChat = (phone) => {
     setActiveChatId(normalize(phone));
     setMessages([]);
   };
 
-  // 🔥 MERGE CONTACTS + CHATS (FIXED)
-const mergedList = contacts.map((contact) => {
-  const phones = contact.phones || [];
+  // MERGE CONTACTS + CHATS
+  const mergedList = contacts.map((contact) => {
+    const phones = contact.phones || [];
+    const numbers = phones.map((p) => normalize(p.number));
 
-  const numbers = phones.map((p) => normalize(p.number));
+    const chat = chats.find((c) =>
+      numbers.includes(normalize(c.phone))
+    );
 
-  const chat = chats.find((c) =>
-    numbers.includes(normalize(c.phone))
-  );
+    return {
+      ...contact,
+      phones,
+      phone: phones[0]?.number || '',
+      dba: contact.dba,
+      lastMessage: chat?.lastMessage || '',
+      unread: chat?.unread || 0,
+      updatedAt: chat?.updatedAt || 0,
+      isInternal: false // 🔥 future use
+    };
+  });
 
-  return {
-    ...contact,
-    phones, // 🔥 KEEP ORIGINAL FORMAT (IMPORTANT)
-    phone: phones[0]?.number || '', // 🔥 DO NOT normalize here
-    dba: contact.dba,
-    lastMessage: chat?.lastMessage || '',
-    unread: chat?.unread || 0,
-    updatedAt: chat?.updatedAt || 0,
-  };
-});
-
-  // 🔥 ADD UNKNOWN CHATS (FIXED)
+  // ADD UNKNOWN CHATS
   chats.forEach((chat) => {
     const phone = normalize(chat.phone);
 
@@ -161,11 +162,12 @@ const mergedList = contacts.map((contact) => {
         lastMessage: chat.lastMessage,
         unread: chat.unread,
         updatedAt: chat.updatedAt,
+        isInternal: false
       });
     }
   });
 
-  // 🔥 SORT (UNREAD FIRST + LATEST)
+  // SORT
   const sortedList = [...mergedList].sort((a, b) => {
     if (b.unread !== a.unread) {
       return b.unread - a.unread;
@@ -173,7 +175,18 @@ const mergedList = contacts.map((contact) => {
     return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
   });
 
-  // 🔥 ACTIVE CHAT FIX
+  // ✅ FILTER LOGIC (NEW)
+  let filteredList = sortedList;
+
+  if (activeTab === 'unread') {
+    filteredList = sortedList.filter(c => c.unread > 0);
+  }
+
+  if (activeTab === 'team') {
+    filteredList = sortedList.filter(c => c.isInternal);
+  }
+
+  // ACTIVE CHAT
   const activeChatBase = sortedList.find((c) =>
     (c.phones || []).some(
       (p) => normalize(p.number) === normalize(activeChatId)
@@ -190,28 +203,50 @@ const mergedList = contacts.map((contact) => {
     <div className="page-shell">
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
+        {/* 🔥 TABS UI */}
+        <div style={{ display: 'flex', gap: '8px', padding: '10px' }}>
+          {['all', 'unread', 'team'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                cursor: 'pointer',
+                background: activeTab === tab ? '#1d9bf0' : '#333',
+                color: '#fff'
+              }}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* NEW MESSAGE */}
         <button
-  onClick={() => setShowModal(true)}
-  style={{
-    margin: '10px',
-    padding: '10px',
-    background: '#1d9bf0',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px'
-  }}
->
-  <Plus size={16} />
-  New Message
-</button>
+          onClick={() => setShowModal(true)}
+          style={{
+            margin: '10px',
+            padding: '10px',
+            background: '#1d9bf0',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <Plus size={16} />
+          New Message
+        </button>
 
         <ContactsList
-          list={sortedList}
+          list={filteredList} // ✅ now filtered
           activeId={normalize(activeChatId)}
           onSelect={(num) => setActiveChatId(normalize(num))}
         />
