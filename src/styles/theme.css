@@ -19,9 +19,9 @@
   --warning: #f59e0b;
   --danger: #ef4444;
   --border: #e3e7f0;
-  --shadow-sm: 0 6px 16px rgba(15, 23, 42, 0.08);
-  --shadow-md: 0 18px 40px rgba(15, 23, 42, 0.12);
-  --shadow-lg: 0 30px 60px rgba(15, 23, 42, 0.16);
+  --shadow-sm: 0 8px 20px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 20px 46px rgba(15, 23, 42, 0.12);
+  --shadow-lg: 0 32px 64px rgba(15, 23, 42, 0.16);
   --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 10px;

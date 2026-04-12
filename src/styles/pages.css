@@ -2,12 +2,14 @@
   font-family: var(--font-display);
   font-size: 22px;
   margin: 0;
+  line-height: 1.2;
 }
 
 .page-subtitle {
   color: var(--text-muted);
   font-size: 14px;
   margin-top: 6px;
+  line-height: 1.5;
 }
 
 .stats-grid {
@@ -24,6 +26,7 @@
   display: grid;
   gap: 8px;
   box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .stat-label {
@@ -44,6 +47,7 @@
   border: 1px solid var(--border);
   padding: 20px;
   box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .section-header {
@@ -88,6 +92,7 @@
   display: grid;
   gap: 10px;
   box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .user-card h4 {
@@ -647,4 +652,7 @@
   .messages-chat-pane {
     width: 100%;
   }
+}
+.table tbody tr:hover {
+  background: #f8fafc;
 }
