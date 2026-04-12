@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
+import { PhoneIncoming } from 'lucide-react'; // ✅ clean icon
 import socket from '../socket';
 
 function IncomingCallPopup() {
   const [call, setCall] = useState(null);
   const [contact, setContact] = useState(null);
 
-  // ðŸ”¥ INCOMING CALL
+  // INCOMING CALL
   useEffect(() => {
     socket.on('incomingCall', (data) => {
-      console.log('ðŸ“¡ Incoming:', data);
+      console.log('Incoming:', data);
 
       setContact(data.contact || null);
 
@@ -20,7 +21,7 @@ function IncomingCallPopup() {
     return () => socket.off('incomingCall');
   }, []);
 
-  // ðŸ”¥ BIND CONNECTION
+  // BIND CONNECTION
   useEffect(() => {
     const handler = (e) => {
       setCall(e.detail);
@@ -33,10 +34,10 @@ function IncomingCallPopup() {
     };
   }, []);
 
-  // ðŸ”¥ CLOSE POPUP WHEN CALL ENDS (CRITICAL FIX)
+  // CLOSE POPUP WHEN CALL ENDS
   useEffect(() => {
-    socket.on('callEnded', (data) => {
-      console.log('ðŸ”´ Call ended (popup close)');
+    socket.on('callEnded', () => {
+      console.log('Call ended (popup close)');
       setCall(null);
       setContact(null);
     });
@@ -52,7 +53,10 @@ function IncomingCallPopup() {
 
   return (
     <div style={style}>
-      <div style={title}>ðŸ“ž Incoming Call</div>
+      <div style={title}>
+        <PhoneIncoming size={16} style={{ marginRight: '6px' }} />
+        Incoming Call
+      </div>
 
       <div style={nameStyle}>{name}</div>
 
@@ -94,7 +98,7 @@ function IncomingCallPopup() {
   );
 }
 
-// ðŸŽ¨ BETTER UI
+// STYLES
 const style = {
   position: 'fixed',
   bottom: '20px',
@@ -110,7 +114,9 @@ const style = {
 
 const title = {
   fontWeight: 'bold',
-  marginBottom: '10px'
+  marginBottom: '10px',
+  display: 'flex',
+  alignItems: 'center'
 };
 
 const nameStyle = {
