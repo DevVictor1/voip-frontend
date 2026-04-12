@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Phone } from "lucide-react"; // ✅ ADD THIS
+import { Phone } from "lucide-react";
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
@@ -21,7 +21,7 @@ function Header({
     phones.find(p => normalize(p.number) === normalize(activeNumber))?.label || 'PHONE';
 
   return (
-    <div className="header">
+    <div className="header" style={{ position: 'relative', zIndex: 1 }}>
 
       <div className="header-title">
         <div>
@@ -42,7 +42,7 @@ function Header({
                   border: '1px solid #333'
                 }}
               >
-                {activeLabel.toUpperCase()} ▼ {/* ✅ FIXED */}
+                {activeLabel.toUpperCase()} ▼
               </button>
 
               {showDropdown && (
@@ -54,9 +54,10 @@ function Header({
                     background: '#fff',
                     borderRadius: '8px',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    zIndex: 9999,
+                    zIndex: 999999, // 🔥 INCREASED
                     minWidth: '200px',
-                    overflow: 'hidden'
+                    overflow: 'visible', // 🔥 FIXED
+                    pointerEvents: 'auto' // 🔥 ENSURE CLICK
                   }}
                 >
                   {phones.map((p, i) => {
@@ -101,7 +102,6 @@ function Header({
         <button className="button-icon">Notes</button>
         <button className="button-icon">Options</button>
 
-        {/* ✅ CLEAN CALL BUTTON */}
         <button
           onClick={onCall}
           style={{
