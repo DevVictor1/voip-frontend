@@ -63,6 +63,29 @@ function MessagesPage() {
     }
   };
 
+  // ✅ 🔥 NEW: LIVE ASSIGN UPDATE
+  const handleAssignContact = async (contactId) => {
+    try {
+      await fetch(`${BASE_URL}/api/contacts/${contactId}/assign`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: "user_1" })
+      });
+
+      // 🔥 UPDATE LOCAL STATE (NO RELOAD)
+      setContacts((prev) =>
+        prev.map((c) =>
+          c._id === contactId
+            ? { ...c, isUnassigned: false }
+            : c
+        )
+      );
+
+    } catch (err) {
+      console.error("Assign error:", err);
+    }
+  };
+
   useEffect(() => {
     fetchConversations();
     fetchContacts();
@@ -164,7 +187,6 @@ function MessagesPage() {
     return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
   });
 
-  // ✅ NEW COUNTS (SAFE ADD)
   const unreadCount = sortedList.filter(c => c.unread > 0).length;
   const allCount = sortedList.length;
   const teamCount = sortedList.filter(c => c.isInternal).length;
@@ -196,7 +218,6 @@ function MessagesPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-        {/* 🔥 UPDATED TABS WITH COUNTS */}
         <div style={{ display: 'flex', gap: '8px', padding: '10px' }}>
 
           <button
@@ -275,6 +296,7 @@ function MessagesPage() {
         messages={messages}
         setMessages={setMessages}
         onSwitchNumber={(num) => setActiveChatId(normalize(num))}
+        onAssignContact={handleAssignContact} // ✅ PASS DOWN
       />
 
       <NewMessageModal

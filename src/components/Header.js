@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { Phone } from "lucide-react";
-import BASE_URL from "../config/api"; // ✅ ADDED
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
@@ -11,7 +10,8 @@ function Header({
   chat,
   onSwitchNumber,
   onCall,
-  callLabel
+  callLabel,
+  onAssignContact
 }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [assigning, setAssigning] = useState(false); // ✅ NEW
@@ -48,11 +48,7 @@ function Header({
     try {
       setAssigning(true);
 
-      await fetch(`${BASE_URL}/api/contacts/${chat._id}/assign`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: "user_1" })
-      });
+      onAssignContact(chat._id); // ✅ CALL PARENT HANDLER TO ASSIGN
 
       setAssigned(true); // ✅ update UI instantly
 
