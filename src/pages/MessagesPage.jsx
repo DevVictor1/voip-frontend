@@ -19,10 +19,8 @@ function MessagesPage() {
   const [messages, setMessages] = useState([]);
   const [showModal, setShowModal] = useState(false);
 
-  // ✅ NEW: TAB STATE
   const [activeTab, setActiveTab] = useState('all');
 
-  // FETCH CONVERSATIONS
   const fetchConversations = useCallback(async () => {
     try {
       const res = await fetch(`${BASE_URL}/api/sms/conversations`);
@@ -34,7 +32,6 @@ function MessagesPage() {
     }
   }, []);
 
-  // FETCH CONTACTS
   const fetchContacts = useCallback(async () => {
     try {
       const role = 'admin';
@@ -53,7 +50,6 @@ function MessagesPage() {
     }
   }, []);
 
-  // FETCH MESSAGES
   const fetchMessages = async (phone) => {
     try {
       const res = await fetch(`${BASE_URL}/api/sms/messages/${phone}`);
@@ -67,13 +63,11 @@ function MessagesPage() {
     }
   };
 
-  // INITIAL LOAD
   useEffect(() => {
     fetchConversations();
     fetchContacts();
   }, [fetchConversations, fetchContacts]);
 
-  // LOAD CHAT
   useEffect(() => {
     if (!activeChatId) return;
 
@@ -92,7 +86,6 @@ function MessagesPage() {
     loadChat();
   }, [activeChatId, fetchConversations]);
 
-  // SWITCH NUMBER EVENT
   useEffect(() => {
     const handler = (e) => {
       setActiveChatId(normalize(e.detail));
@@ -102,7 +95,6 @@ function MessagesPage() {
     return () => window.removeEventListener('switchChatNumber', handler);
   }, []);
 
-  // REAL-TIME
   useEffect(() => {
     const handleMessage = (msg) => {
       const msgFrom = normalize(msg.from);
@@ -125,7 +117,6 @@ function MessagesPage() {
     setMessages([]);
   };
 
-  // MERGE CONTACTS + CHATS
   const mergedList = contacts.map((contact) => {
     const phones = contact.phones || [];
     const numbers = phones.map((p) => normalize(p.number));
@@ -142,11 +133,10 @@ function MessagesPage() {
       lastMessage: chat?.lastMessage || '',
       unread: chat?.unread || 0,
       updatedAt: chat?.updatedAt || 0,
-      isInternal: false // 🔥 future use
+      isInternal: false
     };
   });
 
-  // ADD UNKNOWN CHATS
   chats.forEach((chat) => {
     const phone = normalize(chat.phone);
 
@@ -167,7 +157,6 @@ function MessagesPage() {
     }
   });
 
-  // SORT
   const sortedList = [...mergedList].sort((a, b) => {
     if (b.unread !== a.unread) {
       return b.unread - a.unread;
@@ -175,7 +164,11 @@ function MessagesPage() {
     return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
   });
 
-  // ✅ FILTER LOGIC (NEW)
+  // ✅ NEW COUNTS (SAFE ADD)
+  const unreadCount = sortedList.filter(c => c.unread > 0).length;
+  const allCount = sortedList.length;
+  const teamCount = sortedList.filter(c => c.isInternal).length;
+
   let filteredList = sortedList;
 
   if (activeTab === 'unread') {
@@ -186,7 +179,6 @@ function MessagesPage() {
     filteredList = sortedList.filter(c => c.isInternal);
   }
 
-  // ACTIVE CHAT
   const activeChatBase = sortedList.find((c) =>
     (c.phones || []).some(
       (p) => normalize(p.number) === normalize(activeChatId)
@@ -204,27 +196,53 @@ function MessagesPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-        {/* 🔥 TABS UI */}
+        {/* 🔥 UPDATED TABS WITH COUNTS */}
         <div style={{ display: 'flex', gap: '8px', padding: '10px' }}>
-          {['all', 'unread', 'team'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer',
-                background: activeTab === tab ? '#1d9bf0' : '#333',
-                color: '#fff'
-              }}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
+
+          <button
+            onClick={() => setActiveTab('all')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              background: activeTab === 'all' ? '#1d9bf0' : '#333',
+              color: '#fff'
+            }}
+          >
+            All ({allCount})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('unread')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              background: activeTab === 'unread' ? '#1d9bf0' : '#333',
+              color: '#fff'
+            }}
+          >
+            Unread ({unreadCount})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('team')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              background: activeTab === 'team' ? '#1d9bf0' : '#333',
+              color: '#fff'
+            }}
+          >
+            Team ({teamCount})
+          </button>
+
         </div>
 
-        {/* NEW MESSAGE */}
         <button
           onClick={() => setShowModal(true)}
           style={{
@@ -246,7 +264,7 @@ function MessagesPage() {
         </button>
 
         <ContactsList
-          list={filteredList} // ✅ now filtered
+          list={filteredList}
           activeId={normalize(activeChatId)}
           onSelect={(num) => setActiveChatId(normalize(num))}
         />
