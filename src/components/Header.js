@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Phone } from "lucide-react";
+import BASE_URL from "../config/api"; // ✅ ADDED
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
@@ -13,6 +14,8 @@ function Header({
   callLabel
 }) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [assigning, setAssigning] = useState(false); // ✅ NEW
+  const [assigned, setAssigned] = useState(!chat?.isUnassigned); // ✅ NEW
   const dropdownRef = useRef(null);
 
   const phones = chat?.phones || [];
@@ -32,6 +35,34 @@ function Header({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // ✅ KEEP ASSIGN STATE IN SYNC
+  useEffect(() => {
+    setAssigned(!chat?.isUnassigned);
+  }, [chat]);
+
+  // ✅ ASSIGN HANDLER
+  const handleAssign = async () => {
+    if (!chat?._id || assigning || assigned) return;
+
+    try {
+      setAssigning(true);
+
+      await fetch(`${BASE_URL}/api/contacts/${chat._id}/assign`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: "user_1" })
+      });
+
+      setAssigned(true); // ✅ update UI instantly
+
+    } catch (err) {
+      console.error("Assign failed", err);
+      alert("Failed to assign");
+    } finally {
+      setAssigning(false);
+    }
+  };
 
   return (
     <div className="header">
@@ -71,7 +102,6 @@ function Header({
                 </span>
               </button>
 
-              {/* ✅ DROPDOWN */}
               {showDropdown && (
                 <div
                   style={{
@@ -132,7 +162,19 @@ function Header({
       </div>
 
       <div className="header-actions">
-        <button className="button-icon">Assign</button>
+        {/* ✅ UPDATED ASSIGN BUTTON */}
+        <button
+          className="button-icon"
+          onClick={handleAssign}
+          disabled={assigned || assigning}
+          style={{
+            opacity: assigned ? 0.6 : 1,
+            cursor: assigned ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {assigned ? "Assigned" : assigning ? "Assigning..." : "Assign"}
+        </button>
+
         <button className="button-icon">Notes</button>
         <button className="button-icon">Options</button>
 
@@ -156,7 +198,6 @@ function Header({
         </button>
       </div>
 
-      {/* ✅ ANIMATION */}
       <style>
         {`
           @keyframes fadeSlide {
