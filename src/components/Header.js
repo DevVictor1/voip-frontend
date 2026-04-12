@@ -21,7 +21,7 @@ function Header({
     phones.find(p => normalize(p.number) === normalize(activeNumber))?.label || 'PHONE';
 
   return (
-    <div className="header">
+    <div className="header" style={{ position: 'relative', zIndex: 1 }}>
 
       <div className="header-title">
         <div>
@@ -29,11 +29,10 @@ function Header({
           {subtitle && <div className="header-meta">{subtitle}</div>}
 
           {phones.length > 1 && (
-            <>
+            <div style={{ position: 'relative', marginTop: '6px', display: 'inline-block' }}>
               <button
                 onClick={() => setShowDropdown(prev => !prev)}
                 style={{
-                  marginTop: '6px',
                   background: '#111',
                   color: '#fff',
                   padding: '4px 10px',
@@ -49,14 +48,16 @@ function Header({
               {showDropdown && (
                 <div
                   style={{
-                    position: 'fixed', // 🔥 THIS IS THE REAL FIX
-                    top: '120px',      // adjust if needed
-                    left: '350px',     // adjust if needed
+                    position: 'absolute',
+                    top: '35px',
+                    left: 0,
                     background: '#fff',
                     borderRadius: '8px',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    zIndex: 9999999,
-                    minWidth: '200px'
+                    zIndex: 999999, // 🔥 INCREASED
+                    minWidth: '200px',
+                    overflow: 'visible', // 🔥 FIXED
+                    pointerEvents: 'auto' // 🔥 ENSURE CLICK
                   }}
                 >
                   {phones.map((p, i) => {
@@ -89,7 +90,7 @@ function Header({
                   })}
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
 
