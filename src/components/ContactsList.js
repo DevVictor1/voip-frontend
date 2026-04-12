@@ -15,17 +15,7 @@ function ContactsList({ list, activeId, onSelect }) {
       method: "DELETE",
     });
 
-    window.location.reload();
-  };
-
-  const autoAssign = async (item) => {
-    if (!item._id || !item.isUnassigned) return;
-
-    await fetch(`${BASE_URL}/api/contacts/${item._id}/assign`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: "user_1" })
-    });
+    window.location.reload(); // ✅ keep this (delete should refresh)
   };
 
   return (
@@ -59,13 +49,8 @@ function ContactsList({ list, activeId, onSelect }) {
                 borderLeft: hasUnread ? '3px solid #1d9bf0' : '3px solid transparent',
                 fontWeight: hasUnread ? 'bold' : 'normal'
               }}
-              onClick={async () => {
-                if (item.isUnassigned) {
-                  await autoAssign(item);
-                  window.location.reload();
-                }
-
-                if (item.phone) onSelect(item.phone);
+              onClick={() => {
+                if (item.phone) onSelect(item.phone); // ✅ ONLY SELECT
               }}
             >
 
