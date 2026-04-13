@@ -24,7 +24,8 @@ function App() {
   // INIT VOICE
   useEffect(() => {
     const startVoice = async () => {
-      await initVoice();
+      const userId = window.localStorage?.getItem('voiceUserId') || '';
+      await initVoice(userId || undefined);
     };
 
     window.addEventListener('click', startVoice, { once: true });

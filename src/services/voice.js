@@ -4,9 +4,10 @@ import BASE_URL from '../config/api';
 let device;
 let currentConnection = null;
 
-export const initVoice = async () => {
+export const initVoice = async (userId) => {
   try {
-    const res = await fetch(`${BASE_URL}/api/voice/token`, {
+    const qs = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+    const res = await fetch(`${BASE_URL}/api/voice/token${qs}`, {
   method: "GET",
 });
 
