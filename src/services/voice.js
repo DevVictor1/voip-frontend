@@ -6,6 +6,11 @@ let currentConnection = null;
 
 export const initVoice = async (userId) => {
   try {
+    if (typeof window !== 'undefined' && window.twilioDevice) {
+      window.twilioDevice.destroy();
+      window.twilioDevice = null;
+    }
+
     const qs = userId ? `?userId=${encodeURIComponent(userId)}` : '';
     const res = await fetch(`${BASE_URL}/api/voice/token${qs}`, {
   method: "GET",
@@ -18,6 +23,10 @@ const data = await res.json();
     device = new Device(data.token, {
       logLevel: 1,
     });
+
+    if (typeof window !== 'undefined') {
+      window.twilioDevice = device;
+    }
 
     device.on('registered', () => {
       console.log('âœ… Device ready');
