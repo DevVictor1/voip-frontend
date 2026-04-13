@@ -15,6 +15,10 @@ function Header({
   callLabel,
   onAssignContact
 }) {
+  const userId =
+    typeof window !== 'undefined'
+      ? window.localStorage?.getItem("voiceUserId") || "web_user"
+      : "web_user";
   const [showDropdown, setShowDropdown] = useState(false);
   const [assigning, setAssigning] = useState(false); // ✅ NEW
   const [assigned, setAssigned] = useState(!chat?.isUnassigned); // ✅ NEW
@@ -169,6 +173,9 @@ function Header({
       </div>
 
       <div className="header-actions">
+        <span style={{ fontSize: '11px', opacity: 0.7, color: 'var(--text-muted)' }}>
+          Agent: {userId}
+        </span>
         {/* ✅ UPDATED ASSIGN BUTTON */}
         <button
           className="button-icon"
