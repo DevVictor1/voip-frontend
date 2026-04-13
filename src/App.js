@@ -20,6 +20,10 @@ function App() {
   const [connection, setConnection] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [onHold, setOnHold] = useState(false);
+  const [agentStatus, setAgentStatus] = useState(() => {
+    if (typeof window === 'undefined') return 'online';
+    return window.localStorage?.getItem('agentStatus') || 'online';
+  });
 
   // ✅ REGISTER USER TO SOCKET (🔥 NEW — SAFE)
   useEffect(() => {
@@ -27,9 +31,10 @@ function App() {
 
     if (socket && userId) {
       socket.emit('registerUser', userId);
+      socket.emit('agentStatus', { userId, status: agentStatus });
       console.log('🔗 Registered socket user:', userId);
     }
-  }, []);
+  }, [agentStatus]);
 
   // INIT VOICE
   useEffect(() => {
@@ -103,8 +108,25 @@ function App() {
     setOnHold(!onHold);
   };
 
+  const toggleAgentStatus = () => {
+    const userId = window.localStorage?.getItem('voiceUserId') || 'web_user';
+    const nextStatus = agentStatus === 'online' ? 'offline' : 'online';
+    setAgentStatus(nextStatus);
+    window.localStorage?.setItem('agentStatus', nextStatus);
+    if (socket && userId) {
+      socket.emit('agentStatus', { userId, status: nextStatus });
+    }
+  };
+
   return (
     <div className="App">
+
+      {/* AGENT STATUS TOGGLE */}
+      <div style={statusStyle}>
+        <button onClick={toggleAgentStatus} style={agentStatus === 'online' ? onlineBtn : offlineBtn}>
+          {agentStatus === 'online' ? 'Online' : 'Offline'}
+        </button>
+      </div>
 
       {/* MAIN POPUP SYSTEM */}
       <IncomingCallPopup />
@@ -176,6 +198,27 @@ const btn = {
 const endBtn = {
   ...btn,
   background: '#e53935'
+};
+
+const statusStyle = {
+  position: 'fixed',
+  top: '10px',
+  right: '20px',
+  zIndex: 9999
+};
+
+const onlineBtn = {
+  padding: '6px 12px',
+  borderRadius: '6px',
+  border: 'none',
+  background: '#2e7d32',
+  color: '#fff',
+  cursor: 'pointer'
+};
+
+const offlineBtn = {
+  ...onlineBtn,
+  background: '#616161'
 };
 
 export default App;
