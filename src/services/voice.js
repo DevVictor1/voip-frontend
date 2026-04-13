@@ -3,11 +3,17 @@ import BASE_URL from '../config/api';
 
 let device;
 let currentConnection = null;
+let isInitializing = false;
 
 export const initVoice = async (userId) => {
   try {
     const resolvedUserId = userId || 'web_user';
     console.log('Initializing device for:', resolvedUserId);
+
+    if (isInitializing) {
+      console.log('Device init already in progress');
+      return;
+    }
 
     if (typeof window !== 'undefined') {
       if (window.twilioDevice && window.twilioDevice.__userId === resolvedUserId) {
@@ -21,14 +27,16 @@ export const initVoice = async (userId) => {
       }
     }
 
+    isInitializing = true;
+
     const qs = userId ? `?userId=${encodeURIComponent(userId)}` : '';
     const res = await fetch(`${BASE_URL}/api/voice/token${qs}`, {
-  method: "GET",
-});
+      method: "GET",
+    });
 
-if (!res.ok) throw new Error("Token fetch failed");
+    if (!res.ok) throw new Error("Token fetch failed");
 
-const data = await res.json();
+    const data = await res.json();
 
     device = new Device(data.token, {
       logLevel: 1,
@@ -66,6 +74,8 @@ const data = await res.json();
     await device.register();
   } catch (err) {
     console.error('âŒ Voice init error:', err);
+  } finally {
+    isInitializing = false;
   }
 };
 
