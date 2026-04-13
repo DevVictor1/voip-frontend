@@ -21,6 +21,16 @@ function App() {
   const [isMuted, setIsMuted] = useState(false);
   const [onHold, setOnHold] = useState(false);
 
+  // ✅ REGISTER USER TO SOCKET (🔥 NEW — SAFE)
+  useEffect(() => {
+    const userId = window.localStorage?.getItem('voiceUserId') || 'web_user';
+
+    if (socket && userId) {
+      socket.emit('registerUser', userId);
+      console.log('🔗 Registered socket user:', userId);
+    }
+  }, []);
+
   // INIT VOICE
   useEffect(() => {
     const startVoice = async () => {
