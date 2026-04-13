@@ -6,9 +6,19 @@ let currentConnection = null;
 
 export const initVoice = async (userId) => {
   try {
-    if (typeof window !== 'undefined' && window.twilioDevice) {
-      window.twilioDevice.destroy();
-      window.twilioDevice = null;
+    const resolvedUserId = userId || 'web_user';
+    console.log('Initializing device for:', resolvedUserId);
+
+    if (typeof window !== 'undefined') {
+      if (window.twilioDevice && window.twilioDevice.__userId === resolvedUserId) {
+        console.log('Device already exists, skipping init');
+        return;
+      }
+
+      if (window.twilioDevice) {
+        window.twilioDevice.destroy();
+        window.twilioDevice = null;
+      }
     }
 
     const qs = userId ? `?userId=${encodeURIComponent(userId)}` : '';
@@ -25,6 +35,7 @@ const data = await res.json();
     });
 
     if (typeof window !== 'undefined') {
+      device.__userId = resolvedUserId;
       window.twilioDevice = device;
     }
 
