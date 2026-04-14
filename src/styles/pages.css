@@ -838,6 +838,86 @@
   min-width: 110px;
 }
 
+.numbers-actions-cell {
+  width: 72px;
+}
+
+.numbers-actions-menu {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.numbers-menu-trigger {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d7deea;
+  border-radius: 10px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.numbers-menu-trigger:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  box-shadow: var(--shadow-sm);
+}
+
+.numbers-menu-trigger:focus-visible {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.numbers-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 170px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+  z-index: 20;
+}
+
+.numbers-menu-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.numbers-menu-item:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.numbers-menu-item:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.numbers-menu-item-danger {
+  color: #b91c1c;
+}
+
+.numbers-menu-item-danger:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
 .numbers-status {
   display: inline-flex;
   align-items: center;
@@ -998,6 +1078,19 @@
     min-width: 0;
   }
 
+  .numbers-actions-cell {
+    width: 64px;
+  }
+
+  .numbers-menu-trigger {
+    width: 38px;
+    height: 38px;
+  }
+
+  .numbers-menu-dropdown {
+    min-width: 160px;
+  }
+
   .messages-contacts-pane,
   .messages-chat-pane {
     width: 100%;
@@ -1015,6 +1108,10 @@
 @media (max-width: 480px) {
   .numbers-page .call-stat-value {
     font-size: 22px;
+  }
+
+  .numbers-table {
+    min-width: 920px;
   }
 
   .messages-contacts-pane,

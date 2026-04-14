@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { MoreVertical } from 'lucide-react';
 import BASE_URL from '../config/api';
 
 const statusOptions = ['active', 'pending', 'porting', 'completed', 'failed'];
@@ -24,8 +25,10 @@ function NumbersPage() {
   const [saving, setSaving] = useState(false);
   const [savingId, setSavingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
+  const actionMenuRef = useRef(null);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -36,6 +39,19 @@ function NumbersPage() {
 
     return () => window.clearTimeout(timeoutId);
   }, [toast]);
+
+  useEffect(() => {
+    if (!openMenuId) return undefined;
+
+    const handleClickOutside = (event) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target)) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenuId]);
 
   const fetchNumbers = async () => {
     try {
@@ -117,6 +133,7 @@ function NumbersPage() {
 
       if (!res.ok) throw new Error('Failed to update number');
       await fetchNumbers();
+      setOpenMenuId(null);
       setToast({ type: 'success', message: 'Number updated' });
     } catch (err) {
       console.error('Numbers update error:', err);
@@ -138,6 +155,7 @@ function NumbersPage() {
 
       if (!res.ok) throw new Error('Failed to delete number');
       await fetchNumbers();
+      setOpenMenuId(null);
       setToast({ type: 'success', message: 'Number deleted' });
     } catch (err) {
       console.error('Numbers delete error:', err);
@@ -364,24 +382,42 @@ function NumbersPage() {
                         onChange={(e) => handleDraftChange(item._id, 'notes', e.target.value)}
                       />
                     </td>
-                    <td>
-                      <div className="numbers-actions">
+                    <td className="numbers-actions-cell">
+                      <div
+                        className="numbers-actions-menu"
+                        ref={openMenuId === item._id ? actionMenuRef : null}
+                      >
                         <button
-                          className="numbers-secondary-btn"
+                          className="numbers-menu-trigger"
                           type="button"
-                          disabled={savingId === item._id || deletingId === item._id}
-                          onClick={() => handleUpdate(item._id)}
+                          aria-label="Open actions menu"
+                          onClick={() =>
+                            setOpenMenuId((prev) => (prev === item._id ? null : item._id))
+                          }
                         >
-                          {savingId === item._id ? 'Saving...' : 'Save'}
+                          <MoreVertical size={16} />
                         </button>
-                        <button
-                          className="numbers-danger-btn"
-                          type="button"
-                          disabled={deletingId === item._id || savingId === item._id}
-                          onClick={() => handleDelete(item._id)}
-                        >
-                          {deletingId === item._id ? 'Deleting...' : 'Delete'}
-                        </button>
+
+                        {openMenuId === item._id ? (
+                          <div className="numbers-menu-dropdown">
+                            <button
+                              className="numbers-menu-item"
+                              type="button"
+                              disabled={savingId === item._id || deletingId === item._id}
+                              onClick={() => handleUpdate(item._id)}
+                            >
+                              {savingId === item._id ? 'Saving...' : 'Save changes'}
+                            </button>
+                            <button
+                              className="numbers-menu-item numbers-menu-item-danger"
+                              type="button"
+                              disabled={deletingId === item._id || savingId === item._id}
+                              onClick={() => handleDelete(item._id)}
+                            >
+                              {deletingId === item._id ? 'Deleting...' : 'Delete number'}
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
