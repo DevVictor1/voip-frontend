@@ -51,6 +51,40 @@
   color: var(--text-muted);
 }
 
+.app-topbar-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.app-topbar-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.app-topbar-tag-muted {
+  background: rgba(148, 163, 184, 0.12);
+  color: #475569;
+  border-color: rgba(148, 163, 184, 0.14);
+}
+
+.app-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .page-shell {
   display: flex;
   gap: 24px;
@@ -194,6 +228,45 @@
   cursor: pointer;
 }
 
+.availability-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.availability-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.availability-pill-label {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.availability-pill-online {
+  background: rgba(22, 163, 74, 0.08);
+  color: #166534;
+  border-color: rgba(22, 163, 74, 0.14);
+}
+
+.availability-pill-offline {
+  background: rgba(148, 163, 184, 0.12);
+  color: #475569;
+  border-color: rgba(148, 163, 184, 0.14);
+}
+
 @keyframes voiceStatusSpin {
   from {
     transform: rotate(0deg);
@@ -219,6 +292,11 @@
     flex-wrap: wrap;
     align-items: flex-start;
   }
+
+  .app-topbar-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 640px) {
@@ -242,6 +320,10 @@
 
   .voice-status-value {
     text-align: left;
+  }
+
+  .app-topbar-actions {
+    gap: 8px;
   }
 }
 
@@ -288,6 +370,11 @@
 
   .voice-status-control {
     width: 100%;
+  }
+
+  .availability-pill {
+    width: 100%;
+    justify-content: center;
   }
 
   .voice-status-panel {

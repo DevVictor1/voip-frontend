@@ -264,13 +264,13 @@ function App() {
                 deviceStatus={deviceStatus}
                 callState={callState}
                 agentId={agentId}
+                agentStatus={agentStatus}
                 onRetryVoice={handleRetryVoice}
+                onToggleAgentStatus={toggleAgentStatus}
               >
                 {userRole === 'admin' ? (
                   <Dashboard
                     agentId={agentId}
-                    agentStatus={agentStatus}
-                    onToggleAgentStatus={toggleAgentStatus}
                     onAgentChange={handleAgentChange}
                   />
                 ) : (
@@ -288,7 +288,9 @@ function App() {
                 deviceStatus={deviceStatus}
                 callState={callState}
                 agentId={agentId}
+                agentStatus={agentStatus}
                 onRetryVoice={handleRetryVoice}
+                onToggleAgentStatus={toggleAgentStatus}
               >
                 <Messages />
               </MainLayout>
@@ -303,7 +305,9 @@ function App() {
                 deviceStatus={deviceStatus}
                 callState={callState}
                 agentId={agentId}
+                agentStatus={agentStatus}
                 onRetryVoice={handleRetryVoice}
+                onToggleAgentStatus={toggleAgentStatus}
               >
                 <CallLogs />
               </MainLayout>
@@ -318,7 +322,9 @@ function App() {
                 deviceStatus={deviceStatus}
                 callState={callState}
                 agentId={agentId}
+                agentStatus={agentStatus}
                 onRetryVoice={handleRetryVoice}
+                onToggleAgentStatus={toggleAgentStatus}
               >
                 {userRole === 'admin' ? <Users /> : <Navigate to="/messages" replace />}
               </MainLayout>
@@ -333,7 +339,9 @@ function App() {
                 deviceStatus={deviceStatus}
                 callState={callState}
                 agentId={agentId}
+                agentStatus={agentStatus}
                 onRetryVoice={handleRetryVoice}
+                onToggleAgentStatus={toggleAgentStatus}
               >
                 {userRole === 'admin' ? <NumbersPage /> : <Navigate to="/messages" replace />}
               </MainLayout>

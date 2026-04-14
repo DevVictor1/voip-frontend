@@ -43,7 +43,7 @@ function DeviceStatusControl({
     switch (deviceStatus) {
       case 'ready':
         return {
-          label: 'Ready',
+          label: 'Voice Ready',
           toneClass: 'voice-status-pill-ready',
           Icon: CheckCircle2,
         };
@@ -56,13 +56,13 @@ function DeviceStatusControl({
         };
       case 'error':
         return {
-          label: 'Error',
+          label: 'Voice Error',
           toneClass: 'voice-status-pill-error',
           Icon: AlertCircle,
         };
       default:
         return {
-          label: 'Offline',
+          label: 'Voice Offline',
           toneClass: 'voice-status-pill-offline',
           Icon: PhoneOff,
         };

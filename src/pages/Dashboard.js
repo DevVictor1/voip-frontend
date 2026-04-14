@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { stats, calls } from '../data/mockData';
 import AgentStatusList from '../components/AgentStatusList';
 import AgentSelector from '../components/AgentSelector';
-import { formatAgentLabel, getAgentMeta } from '../config/agents';
 import BASE_URL from '../config/api';
 
-function Dashboard({ agentId, agentStatus, onToggleAgentStatus, onAgentChange }) {
+function Dashboard({ agentId, onAgentChange }) {
   const [statValues, setStatValues] = useState({
     activeConversations: 0,
     dailyCallMinutes: 0,
@@ -91,19 +90,7 @@ function Dashboard({ agentId, agentStatus, onToggleAgentStatus, onAgentChange })
         </div>
 
         <div className="dashboard-controls">
-          <div className="dashboard-meta">
-            Logged in as: {formatAgentLabel(agentId)}
-            {getAgentMeta(agentId).role ? (
-              <span className="agent-badge">{getAgentMeta(agentId).role}</span>
-            ) : null}
-          </div>
           <AgentSelector value={agentId} onChange={onAgentChange} />
-          <button
-            className={`status-toggle ${agentStatus === 'online' ? 'is-online' : 'is-offline'}`}
-            onClick={onToggleAgentStatus}
-          >
-            {agentStatus === 'online' ? 'Online' : 'Offline'}
-          </button>
         </div>
       </div>
 
