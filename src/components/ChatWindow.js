@@ -204,6 +204,7 @@ function ChatWindow({
 
       <MessageInput
         chatId={chat.phone}
+        setMessages={setMessages}
         onMessageSent={(msg) => {
           setMessages((prev) => {
             const exists = prev.find(

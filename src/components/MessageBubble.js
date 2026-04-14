@@ -3,6 +3,9 @@ function MessageBubble({ message }) {
     if (message.direction !== 'outbound') return null;
 
     switch (message.status) {
+      case 'sending':
+        return '…';
+
       case 'queued':
       case 'sent':
         return '✓'; // single tick
@@ -19,13 +22,19 @@ function MessageBubble({ message }) {
     }
   };
 
+  const isSending = message.status === 'sending';
+  const isFailed = message.status === 'failed' || message.status === 'undelivered';
+
   return (
     <div className={`message-row ${message.direction}`}>
-      <div className={`message-bubble ${message.direction}`}>
+      <div
+        className={`message-bubble ${message.direction}`}
+        style={isSending ? { opacity: 0.6 } : undefined}
+      >
         {message.body}
       </div>
 
-      <div className="message-meta">
+      <div className="message-meta" style={isFailed ? { color: '#dc2626' } : undefined}>
         {new Date(message.createdAt).toLocaleTimeString([], {
           hour: '2-digit',
           minute: '2-digit',
