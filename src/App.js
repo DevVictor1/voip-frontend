@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import CallLogs from './pages/CallLogs';
 import Users from './pages/Users';
 import Messages from './pages/MessagesPage';
+import NumbersPage from './pages/NumbersPage';
 import IncomingCallPopup from './components/IncomingCallPopup';
 import socket from './socket';
 import {
@@ -211,6 +212,14 @@ function App() {
             element={
               <MainLayout userRole={userRole} onRoleChange={handleRoleChange}>
                 {userRole === 'admin' ? <Users /> : <Navigate to="/messages" replace />}
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/numbers"
+            element={
+              <MainLayout userRole={userRole} onRoleChange={handleRoleChange}>
+                {userRole === 'admin' ? <NumbersPage /> : <Navigate to="/messages" replace />}
               </MainLayout>
             }
           />

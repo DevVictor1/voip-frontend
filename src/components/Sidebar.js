@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Phone, Users } from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Phone, Users, PhoneForwarded } from 'lucide-react';
 
 const navItems = [
   { label: 'Dashboard', to: '/', icon: LayoutDashboard, roles: ['admin'] },
   { label: 'Messages', to: '/messages', icon: MessageSquare, roles: ['admin', 'agent'] },
   { label: 'Calls', to: '/calls', icon: Phone, roles: ['admin', 'agent'] },
+  { label: 'Numbers', to: '/numbers', icon: PhoneForwarded, roles: ['admin'] },
   { label: 'Users', to: '/users', icon: Users, roles: ['admin'] }
 ];
 

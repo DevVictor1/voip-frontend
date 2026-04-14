@@ -737,6 +737,105 @@
   flex: 0 0 auto;
 }
 
+.numbers-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.numbers-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.numbers-textarea {
+  min-height: 92px;
+  resize: vertical;
+  grid-column: 1 / -1;
+}
+
+.numbers-inline-input {
+  min-width: 120px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.numbers-inline-notes {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.numbers-primary-btn,
+.numbers-secondary-btn,
+.numbers-danger-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.numbers-primary-btn {
+  background: var(--accent);
+  color: #fff;
+}
+
+.numbers-secondary-btn {
+  background: #e0ecff;
+  color: #1d4ed8;
+}
+
+.numbers-danger-btn {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.numbers-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.numbers-status {
+  display: inline-flex;
+  margin-top: 8px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.numbers-status-active {
+  background: rgba(34, 197, 94, 0.14);
+  color: #15803d;
+}
+
+.numbers-status-pending {
+  background: rgba(148, 163, 184, 0.22);
+  color: #475569;
+}
+
+.numbers-status-porting {
+  background: rgba(37, 99, 235, 0.14);
+  color: #1d4ed8;
+}
+
+.numbers-status-completed {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+}
+
+.numbers-status-failed {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+}
+
 @media (max-width: 1024px) {
   .messages-shell {
     gap: 16px;
