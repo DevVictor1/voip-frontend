@@ -7,7 +7,6 @@ import CallLogs from './pages/CallLogs';
 import Users from './pages/Users';
 import Messages from './pages/MessagesPage';
 import IncomingCallPopup from './components/IncomingCallPopup';
-import AgentSelector from './components/AgentSelector';
 import socket from './socket';
 import {
   initVoice,
@@ -133,15 +132,6 @@ function App() {
   return (
     <div className="App">
 
-      {/* AGENT STATUS TOGGLE */}
-      <div style={statusStyle}>
-        <div style={statusMeta}>Logged in as: {agentId}</div>
-        <AgentSelector value={agentId} onChange={handleAgentChange} />
-        <button onClick={toggleAgentStatus} style={agentStatus === 'online' ? onlineBtn : offlineBtn}>
-          {agentStatus === 'online' ? 'Online' : 'Offline'}
-        </button>
-      </div>
-
       {/* MAIN POPUP SYSTEM */}
       <IncomingCallPopup />
 
@@ -172,7 +162,19 @@ function App() {
 
         {/* Pages WITH layout */}
         <Routes>
-          <Route path="/" element={<MainLayout><Dashboard /></MainLayout>} />
+          <Route
+            path="/"
+            element={
+              <MainLayout>
+                <Dashboard
+                  agentId={agentId}
+                  agentStatus={agentStatus}
+                  onToggleAgentStatus={toggleAgentStatus}
+                  onAgentChange={handleAgentChange}
+                />
+              </MainLayout>
+            }
+          />
           <Route path="/messages" element={<MainLayout><Messages /></MainLayout>} />
           <Route path="/calls" element={<MainLayout><CallLogs /></MainLayout>} />
           <Route path="/users" element={<MainLayout><Users /></MainLayout>} />
@@ -212,40 +214,6 @@ const btn = {
 const endBtn = {
   ...btn,
   background: '#e53935'
-};
-
-const statusStyle = {
-  position: 'fixed',
-  top: '10px',
-  right: '20px',
-  zIndex: 9999,
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-  alignItems: 'flex-end'
-};
-
-const statusMeta = {
-  fontSize: '12px',
-  color: '#6b7280',
-  background: '#fff',
-  border: '1px solid #e5e7eb',
-  borderRadius: '999px',
-  padding: '4px 8px'
-};
-
-const onlineBtn = {
-  padding: '6px 12px',
-  borderRadius: '6px',
-  border: 'none',
-  background: '#2e7d32',
-  color: '#fff',
-  cursor: 'pointer'
-};
-
-const offlineBtn = {
-  ...onlineBtn,
-  background: '#616161'
 };
 
 export default App;
