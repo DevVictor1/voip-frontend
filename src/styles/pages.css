@@ -740,17 +740,27 @@
 .numbers-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .numbers-input {
   width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  min-height: 42px;
+  border: 1px solid #d7deea;
+  border-radius: 12px;
   padding: 10px 12px;
   font-size: 13px;
-  background: var(--surface);
+  line-height: 1.4;
+  background: #fff;
   color: var(--text);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.numbers-input:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  background: #fcfdff;
 }
 
 .numbers-textarea {
@@ -761,24 +771,28 @@
 
 .numbers-inline-input {
   min-width: 120px;
+  height: 38px;
   padding: 8px 10px;
   font-size: 12px;
 }
 
 .numbers-inline-notes {
   min-height: 72px;
+  height: auto;
   resize: vertical;
 }
 
 .numbers-primary-btn,
 .numbers-secondary-btn,
 .numbers-danger-btn {
-  border: none;
-  border-radius: 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  min-height: 40px;
   padding: 10px 14px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
 .numbers-primary-btn:disabled,
@@ -789,58 +803,82 @@
 }
 
 .numbers-primary-btn {
-  background: var(--accent);
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
   color: #fff;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18);
+}
+
+.numbers-primary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 .numbers-secondary-btn {
-  background: #e0ecff;
+  background: #eef4ff;
   color: #1d4ed8;
+  border-color: #c7d7fe;
+}
+
+.numbers-secondary-btn:hover:not(:disabled) {
+  background: #e0ecff;
 }
 
 .numbers-danger-btn {
-  background: #fee2e2;
+  background: #fff5f5;
   color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.numbers-danger-btn:hover:not(:disabled) {
+  background: #fee2e2;
 }
 
 .numbers-actions {
   display: grid;
   gap: 8px;
+  min-width: 110px;
 }
 
 .numbers-status {
   display: inline-flex;
+  align-items: center;
   margin-top: 8px;
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 5px 10px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   text-transform: capitalize;
+  border: 1px solid transparent;
 }
 
 .numbers-status-active {
-  background: rgba(34, 197, 94, 0.14);
+  background: rgba(34, 197, 94, 0.1);
   color: #15803d;
+  border-color: rgba(34, 197, 94, 0.18);
 }
 
 .numbers-status-pending {
-  background: rgba(148, 163, 184, 0.22);
-  color: #475569;
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.18);
 }
 
 .numbers-status-porting {
-  background: rgba(37, 99, 235, 0.14);
+  background: rgba(37, 99, 235, 0.1);
   color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.18);
 }
 
 .numbers-status-completed {
-  background: rgba(16, 185, 129, 0.14);
+  background: rgba(20, 184, 166, 0.1);
   color: #047857;
+  border-color: rgba(20, 184, 166, 0.18);
 }
 
 .numbers-status-failed {
-  background: rgba(239, 68, 68, 0.14);
+  background: rgba(239, 68, 68, 0.1);
   color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.18);
 }
 
 .numbers-toast {
@@ -868,6 +906,79 @@
   border-color: rgba(239, 68, 68, 0.2);
 }
 
+.numbers-page .call-stat-card {
+  gap: 8px;
+}
+
+.numbers-page .call-stat-label {
+  color: #64748b;
+}
+
+.numbers-page .call-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.numbers-section-card {
+  display: grid;
+  gap: 16px;
+}
+
+.numbers-section-copy {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.numbers-table {
+  min-width: 980px;
+}
+
+.numbers-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.numbers-table th,
+.numbers-table td {
+  padding: 14px 10px;
+  vertical-align: top;
+}
+
+.numbers-row {
+  transition: background 0.2s ease;
+}
+
+.numbers-row:hover {
+  background: #fafcff;
+}
+
+.numbers-number-cell {
+  color: #0f172a;
+}
+
+.numbers-empty-state {
+  padding: 32px 20px;
+  text-align: center;
+  background: linear-gradient(180deg, #fbfdff 0%, #f8fafc 100%);
+}
+
+.numbers-empty-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.numbers-empty-copy {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #64748b;
+}
+
 @media (max-width: 1024px) {
   .messages-shell {
     gap: 16px;
@@ -877,6 +988,14 @@
 @media (max-width: 768px) {
   .messages-shell {
     gap: 0;
+  }
+
+  .numbers-form {
+    grid-template-columns: 1fr;
+  }
+
+  .numbers-actions {
+    min-width: 0;
   }
 
   .messages-contacts-pane,
@@ -894,6 +1013,10 @@
 }
 
 @media (max-width: 480px) {
+  .numbers-page .call-stat-value {
+    font-size: 22px;
+  }
+
   .messages-contacts-pane,
   .messages-chat-pane {
     width: 100%;

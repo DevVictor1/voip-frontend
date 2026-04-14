@@ -149,7 +149,7 @@ function NumbersPage() {
   };
 
   return (
-    <div style={{ display: 'grid', gap: '24px' }}>
+    <div className="numbers-page" style={{ display: 'grid', gap: '24px' }}>
       {toast ? (
         <div className={`numbers-toast numbers-toast-${toast.type}`}>
           {toast.message}
@@ -163,29 +163,32 @@ function NumbersPage() {
         </div>
       </div>
 
-      <div className="call-stats">
-        <div className="call-stat-card">
+      <div className="call-stats numbers-summary-grid">
+        <div className="call-stat-card numbers-summary-card">
           <div className="call-stat-label">Total numbers</div>
           <div className="call-stat-value">{summary.total}</div>
         </div>
-        <div className="call-stat-card">
+        <div className="call-stat-card numbers-summary-card">
           <div className="call-stat-label">Active</div>
           <div className="call-stat-value">{summary.active}</div>
         </div>
-        <div className="call-stat-card">
+        <div className="call-stat-card numbers-summary-card">
           <div className="call-stat-label">Porting</div>
           <div className="call-stat-value">{summary.porting}</div>
         </div>
-        <div className="call-stat-card">
+        <div className="call-stat-card numbers-summary-card">
           <div className="call-stat-label">Failed</div>
           <div className="call-stat-value">{summary.failed}</div>
         </div>
       </div>
 
-      <div className="section-card">
+      <div className="section-card numbers-section-card">
         <div className="section-header">
           <h3 style={{ margin: 0 }}>Add Number</h3>
           <span className="tag">Stage 1</span>
+        </div>
+        <div className="numbers-section-copy">
+          Create an internal record for a line before or during provider migration.
         </div>
 
         <form className="numbers-form" onSubmit={handleCreate}>
@@ -255,16 +258,27 @@ function NumbersPage() {
         </form>
       </div>
 
-      <div className="section-card">
+      <div className="section-card numbers-section-card">
         <div className="section-header">
           <h3 style={{ margin: 0 }}>Tracked Numbers</h3>
           <span className="tag">{loading ? 'Loading' : `${numbers.length} records`}</span>
+        </div>
+        <div className="numbers-section-copy">
+          Review current ownership, capabilities, and porting progress in one place.
         </div>
 
         {error ? <div className="text-muted">{error}</div> : null}
 
         <div className="call-table-scroll">
-          <table className="table call-table">
+          {numbers.length === 0 && !loading ? (
+            <div className="numbers-empty-state">
+              <div className="numbers-empty-title">No tracked numbers yet</div>
+              <div className="numbers-empty-copy">
+                Add your first number to start tracking porting status.
+              </div>
+            </div>
+          ) : (
+          <table className="table call-table numbers-table">
             <thead>
               <tr>
                 <th>Number</th>
@@ -283,9 +297,9 @@ function NumbersPage() {
                 const draft = drafts[item._id] || toDraft(item);
 
                 return (
-                  <tr key={item._id}>
+                  <tr key={item._id} className="numbers-row">
                     <td>
-                      <div className="call-primary">{item.phoneNumber}</div>
+                      <div className="call-primary numbers-number-cell">{item.phoneNumber}</div>
                       <div className="call-secondary">{item.label || 'Unlabeled'}</div>
                     </td>
                     <td>
@@ -375,6 +389,7 @@ function NumbersPage() {
               })}
             </tbody>
           </table>
+          )}
         </div>
       </div>
     </div>
