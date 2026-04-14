@@ -7,6 +7,7 @@ import CallLogs from './pages/CallLogs';
 import Users from './pages/Users';
 import Messages from './pages/MessagesPage';
 import IncomingCallPopup from './components/IncomingCallPopup';
+import AgentSelector from './components/AgentSelector';
 import socket from './socket';
 import {
   initVoice,
@@ -24,22 +25,26 @@ function App() {
     if (typeof window === 'undefined') return 'online';
     return window.localStorage?.getItem('agentStatus') || 'online';
   });
+  const [agentId, setAgentId] = useState(() => {
+    if (typeof window === 'undefined') return 'web_user';
+    return window.localStorage?.getItem('voiceUserId') || 'web_user';
+  });
 
   // ✅ REGISTER USER TO SOCKET (🔥 NEW — SAFE)
   useEffect(() => {
-    const userId = window.localStorage?.getItem('voiceUserId') || 'web_user';
+    const userId = agentId || 'web_user';
 
     if (socket && userId) {
       socket.emit('registerUser', userId);
       socket.emit('agentStatus', { userId, status: agentStatus });
       console.log('🔗 Registered socket user:', userId);
     }
-  }, [agentStatus]);
+  }, [agentId, agentStatus]);
 
   // INIT VOICE
   useEffect(() => {
     const startVoice = async () => {
-      const userId = window.localStorage?.getItem('voiceUserId') || '';
+      const userId = agentId || '';
       await initVoice(userId || undefined);
     };
 
@@ -48,7 +53,7 @@ function App() {
     return () => {
       window.removeEventListener('click', startVoice);
     };
-  }, []);
+  }, [agentId]);
 
   // LISTEN FOR ACCEPTED CALL
   useEffect(() => {
@@ -109,7 +114,7 @@ function App() {
   };
 
   const toggleAgentStatus = () => {
-    const userId = window.localStorage?.getItem('voiceUserId') || 'web_user';
+    const userId = agentId || 'web_user';
     const nextStatus = agentStatus === 'online' ? 'offline' : 'online';
     setAgentStatus(nextStatus);
     window.localStorage?.setItem('agentStatus', nextStatus);
@@ -118,11 +123,20 @@ function App() {
     }
   };
 
+  const handleAgentChange = async (nextAgent) => {
+    const userId = nextAgent || 'web_user';
+    setAgentId(userId);
+    window.localStorage?.setItem('voiceUserId', userId);
+    await initVoice(userId);
+  };
+
   return (
     <div className="App">
 
       {/* AGENT STATUS TOGGLE */}
       <div style={statusStyle}>
+        <div style={statusMeta}>Logged in as: {agentId}</div>
+        <AgentSelector value={agentId} onChange={handleAgentChange} />
         <button onClick={toggleAgentStatus} style={agentStatus === 'online' ? onlineBtn : offlineBtn}>
           {agentStatus === 'online' ? 'Online' : 'Offline'}
         </button>
@@ -204,7 +218,20 @@ const statusStyle = {
   position: 'fixed',
   top: '10px',
   right: '20px',
-  zIndex: 9999
+  zIndex: 9999,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  alignItems: 'flex-end'
+};
+
+const statusMeta = {
+  fontSize: '12px',
+  color: '#6b7280',
+  background: '#fff',
+  border: '1px solid #e5e7eb',
+  borderRadius: '999px',
+  padding: '4px 8px'
 };
 
 const onlineBtn = {
