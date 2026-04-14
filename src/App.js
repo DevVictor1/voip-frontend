@@ -11,6 +11,7 @@ import IncomingCallPopup from './components/IncomingCallPopup';
 import socket from './socket';
 import {
   initVoice,
+  getDeviceStatus,
   muteCall,
   unmuteCall,
   disconnectCall
@@ -21,6 +22,9 @@ function App() {
   const [connection, setConnection] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [onHold, setOnHold] = useState(false);
+  const [deviceStatus, setDeviceStatus] = useState(() => getDeviceStatus());
+  const [callState, setCallState] = useState('idle');
+  const [callNotice, setCallNotice] = useState(null);
   const [userRole, setUserRole] = useState(() => {
     if (typeof window === 'undefined') return 'admin';
     const saved = window.localStorage?.getItem('userRole');
@@ -65,6 +69,8 @@ function App() {
     const handler = (e) => {
       const conn = e.detail;
       setConnection(conn);
+      setCallState('in-call');
+      setCallNotice(null);
 
       conn.on('disconnect', () => {
         setConnection(null);
@@ -78,19 +84,80 @@ function App() {
     return () => window.removeEventListener('callAccepted', handler);
   }, []);
 
+  useEffect(() => {
+    const handleDeviceStatus = (e) => {
+      setDeviceStatus(e.detail?.status || 'offline');
+    };
+
+    const handleCallState = (e) => {
+      const nextState = e.detail?.state || 'idle';
+      setCallState(nextState);
+
+      if (['missed', 'failed', 'ended'].includes(nextState)) {
+        setCallNotice(getCallNotice(nextState));
+      } else {
+        setCallNotice(null);
+      }
+    };
+
+    const handleCallEnded = () => {
+      setConnection(null);
+      setIsMuted(false);
+      setOnHold(false);
+    };
+
+    window.addEventListener('voiceDeviceStatus', handleDeviceStatus);
+    window.addEventListener('voiceCallState', handleCallState);
+    window.addEventListener('callEnded', handleCallEnded);
+
+    return () => {
+      window.removeEventListener('voiceDeviceStatus', handleDeviceStatus);
+      window.removeEventListener('voiceCallState', handleCallState);
+      window.removeEventListener('callEnded', handleCallEnded);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!callNotice) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setCallNotice(null);
+      setCallState('idle');
+    }, 2500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [callNotice]);
+
   // SOCKET (optional)
   useEffect(() => {
     socket.on('incomingCall', (data) => {
       console.log('Incoming (socket):', data);
+      setCallState('incoming');
     });
 
-    return () => socket.off('incomingCall');
+    socket.on('callStatus', (data) => {
+      const mappedStatus = mapCallStatus(data?.status);
+      if (mappedStatus) {
+        setCallState(mappedStatus);
+      }
+    });
+
+    socket.on('callEnded', () => {
+      setCallState((prev) => (prev === 'failed' || prev === 'missed' ? prev : 'ended'));
+    });
+
+    return () => {
+      socket.off('incomingCall');
+      socket.off('callStatus');
+      socket.off('callEnded');
+    };
   }, []);
 
   // END CALL
   const hangUp = () => {
     disconnectCall();
     setConnection(null);
+    setCallState('ended');
   };
 
   // MUTE
@@ -135,6 +202,10 @@ function App() {
     await initVoice(userId);
   };
 
+  const handleRetryVoice = async () => {
+    await initVoice(agentId || undefined);
+  };
+
   const handleRoleChange = (nextRole) => {
     const normalized = nextRole === 'agent' ? 'agent' : 'admin';
     setUserRole(normalized);
@@ -147,11 +218,30 @@ function App() {
       {/* MAIN POPUP SYSTEM */}
       <IncomingCallPopup />
 
+      <div style={deviceBadgeStyle(deviceStatus)}>
+        <span>{getDeviceLabel(deviceStatus)}</span>
+        {deviceStatus === 'error' || deviceStatus === 'offline' ? (
+          <button type="button" onClick={handleRetryVoice} style={retryBtn}>
+            Retry
+          </button>
+        ) : null}
+      </div>
+
+      {callNotice ? (
+        <div style={noticeStyle}>
+          {callNotice}
+        </div>
+      ) : null}
+
       {/* ACTIVE CALL UI */}
       {connection && (
         <div style={callStyle}>
           <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>
-            In Call
+            {getCallLabel(callState)}
+          </div>
+
+          <div style={callMetaStyle}>
+            Device: {getDeviceLabel(deviceStatus)}
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -233,6 +323,74 @@ function App() {
   );
 }
 
+const getDeviceLabel = (status) => {
+  switch (status) {
+    case 'initializing':
+      return 'Connecting';
+    case 'ready':
+      return 'Ready';
+    case 'error':
+      return 'Error';
+    default:
+      return 'Offline';
+  }
+};
+
+const getCallLabel = (state) => {
+  switch (state) {
+    case 'incoming':
+      return 'Incoming call';
+    case 'ringing':
+      return 'Ringing';
+    case 'connecting':
+      return 'Connecting';
+    case 'in-call':
+      return 'In Call';
+    case 'missed':
+      return 'Missed call';
+    case 'failed':
+      return 'Call failed';
+    case 'ended':
+      return 'Call ended';
+    default:
+      return 'In Call';
+  }
+};
+
+const getCallNotice = (state) => {
+  switch (state) {
+    case 'missed':
+      return 'Missed call';
+    case 'failed':
+      return 'Call failed';
+    case 'ended':
+      return 'Call ended';
+    default:
+      return '';
+  }
+};
+
+const mapCallStatus = (status) => {
+  switch (status) {
+    case 'initiated':
+      return 'connecting';
+    case 'ringing':
+      return 'ringing';
+    case 'in-progress':
+      return 'in-call';
+    case 'busy':
+    case 'failed':
+      return 'failed';
+    case 'no-answer':
+      return 'missed';
+    case 'completed':
+    case 'canceled':
+      return 'ended';
+    default:
+      return null;
+  }
+};
+
 // STYLES
 const callStyle = {
   position: 'fixed',
@@ -247,6 +405,12 @@ const callStyle = {
   minWidth: '220px'
 };
 
+const callMetaStyle = {
+  fontSize: '12px',
+  color: 'rgba(255,255,255,0.75)',
+  marginBottom: '12px'
+};
+
 const btn = {
   padding: '8px 12px',
   borderRadius: '6px',
@@ -259,6 +423,55 @@ const btn = {
 const endBtn = {
   ...btn,
   background: '#e53935'
+};
+
+const deviceBadgeStyle = (status) => ({
+  position: 'fixed',
+  right: '20px',
+  bottom: '156px',
+  zIndex: 9998,
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  padding: '8px 12px',
+  borderRadius: '999px',
+  color: '#fff',
+  background:
+    status === 'ready'
+      ? 'rgba(22, 163, 74, 0.92)'
+      : status === 'initializing'
+        ? 'rgba(29, 78, 216, 0.92)'
+        : status === 'error'
+          ? 'rgba(185, 28, 28, 0.92)'
+          : 'rgba(71, 85, 105, 0.92)',
+  boxShadow: '0 8px 20px rgba(15,23,42,0.24)',
+  fontSize: '12px',
+  fontWeight: 600
+});
+
+const retryBtn = {
+  border: '1px solid rgba(255,255,255,0.25)',
+  background: 'rgba(255,255,255,0.12)',
+  color: '#fff',
+  borderRadius: '999px',
+  padding: '4px 10px',
+  cursor: 'pointer',
+  fontSize: '11px',
+  fontWeight: 600
+};
+
+const noticeStyle = {
+  position: 'fixed',
+  right: '20px',
+  bottom: '108px',
+  zIndex: 9998,
+  padding: '10px 14px',
+  borderRadius: '12px',
+  background: 'rgba(15, 23, 42, 0.92)',
+  color: '#fff',
+  boxShadow: '0 10px 24px rgba(15,23,42,0.22)',
+  fontSize: '13px',
+  fontWeight: 600
 };
 
 export default App;

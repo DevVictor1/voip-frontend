@@ -1,9 +1,89 @@
-﻿import { Device } from '@twilio/voice-sdk';
+import { Device } from '@twilio/voice-sdk';
 import BASE_URL from '../config/api';
 
 let device;
 let currentConnection = null;
 let isInitializing = false;
+let deviceStatus = 'offline';
+let activeUserId = null;
+
+const emitDeviceStatus = (status, error = null) => {
+  deviceStatus = status;
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('voiceDeviceStatus', {
+        detail: { status, error },
+      })
+    );
+  }
+};
+
+const emitCallState = (state, extra = {}) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('voiceCallState', {
+        detail: { state, ...extra },
+      })
+    );
+  }
+};
+
+const destroyExistingDevice = () => {
+  if (!device) return;
+
+  try {
+    device.destroy();
+  } catch (err) {
+    console.error('Device destroy error:', err);
+  }
+
+  device = null;
+  activeUserId = null;
+
+  if (typeof window !== 'undefined') {
+    window.twilioDevice = null;
+  }
+
+  emitDeviceStatus('offline');
+};
+
+const attachConnectionListeners = (conn, direction = 'outgoing') => {
+  if (!conn) return;
+
+  emitCallState(direction === 'incoming' ? 'incoming' : 'connecting');
+
+  conn.on('accept', () => {
+    emitCallState('in-call');
+  });
+
+  conn.on('ringing', () => {
+    emitCallState('ringing');
+  });
+
+  conn.on('cancel', () => {
+    currentConnection = null;
+    emitCallState('missed');
+    window.dispatchEvent(new Event('callEnded'));
+  });
+
+  conn.on('reject', () => {
+    currentConnection = null;
+    emitCallState('failed');
+    window.dispatchEvent(new Event('callEnded'));
+  });
+
+  conn.on('disconnect', () => {
+    currentConnection = null;
+    emitCallState('ended');
+    window.dispatchEvent(new Event('callEnded'));
+  });
+
+  conn.on('error', (err) => {
+    console.error('Call connection error:', err);
+    emitCallState('failed', { error: err });
+  });
+};
 
 export const initVoice = async (userId) => {
   try {
@@ -15,32 +95,32 @@ export const initVoice = async (userId) => {
       return;
     }
 
-    if (typeof window !== 'undefined') {
-      if (window.twilioDevice && window.twilioDevice.__userId === resolvedUserId) {
-        console.log('Device already exists, skipping init');
-        return;
-      }
-
-      if (window.twilioDevice) {
-        window.twilioDevice.destroy();
-        window.twilioDevice = null;
-      }
+    if (device && activeUserId === resolvedUserId && deviceStatus === 'ready') {
+      console.log('Device already ready, skipping init');
+      emitDeviceStatus('ready');
+      return;
     }
 
     isInitializing = true;
+    emitDeviceStatus('initializing');
+
+    if (device && activeUserId !== resolvedUserId) {
+      destroyExistingDevice();
+    }
 
     const qs = userId ? `?userId=${encodeURIComponent(userId)}` : '';
     const res = await fetch(`${BASE_URL}/api/voice/token${qs}`, {
-      method: "GET",
+      method: 'GET',
     });
 
-    if (!res.ok) throw new Error("Token fetch failed");
+    if (!res.ok) throw new Error('Token fetch failed');
 
     const data = await res.json();
 
     device = new Device(data.token, {
       logLevel: 1,
     });
+    activeUserId = resolvedUserId;
 
     if (typeof window !== 'undefined') {
       device.__userId = resolvedUserId;
@@ -48,71 +128,75 @@ export const initVoice = async (userId) => {
     }
 
     device.on('registered', () => {
-      console.log('âœ… Device ready');
+      console.log('Device ready');
+      emitDeviceStatus('ready');
     });
 
     device.on('error', (err) => {
-      console.error('âŒ Device error:', err);
+      console.error('Device error:', err);
+      emitDeviceStatus('error', err);
+    });
+
+    device.on('unregistered', () => {
+      emitDeviceStatus('offline');
+    });
+
+    device.on('destroyed', () => {
+      emitDeviceStatus('offline');
     });
 
     device.on('incoming', (conn) => {
-      console.log('ðŸ“ž Incoming call');
+      console.log('Incoming call');
 
       currentConnection = conn;
+      attachConnectionListeners(conn, 'incoming');
 
-      // ðŸ”¥ SHOW INCOMING UI
       window.dispatchEvent(
         new CustomEvent('incomingCallUI', { detail: conn })
       );
-
-      conn.on('disconnect', () => {
-        currentConnection = null;
-        window.dispatchEvent(new Event('callEnded'));
-      });
     });
 
     await device.register();
   } catch (err) {
-    console.error('âŒ Voice init error:', err);
+    console.error('Voice init error:', err);
+    emitDeviceStatus('error', err);
   } finally {
     isInitializing = false;
   }
 };
 
-// ðŸ”¥ OUTGOING CALL (FIXED)
 export const startCall = async (phone) => {
   if (!device) {
-    console.error('âŒ Device not ready');
+    console.error('Device not ready');
+    emitCallState('failed');
     return;
   }
 
   try {
+    emitCallState('connecting');
+
     const conn = await device.connect({
       params: { To: phone },
     });
 
     currentConnection = conn;
+    attachConnectionListeners(conn, 'outgoing');
 
-    // ðŸ”¥ THIS IS THE MISSING PIECE (VERY IMPORTANT)
     window.dispatchEvent(
       new CustomEvent('callAccepted', { detail: conn })
     );
 
-    conn.on('disconnect', () => {
-      currentConnection = null;
-      window.dispatchEvent(new Event('callEnded'));
-    });
-
-    console.log('ðŸ“ž Outgoing call started');
+    console.log('Outgoing call started');
 
     return conn;
-
   } catch (err) {
-    console.error('âŒ Outgoing call error:', err);
+    console.error('Outgoing call error:', err);
+    emitCallState('failed', { error: err });
   }
 };
 
 export const getConnection = () => currentConnection;
+export const getDeviceStatus = () => deviceStatus;
 
 export const muteCall = () => {
   currentConnection?.mute(true);
