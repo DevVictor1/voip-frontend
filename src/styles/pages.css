@@ -614,8 +614,8 @@
 .contact-card {
   background: transparent;
   border-radius: 10px;
-  padding: 12px;
-  margin-bottom: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
   position: relative;
   border-left: 3px solid transparent;
   transition: background 0.2s ease, border-color 0.2s ease;
@@ -624,8 +624,8 @@
 
 .contact-card-body {
   min-width: 0;
-  padding-right: 48px;
-  padding-bottom: 24px;
+  padding-right: 54px;
+  padding-bottom: 18px;
 }
 
 .contact-card:hover {
@@ -670,21 +670,15 @@
 }
 
 .contact-preview {
-  margin-top: 10px;
+  margin-top: 6px;
   min-width: 0;
   color: #64748b;
-  font-size: 13px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: normal;
+  white-space: nowrap;
   display: block;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  max-height: calc(1.35em * 2);
-  word-break: break-word;
 }
 
 /* DBA */
@@ -695,13 +689,13 @@
 
 /* PHONES */
 .contact-phones {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .phone-item {
   display: flex;
   justify-content: space-between;
-  padding: 6px;
+  padding: 5px 6px;
   border-radius: 6px;
   cursor: pointer;
   margin-top: 4px;
@@ -1183,14 +1177,8 @@
   }
 
   .contact-card-body {
-    padding-right: 44px;
-    padding-bottom: 22px;
-  }
-
-  .contact-preview {
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
-    max-height: 1.35em;
+    padding-right: 50px;
+    padding-bottom: 18px;
   }
 }
 .table tbody tr:hover {
