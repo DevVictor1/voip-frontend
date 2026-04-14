@@ -50,6 +50,15 @@ function MessagesPage() {
     }
   }, []);
 
+  const markChatRead = useCallback((phone) => {
+    const target = normalize(phone);
+    setChats((prev) =>
+      prev.map((c) =>
+        normalize(c.phone) === target ? { ...c, unread: 0 } : c
+      )
+    );
+  }, []);
+
   const fetchMessages = async (phone) => {
     try {
       const res = await fetch(`${BASE_URL}/api/sms/messages/${phone}`);
@@ -107,16 +116,18 @@ function MessagesPage() {
     };
 
     loadChat();
-  }, [activeChatId, fetchConversations]);
+  }, [activeChatId, fetchConversations, markChatRead]);
 
   useEffect(() => {
     const handler = (e) => {
-      setActiveChatId(normalize(e.detail));
+      const normalized = normalize(e.detail);
+      setActiveChatId(normalized);
+      markChatRead(normalized);
     };
 
     window.addEventListener('switchChatNumber', handler);
     return () => window.removeEventListener('switchChatNumber', handler);
-  }, []);
+  }, [markChatRead]);
 
   useEffect(() => {
     const handleMessage = (msg) => {
@@ -132,6 +143,37 @@ function MessagesPage() {
           if (exists) return prev;
           return [...prev, msg];
         });
+        markChatRead(active);
+      } else if (!msg.direction || msg.direction === 'inbound') {
+        const target = normalize(msg.from);
+        setChats((prev) => {
+          let found = false;
+          const next = prev.map((c) => {
+            if (normalize(c.phone) === target) {
+              found = true;
+              return {
+                ...c,
+                unread: (c.unread || 0) + 1,
+                lastMessage: msg.body || c.lastMessage,
+                updatedAt: msg.createdAt || c.updatedAt,
+              };
+            }
+            return c;
+          });
+
+          if (!found && target) {
+            next.push({
+              phone: target,
+              name: target,
+              lastMessage: msg.body || '',
+              unread: 1,
+              updatedAt: msg.createdAt || new Date().toISOString(),
+              isInternal: false
+            });
+          }
+
+          return next;
+        });
       }
 
       fetchConversations();
@@ -142,8 +184,16 @@ function MessagesPage() {
   }, [activeChatId, fetchConversations]);
 
   const handleStartChat = (phone) => {
-    setActiveChatId(normalize(phone));
+    const normalized = normalize(phone);
+    setActiveChatId(normalized);
     setMessages([]);
+    markChatRead(normalized);
+  };
+
+  const handleSelectChat = (phone) => {
+    const normalized = normalize(phone);
+    setActiveChatId(normalized);
+    markChatRead(normalized);
   };
 
   const mergedList = contacts.map((contact) => {
@@ -295,7 +345,7 @@ function MessagesPage() {
         <ContactsList
           list={filteredList}
           activeId={normalize(activeChatId)}
-          onSelect={(num) => setActiveChatId(normalize(num))}
+          onSelect={handleSelectChat}
         />
       </div>
 

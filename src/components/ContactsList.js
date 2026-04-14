@@ -42,13 +42,7 @@ function ContactsList({ list, activeId, onSelect }) {
           return (
             <div
               key={index}
-              className="contact-card"
-              style={{
-                position: 'relative',
-                background: hasUnread ? '#1a1f2b' : undefined,
-                borderLeft: hasUnread ? '3px solid #1d9bf0' : '3px solid transparent',
-                fontWeight: hasUnread ? 'bold' : 'normal'
-              }}
+              className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}`}
               onClick={() => {
                 if (item.phone) onSelect(item.phone); // ✅ ONLY SELECT
               }}
@@ -105,10 +99,15 @@ function ContactsList({ list, activeId, onSelect }) {
                 </div>
               )}
 
-              <div className="contact-name">
-                {item.firstName
-                  ? `${item.firstName} ${item.lastName || ""}`
-                  : item.name}
+              <div className="contact-row">
+                <div className="contact-name">
+                  {item.firstName
+                    ? `${item.firstName} ${item.lastName || ""}`
+                    : item.name}
+                </div>
+                {hasUnread && (
+                  <span className="unread-badge">{item.unread}</span>
+                )}
               </div>
 
               <div className="contact-phones" style={{ marginTop: '6px' }}>
@@ -127,28 +126,6 @@ function ContactsList({ list, activeId, onSelect }) {
                   </div>
                 ))}
               </div>
-
-              {/* 🔥 UNREAD COUNT BADGE */}
-              {hasUnread && (
-                <div style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '10px',
-                  minWidth: '18px',
-                  height: '18px',
-                  background: '#1d9bf0',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  color: '#fff',
-                  padding: '0 5px'
-                }}>
-                  {item.unread}
-                </div>
-              )}
 
               {item.lastMessage && (
                 <div
