@@ -1,4 +1,5 @@
 import { stats, calls } from '../data/mockData';
+import AgentStatusList from '../components/AgentStatusList';
 
 function Dashboard() {
   return (
@@ -18,6 +19,10 @@ function Dashboard() {
             <div className="text-muted">Updated 2 minutes ago</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '24px' }}>
+        <AgentStatusList />
       </div>
 
       <div className="section-card">
