@@ -47,6 +47,13 @@ function MessageInput({ chatId, onMessageSent, setMessages }) {
     }
   };
 
+  const handleRemoveMedia = () => {
+    setMediaUrl('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSend = async () => {
     if (sending || uploading) return;
     if ((!text.trim() && !mediaUrl) || !chatId) return;
@@ -101,28 +108,56 @@ function MessageInput({ chatId, onMessageSent, setMessages }) {
 
   return (
     <div className="message-input-container">
-      <input
-        className="message-input-field"
-        type="text"
-        placeholder="Type a message..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (sending || uploading) return;
-          if (e.key === 'Enter') handleSend();
-        }}
-      />
+      {mediaUrl && (
+        <div className="mms-preview">
+          <button
+            type="button"
+            className="mms-preview-remove"
+            onClick={handleRemoveMedia}
+            aria-label="Remove image"
+          >
+            ×
+          </button>
+          <img src={mediaUrl} alt="Selected" />
+          <div className="mms-preview-note">Image ready</div>
+        </div>
+      )}
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileChange}
-      />
+      <div className="message-input-row">
+        <input
+          className="message-input-field"
+          type="text"
+          placeholder="Type a message..."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (sending || uploading) return;
+            if (e.key === 'Enter') handleSend();
+          }}
+        />
 
-      <button className="message-send-btn" onClick={handleSend} disabled={sending || uploading}>
-        {sending ? 'Sending...' : uploading ? 'Uploading...' : 'Send'}
-      </button>
+        <input
+          ref={fileInputRef}
+          className="mms-file-input"
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          disabled={uploading}
+        />
+
+        <button
+          type="button"
+          className="mms-attach-btn"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+        >
+          {uploading ? 'Uploading...' : 'Attach'}
+        </button>
+
+        <button className="message-send-btn" onClick={handleSend} disabled={sending || uploading}>
+          {sending ? 'Sending...' : 'Send'}
+        </button>
+      </div>
     </div>
   );
 }
