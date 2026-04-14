@@ -125,7 +125,13 @@ function MessagesPage() {
       const active = normalize(activeChatId);
 
       if (msgFrom === active || msgTo === active) {
-        setMessages((prev) => [...prev, msg]);
+        setMessages((prev) => {
+          const exists = prev.find(
+            (m) => m._id === msg._id || m.sid === msg.sid
+          );
+          if (exists) return prev;
+          return [...prev, msg];
+        });
       }
 
       fetchConversations();

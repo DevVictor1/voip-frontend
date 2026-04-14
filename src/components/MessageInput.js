@@ -15,13 +15,11 @@ function MessageInput({ chatId, onMessageSent }) {
         body: JSON.stringify({ to: chatId, message: text }),
       });
 
-      await res.json();
+      if (!res.ok) throw new Error('Send failed');
 
-      onMessageSent({
-        body: text,
-        direction: 'outbound',
-        createdAt: new Date().toISOString(),
-      });
+      const data = await res.json();
+
+      onMessageSent(data);
 
       setText('');
     } catch (err) {

@@ -86,21 +86,6 @@ function ChatWindow({
     return () => socket.off('callStatus', fetchCalls);
   }, [fetchCalls]);
 
-  useEffect(() => {
-    const handleNewMessage = (msg) => {
-      if (!chat?.phone) return;
-
-      const current = normalize(chat.phone);
-
-      if (normalize(msg.from) === current || normalize(msg.to) === current) {
-        setMessages((prev) => [...prev, msg]);
-      }
-    };
-
-    socket.on('newMessage', handleNewMessage);
-    return () => socket.off('newMessage', handleNewMessage);
-  }, [chat?.phone, setMessages]);
-
   const mergedTimeline = [
     ...safeMessages.map((m) => ({ ...m, type: 'message' })),
     ...callLogs.map((c) => ({ ...c, type: 'call' }))
@@ -220,7 +205,13 @@ function ChatWindow({
       <MessageInput
         chatId={chat.phone}
         onMessageSent={(msg) => {
-          setMessages((prev) => [...prev, msg]);
+          setMessages((prev) => {
+            const exists = prev.find(
+              (m) => m._id === msg._id || m.sid === msg.sid
+            );
+            if (exists) return prev;
+            return [...prev, msg];
+          });
         }}
       />
     </div>
