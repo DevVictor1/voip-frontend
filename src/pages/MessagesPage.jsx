@@ -141,6 +141,23 @@ function MessagesPage() {
             (m) => m._id === msg._id || m.sid === msg.sid
           );
           if (exists) return prev;
+          if (msg.direction === 'outbound') {
+            const msgTime = msg.createdAt ? new Date(msg.createdAt).getTime() : null;
+            const tempIndex = prev.findIndex((m) => {
+              if (m.status !== 'sending') return false;
+              if (m.direction !== 'outbound') return false;
+              if (m.body !== msg.body) return false;
+              if (!msgTime || !m.createdAt) return true;
+              const tempTime = new Date(m.createdAt).getTime();
+              return Math.abs(tempTime - msgTime) < 120000;
+            });
+
+            if (tempIndex !== -1) {
+              const next = [...prev];
+              next[tempIndex] = msg;
+              return next;
+            }
+          }
           return [...prev, msg];
         });
         markChatRead(active);
