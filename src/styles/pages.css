@@ -589,17 +589,17 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 10px;
+  padding: 0;
 }
 
 .contacts-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .contacts-import {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .contacts-scroll {
@@ -614,7 +614,7 @@
 .contact-card {
   background: transparent;
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   margin-bottom: 8px;
   position: relative;
   border-left: 3px solid transparent;
@@ -625,7 +625,7 @@
 .contact-card-body {
   min-width: 0;
   padding-right: 54px;
-  padding-bottom: 18px;
+  padding-bottom: 16px;
 }
 
 .contact-card:hover {
@@ -652,8 +652,8 @@
 .contact-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding-right: 28px;
+  gap: 8px;
+  padding-right: 24px;
   min-width: 0;
 }
 
@@ -670,7 +670,7 @@
 }
 
 .contact-preview {
-  margin-top: 6px;
+  margin-top: 4px;
   min-width: 0;
   color: #64748b;
   font-size: 12px;
@@ -689,13 +689,13 @@
 
 /* PHONES */
 .contact-phones {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 .phone-item {
   display: flex;
   justify-content: space-between;
-  padding: 5px 6px;
+  padding: 4px 6px;
   border-radius: 6px;
   cursor: pointer;
   margin-top: 4px;
@@ -733,6 +733,7 @@
   min-height: 0;
   overflow: hidden;
   overscroll-behavior: none;
+  gap: 24px;
 }
 
 .messages-contacts-pane,
@@ -742,8 +743,14 @@
   min-height: 0;
 }
 
+.messages-contacts-pane {
+  flex: 0 0 360px;
+  min-width: 320px;
+  max-width: 380px;
+}
+
 .messages-chat-pane {
-  flex: 1;
+  flex: 1 1 auto;
   height: 100%;
   min-width: 0;
   overflow: hidden;
@@ -1100,6 +1107,12 @@
   .messages-shell {
     gap: 16px;
   }
+
+  .messages-contacts-pane {
+    flex-basis: 330px;
+    min-width: 300px;
+    max-width: 340px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1135,6 +1148,8 @@
   .messages-chat-pane {
     width: 100%;
     min-height: 0;
+    min-width: 0;
+    max-width: none;
   }
 
   .messages-shell.is-chat-open .messages-contacts-pane {
@@ -1178,7 +1193,7 @@
 
   .contact-card-body {
     padding-right: 50px;
-    padding-bottom: 18px;
+    padding-bottom: 16px;
   }
 }
 .table tbody tr:hover {
