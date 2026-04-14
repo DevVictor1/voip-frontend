@@ -1,10 +1,10 @@
-﻿import Sidebar from '../components/Sidebar';
+import Sidebar from '../components/Sidebar';
 
-function MainLayout({ children }) {
+function MainLayout({ children, userRole, onRoleChange }) {
   return (
     <div className="app-root">
       <div className="app-shell">
-        <Sidebar />
+        <Sidebar userRole={userRole} onRoleChange={onRoleChange} />
         <main className="app-main">{children}</main>
       </div>
     </div>
@@ -12,3 +12,4 @@ function MainLayout({ children }) {
 }
 
 export default MainLayout;
+

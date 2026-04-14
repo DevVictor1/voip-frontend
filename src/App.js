@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import './App.css';
 import MainLayout from './layout/MainLayout';
@@ -20,6 +20,11 @@ function App() {
   const [connection, setConnection] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [onHold, setOnHold] = useState(false);
+  const [userRole, setUserRole] = useState(() => {
+    if (typeof window === 'undefined') return 'admin';
+    const saved = window.localStorage?.getItem('userRole');
+    return saved === 'agent' ? 'agent' : 'admin';
+  });
   const [agentStatus, setAgentStatus] = useState(() => {
     if (typeof window === 'undefined') return 'online';
     return window.localStorage?.getItem('agentStatus') || 'online';
@@ -129,6 +134,12 @@ function App() {
     await initVoice(userId);
   };
 
+  const handleRoleChange = (nextRole) => {
+    const normalized = nextRole === 'agent' ? 'agent' : 'admin';
+    setUserRole(normalized);
+    window.localStorage?.setItem('userRole', normalized);
+  };
+
   return (
     <div className="App">
 
@@ -165,19 +176,44 @@ function App() {
           <Route
             path="/"
             element={
-              <MainLayout>
-                <Dashboard
-                  agentId={agentId}
-                  agentStatus={agentStatus}
-                  onToggleAgentStatus={toggleAgentStatus}
-                  onAgentChange={handleAgentChange}
-                />
+              <MainLayout userRole={userRole} onRoleChange={handleRoleChange}>
+                {userRole === 'admin' ? (
+                  <Dashboard
+                    agentId={agentId}
+                    agentStatus={agentStatus}
+                    onToggleAgentStatus={toggleAgentStatus}
+                    onAgentChange={handleAgentChange}
+                  />
+                ) : (
+                  <Navigate to="/messages" replace />
+                )}
               </MainLayout>
             }
           />
-          <Route path="/messages" element={<MainLayout><Messages /></MainLayout>} />
-          <Route path="/calls" element={<MainLayout><CallLogs /></MainLayout>} />
-          <Route path="/users" element={<MainLayout><Users /></MainLayout>} />
+          <Route
+            path="/messages"
+            element={
+              <MainLayout userRole={userRole} onRoleChange={handleRoleChange}>
+                <Messages />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/calls"
+            element={
+              <MainLayout userRole={userRole} onRoleChange={handleRoleChange}>
+                <CallLogs />
+              </MainLayout>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <MainLayout userRole={userRole} onRoleChange={handleRoleChange}>
+                {userRole === 'admin' ? <Users /> : <Navigate to="/messages" replace />}
+              </MainLayout>
+            }
+          />
 
           {/* Opt-in WITHOUT layout */}
           <Route path="/opt-in" element={<OptInPage />} />
