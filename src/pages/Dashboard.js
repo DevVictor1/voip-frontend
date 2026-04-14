@@ -1,9 +1,72 @@
+import { useEffect, useMemo, useState } from 'react';
 import { stats, calls } from '../data/mockData';
 import AgentStatusList from '../components/AgentStatusList';
 import AgentSelector from '../components/AgentSelector';
 import { formatAgentLabel, getAgentMeta } from '../config/agents';
+import BASE_URL from '../config/api';
 
 function Dashboard({ agentId, agentStatus, onToggleAgentStatus, onAgentChange }) {
+  const [statValues, setStatValues] = useState({
+    activeConversations: 0,
+    dailyCallMinutes: 0,
+    smsDelivered: 0,
+    missedCalls: 0
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/dashboard/stats`);
+        if (!res.ok) throw new Error('Stats request failed');
+        const data = await res.json();
+        setStatValues({
+          activeConversations: Number(data.activeConversations) || 0,
+          dailyCallMinutes: Number(data.dailyCallMinutes) || 0,
+          smsDelivered: Number(data.smsDelivered) || 0,
+          missedCalls: Number(data.missedCalls) || 0
+        });
+      } catch (err) {
+        console.error('Dashboard stats error:', err);
+        setStatValues({
+          activeConversations: 0,
+          dailyCallMinutes: 0,
+          smsDelivered: 0,
+          missedCalls: 0
+        });
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  const displayStats = useMemo(() => {
+    const mapping = {
+      'Active Conversations': statValues.activeConversations,
+      'Daily Call Minutes': statValues.dailyCallMinutes,
+      'SMS Delivered': statValues.smsDelivered,
+      'Missed Calls': statValues.missedCalls
+    };
+
+    return stats.map((item) => {
+      const value = mapping[item.label] ?? item.value;
+      if (item.label === 'Daily Call Minutes') {
+        const minutes = Number(value);
+        const formatted =
+          Number.isFinite(minutes)
+            ? minutes % 1 === 0
+              ? minutes.toLocaleString()
+              : minutes.toFixed(1)
+            : '0';
+        return { ...item, value: formatted };
+      }
+      const numeric = Number(value);
+      return {
+        ...item,
+        value: Number.isFinite(numeric) ? numeric.toLocaleString() : '0'
+      };
+    });
+  }, [statValues]);
+
   return (
     <div className="dashboard-page" style={{ display: 'grid', gap: '24px' }}>
       <div className="dashboard-header">
@@ -32,7 +95,7 @@ function Dashboard({ agentId, agentStatus, onToggleAgentStatus, onAgentChange })
       </div>
 
       <div className="stats-grid">
-        {stats.map((item) => (
+        {displayStats.map((item) => (
           <div key={item.label} className="stat-card">
             <div className="stat-label">{item.label}</div>
             <div className="stat-value">{item.value}</div>
