@@ -1,7 +1,8 @@
-import { AGENTS, formatAgentLabel } from '../config/agents';
+import { AGENTS, formatAgentLabel, getAgentMeta } from '../config/agents';
 
 function AgentSelector({ value, onChange }) {
   const agents = Object.keys(AGENTS);
+  const current = getAgentMeta(value);
 
   return (
     <label style={wrapper}>
@@ -13,10 +14,11 @@ function AgentSelector({ value, onChange }) {
       >
         {agents.map((agentId) => (
           <option key={agentId} value={agentId}>
-            {formatAgentLabel(agentId)}
+            {formatAgentLabel(agentId)} {AGENTS[agentId]?.role ? `[${AGENTS[agentId].role}]` : ''}
           </option>
         ))}
       </select>
+      {current.role ? <span className="agent-badge">{current.role}</span> : null}
     </label>
   );
 }

@@ -8,5 +8,11 @@ export const AGENTS = {
 export const formatAgentLabel = (agentId) => {
   const entry = AGENTS[agentId];
   if (!entry) return agentId;
-  return `${entry.name} (${entry.role})`;
+  return entry.name;
+};
+
+export const getAgentMeta = (agentId) => {
+  const entry = AGENTS[agentId];
+  if (!entry) return { name: agentId, role: '' };
+  return entry;
 };

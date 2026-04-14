@@ -381,6 +381,15 @@
   padding: 4px 8px;
 }
 
+.agent-badge {
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+}
+
 .status-toggle {
   padding: 6px 12px;
   border-radius: 6px;
