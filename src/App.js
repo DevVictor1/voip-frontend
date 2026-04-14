@@ -218,15 +218,6 @@ function App() {
       {/* MAIN POPUP SYSTEM */}
       <IncomingCallPopup />
 
-      <div style={deviceBadgeStyle(deviceStatus)}>
-        <span>{getDeviceLabel(deviceStatus)}</span>
-        {deviceStatus === 'error' || deviceStatus === 'offline' ? (
-          <button type="button" onClick={handleRetryVoice} style={retryBtn}>
-            Retry
-          </button>
-        ) : null}
-      </div>
-
       {callNotice ? (
         <div style={noticeStyle}>
           {callNotice}
@@ -267,7 +258,14 @@ function App() {
           <Route
             path="/"
             element={
-              <MainLayout userRole={userRole} onRoleChange={handleRoleChange}>
+              <MainLayout
+                userRole={userRole}
+                onRoleChange={handleRoleChange}
+                deviceStatus={deviceStatus}
+                callState={callState}
+                agentId={agentId}
+                onRetryVoice={handleRetryVoice}
+              >
                 {userRole === 'admin' ? (
                   <Dashboard
                     agentId={agentId}
@@ -284,7 +282,14 @@ function App() {
           <Route
             path="/messages"
             element={
-              <MainLayout userRole={userRole} onRoleChange={handleRoleChange}>
+              <MainLayout
+                userRole={userRole}
+                onRoleChange={handleRoleChange}
+                deviceStatus={deviceStatus}
+                callState={callState}
+                agentId={agentId}
+                onRetryVoice={handleRetryVoice}
+              >
                 <Messages />
               </MainLayout>
             }
@@ -292,7 +297,14 @@ function App() {
           <Route
             path="/calls"
             element={
-              <MainLayout userRole={userRole} onRoleChange={handleRoleChange}>
+              <MainLayout
+                userRole={userRole}
+                onRoleChange={handleRoleChange}
+                deviceStatus={deviceStatus}
+                callState={callState}
+                agentId={agentId}
+                onRetryVoice={handleRetryVoice}
+              >
                 <CallLogs />
               </MainLayout>
             }
@@ -300,7 +312,14 @@ function App() {
           <Route
             path="/users"
             element={
-              <MainLayout userRole={userRole} onRoleChange={handleRoleChange}>
+              <MainLayout
+                userRole={userRole}
+                onRoleChange={handleRoleChange}
+                deviceStatus={deviceStatus}
+                callState={callState}
+                agentId={agentId}
+                onRetryVoice={handleRetryVoice}
+              >
                 {userRole === 'admin' ? <Users /> : <Navigate to="/messages" replace />}
               </MainLayout>
             }
@@ -308,7 +327,14 @@ function App() {
           <Route
             path="/numbers"
             element={
-              <MainLayout userRole={userRole} onRoleChange={handleRoleChange}>
+              <MainLayout
+                userRole={userRole}
+                onRoleChange={handleRoleChange}
+                deviceStatus={deviceStatus}
+                callState={callState}
+                agentId={agentId}
+                onRetryVoice={handleRetryVoice}
+              >
                 {userRole === 'admin' ? <NumbersPage /> : <Navigate to="/messages" replace />}
               </MainLayout>
             }
@@ -423,41 +449,6 @@ const btn = {
 const endBtn = {
   ...btn,
   background: '#e53935'
-};
-
-const deviceBadgeStyle = (status) => ({
-  position: 'fixed',
-  right: '20px',
-  bottom: '156px',
-  zIndex: 9998,
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px',
-  padding: '8px 12px',
-  borderRadius: '999px',
-  color: '#fff',
-  background:
-    status === 'ready'
-      ? 'rgba(22, 163, 74, 0.92)'
-      : status === 'initializing'
-        ? 'rgba(29, 78, 216, 0.92)'
-        : status === 'error'
-          ? 'rgba(185, 28, 28, 0.92)'
-          : 'rgba(71, 85, 105, 0.92)',
-  boxShadow: '0 8px 20px rgba(15,23,42,0.24)',
-  fontSize: '12px',
-  fontWeight: 600
-});
-
-const retryBtn = {
-  border: '1px solid rgba(255,255,255,0.25)',
-  background: 'rgba(255,255,255,0.12)',
-  color: '#fff',
-  borderRadius: '999px',
-  padding: '4px 10px',
-  cursor: 'pointer',
-  fontSize: '11px',
-  fontWeight: 600
 };
 
 const noticeStyle = {
