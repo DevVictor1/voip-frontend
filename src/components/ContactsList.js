@@ -99,45 +99,47 @@ function ContactsList({ list, activeId, onSelect }) {
                 </div>
               )}
 
-              <div className="contact-row">
-                <div className="contact-name">
-                  {item.firstName
-                    ? `${item.firstName} ${item.lastName || ""}`
-                    : item.name}
+              <div className="contact-card-body">
+                <div className="contact-row">
+                  <div className="contact-name">
+                    {item.firstName
+                      ? `${item.firstName} ${item.lastName || ""}`
+                      : item.name}
+                  </div>
+                  {hasUnread && (
+                    <span className="unread-badge">{item.unread}</span>
+                  )}
                 </div>
-                {hasUnread && (
-                  <span className="unread-badge">{item.unread}</span>
+
+                <div className="contact-phones" style={{ marginTop: '6px' }}>
+                  {phones.map((p, i) => (
+                    <div
+                      key={i}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelect(p.number);
+                      }}
+                      className={`phone-item ${
+                        normalize(activeId) === normalize(p.number) ? 'active' : ''
+                      }`}
+                    >
+                      {p.label} - {p.number}
+                    </div>
+                  ))}
+                </div>
+
+                {item.lastMessage && (
+                  <div
+                    className="contact-preview"
+                    style={{
+                      opacity: hasUnread ? 1 : 0.7,
+                      fontWeight: hasUnread ? 'bold' : 'normal'
+                    }}
+                  >
+                    {item.lastMessage}
+                  </div>
                 )}
               </div>
-
-              <div className="contact-phones" style={{ marginTop: '6px' }}>
-                {phones.map((p, i) => (
-                  <div
-                    key={i}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelect(p.number);
-                    }}
-                    className={`phone-item ${
-                      normalize(activeId) === normalize(p.number) ? 'active' : ''
-                    }`}
-                  >
-                    {p.label} - {p.number}
-                  </div>
-                ))}
-              </div>
-
-              {item.lastMessage && (
-                <div
-                  className="contact-last"
-                  style={{
-                    opacity: hasUnread ? 1 : 0.7,
-                    fontWeight: hasUnread ? 'bold' : 'normal'
-                  }}
-                >
-                  {item.lastMessage}
-                </div>
-              )}
             </div>
           );
         })}

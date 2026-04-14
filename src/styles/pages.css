@@ -622,6 +622,12 @@
   overflow: hidden;
 }
 
+.contact-card-body {
+  min-width: 0;
+  padding-right: 48px;
+  padding-bottom: 24px;
+}
+
 .contact-card:hover {
   background: rgba(0,0,0,0.04);
 }
@@ -663,14 +669,16 @@
   font-weight: 700;
 }
 
-.contact-last {
+.contact-preview {
   margin-top: 10px;
-  padding-right: 72px;
+  min-width: 0;
   color: #64748b;
   font-size: 13px;
   line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: normal;
+  display: block;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -698,6 +706,10 @@
   cursor: pointer;
   margin-top: 4px;
   background: #f5f7fb;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .phone-item.active {
@@ -1170,11 +1182,15 @@
     width: 100%;
   }
 
-  .contact-last {
+  .contact-card-body {
+    padding-right: 44px;
+    padding-bottom: 22px;
+  }
+
+  .contact-preview {
     -webkit-line-clamp: 1;
     line-clamp: 1;
     max-height: 1.35em;
-    padding-right: 64px;
   }
 }
 .table tbody tr:hover {
