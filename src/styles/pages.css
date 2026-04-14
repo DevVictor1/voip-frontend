@@ -781,6 +781,13 @@
   cursor: pointer;
 }
 
+.numbers-primary-btn:disabled,
+.numbers-secondary-btn:disabled,
+.numbers-danger-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .numbers-primary-btn {
   background: var(--accent);
   color: #fff;
@@ -834,6 +841,31 @@
 .numbers-status-failed {
   background: rgba(239, 68, 68, 0.14);
   color: #b91c1c;
+}
+
+.numbers-toast {
+  position: sticky;
+  top: 12px;
+  justify-self: end;
+  z-index: 5;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.numbers-toast-success {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.numbers-toast-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
 @media (max-width: 1024px) {

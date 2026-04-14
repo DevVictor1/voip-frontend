@@ -22,7 +22,20 @@ function NumbersPage() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingId, setSavingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null);
+    }, 2500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [toast]);
 
   const fetchNumbers = async () => {
     try {
@@ -92,6 +105,9 @@ function NumbersPage() {
   };
 
   const handleUpdate = async (id) => {
+    if (savingId === id) return;
+    setSavingId(id);
+
     try {
       const res = await fetch(`${BASE_URL}/api/numbers/${id}`, {
         method: 'PUT',
@@ -101,13 +117,20 @@ function NumbersPage() {
 
       if (!res.ok) throw new Error('Failed to update number');
       await fetchNumbers();
+      setToast({ type: 'success', message: 'Number updated' });
     } catch (err) {
       console.error('Numbers update error:', err);
       setError('Failed to update number');
+      setToast({ type: 'error', message: 'Failed to save number' });
+    } finally {
+      setSavingId(null);
     }
   };
 
   const handleDelete = async (id) => {
+    if (deletingId === id) return;
+    setDeletingId(id);
+
     try {
       const res = await fetch(`${BASE_URL}/api/numbers/${id}`, {
         method: 'DELETE',
@@ -115,14 +138,24 @@ function NumbersPage() {
 
       if (!res.ok) throw new Error('Failed to delete number');
       await fetchNumbers();
+      setToast({ type: 'success', message: 'Number deleted' });
     } catch (err) {
       console.error('Numbers delete error:', err);
       setError('Failed to delete number');
+      setToast({ type: 'error', message: 'Failed to delete number' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
   return (
     <div style={{ display: 'grid', gap: '24px' }}>
+      {toast ? (
+        <div className={`numbers-toast numbers-toast-${toast.type}`}>
+          {toast.message}
+        </div>
+      ) : null}
+
       <div>
         <h1 className="page-title">Numbers & Porting</h1>
         <div className="page-subtitle">
@@ -322,16 +355,18 @@ function NumbersPage() {
                         <button
                           className="numbers-secondary-btn"
                           type="button"
+                          disabled={savingId === item._id || deletingId === item._id}
                           onClick={() => handleUpdate(item._id)}
                         >
-                          Save
+                          {savingId === item._id ? 'Saving...' : 'Save'}
                         </button>
                         <button
                           className="numbers-danger-btn"
                           type="button"
+                          disabled={deletingId === item._id || savingId === item._id}
                           onClick={() => handleDelete(item._id)}
                         >
-                          Delete
+                          {deletingId === item._id ? 'Deleting...' : 'Delete'}
                         </button>
                       </div>
                     </td>
