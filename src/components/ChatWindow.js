@@ -18,7 +18,7 @@ function ChatWindow({
   onBack,
   showBack
 }) {
-  const listRef = useRef(null);
+  const bottomRef = useRef(null);
   const [callLogs, setCallLogs] = useState([]);
   const [callStatus, setCallStatus] = useState(null);
   const [currentCallSid, setCurrentCallSid] = useState(null);
@@ -92,9 +92,7 @@ function ChatWindow({
   ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mergedTimeline]);
 
   if (!chat) {
@@ -187,54 +185,57 @@ function ChatWindow({
         showBack={showBack}
       />
 
-      <div className="message-list" ref={listRef}>
-        {mergedTimeline.map((item, index) => {
+      <div className="chat-messages-container">
+        <div className="message-list">
+          {mergedTimeline.map((item, index) => {
 
-          if (item.type === 'message') {
-            return <MessageBubble key={index} message={item} onRetry={handleRetry} />;
-          }
+            if (item.type === 'message') {
+              return <MessageBubble key={index} message={item} onRetry={handleRetry} />;
+            }
 
-          // ✅ FIXED CALL UI
-          const isOutbound =
+            // ✅ FIXED CALL UI
+            const isOutbound =
   normalize(item.from) === normalize(chat.phone);
 
-          return (
-            <div
-              key={index}
-              style={{
-                display: 'flex',
-                justifyContent: isOutbound ? 'flex-end' : 'flex-start',
-                padding: '4px 10px'
-              }}
-            >
+            return (
               <div
+                key={index}
                 style={{
-                  maxWidth: '65%',
-                  background: isOutbound ? '#1d9bf0' : '#1e1e1e',
-                  color: '#fff',
-                  borderRadius: '12px',
-                  padding: '10px',
-                  fontSize: '13px'
+                  display: 'flex',
+                  justifyContent: isOutbound ? 'flex-end' : 'flex-start',
+                  padding: '4px 10px'
                 }}
               >
-                <div style={{ marginBottom: '6px', opacity: 0.8 }}>
-                  <Phone size={14} style={{ marginRight: '5px' }} />
-                  Call {item.status}
-                  {item.duration ? ` - ${item.duration}s` : ''}
-                </div>
+                <div
+                  style={{
+                    maxWidth: '65%',
+                    background: isOutbound ? '#1d9bf0' : '#1e1e1e',
+                    color: '#fff',
+                    borderRadius: '12px',
+                    padding: '10px',
+                    fontSize: '13px'
+                  }}
+                >
+                  <div style={{ marginBottom: '6px', opacity: 0.8 }}>
+                    <Phone size={14} style={{ marginRight: '5px' }} />
+                    Call {item.status}
+                    {item.duration ? ` - ${item.duration}s` : ''}
+                  </div>
 
-                {item.recordingSid && (
-                  <audio controls style={{ width: '200px', height: '32px' }}>
-                    <source
-                      src={`${process.env.REACT_APP_API_URL}/api/recordings/${item.recordingSid}`}
-                      type="audio/mpeg"
-                    />
-                  </audio>
-                )}
+                  {item.recordingSid && (
+                    <audio controls style={{ width: '200px', height: '32px' }}>
+                      <source
+                        src={`${process.env.REACT_APP_API_URL}/api/recordings/${item.recordingSid}`}
+                        type="audio/mpeg"
+                      />
+                    </audio>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+          <div ref={bottomRef} />
+        </div>
       </div>
 
       <MessageInput
