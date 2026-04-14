@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import './MessageInput.css';
 import BASE_URL from '../config/api';
 
-export const sendMessageRequest = async (to, message) => {
+export const sendMessageRequest = async (to, message, mediaUrl) => {
   const res = await fetch(`${BASE_URL}/api/sms/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to, message }),
+    body: JSON.stringify({ to, message, mediaUrl }),
   });
 
   if (!res.ok) throw new Error('Send failed');
@@ -16,10 +16,40 @@ export const sendMessageRequest = async (to, message) => {
 function MessageInput({ chatId, onMessageSent, setMessages }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`${BASE_URL}/api/sms/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error('Upload failed');
+
+      const data = await res.json();
+      setMediaUrl(data.url);
+    } catch (err) {
+      console.error('Upload failed:', err);
+      setMediaUrl('');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSend = async () => {
-    if (sending) return;
-    if (!text.trim() || !chatId) return;
+    if (sending || uploading) return;
+    if ((!text.trim() && !mediaUrl) || !chatId) return;
 
     setSending(true);
 
@@ -27,6 +57,7 @@ function MessageInput({ chatId, onMessageSent, setMessages }) {
     const tempMessage = {
       _id: tempId,
       body: text,
+      media: mediaUrl ? [mediaUrl] : [],
       direction: 'outbound',
       status: 'sending',
       createdAt: new Date().toISOString(),
@@ -41,7 +72,7 @@ function MessageInput({ chatId, onMessageSent, setMessages }) {
     setText('');
 
     try {
-      const data = await sendMessageRequest(chatId, text);
+      const data = await sendMessageRequest(chatId, text, mediaUrl || undefined);
 
       if (setMessages) {
         setMessages((prev) =>
@@ -61,6 +92,10 @@ function MessageInput({ chatId, onMessageSent, setMessages }) {
       }
     } finally {
       setSending(false);
+      setMediaUrl('');
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -73,13 +108,20 @@ function MessageInput({ chatId, onMessageSent, setMessages }) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
-          if (sending) return;
+          if (sending || uploading) return;
           if (e.key === 'Enter') handleSend();
         }}
       />
 
-      <button className="message-send-btn" onClick={handleSend} disabled={sending}>
-        {sending ? 'Sending...' : 'Send'}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+      />
+
+      <button className="message-send-btn" onClick={handleSend} disabled={sending || uploading}>
+        {sending ? 'Sending...' : uploading ? 'Uploading...' : 'Send'}
       </button>
     </div>
   );

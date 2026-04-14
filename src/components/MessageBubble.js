@@ -33,6 +33,13 @@ function MessageBubble({ message, onRetry }) {
         className={`message-bubble ${message.direction}`}
         style={isSending ? { opacity: 0.6 } : undefined}
       >
+        {message.media?.length > 0 && (
+          <img
+            src={message.media[0]}
+            alt="MMS"
+            style={{ maxWidth: '200px', borderRadius: '8px', marginBottom: '6px' }}
+          />
+        )}
         {message.body}
       </div>
 

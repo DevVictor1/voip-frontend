@@ -138,7 +138,11 @@ function ChatWindow({
     );
 
     try {
-      const res = await sendMessageRequest(chat.phone, message.body);
+      const res = await sendMessageRequest(
+        chat.phone,
+        message.body,
+        message.media?.[0]
+      );
       if (!res) throw new Error('Retry failed');
 
       setMessages((prev) =>
