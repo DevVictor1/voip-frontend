@@ -12,6 +12,7 @@ function Dashboard({ agentId, agentStatus, onToggleAgentStatus, onAgentChange })
     smsDelivered: 0,
     missedCalls: 0
   });
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -25,6 +26,7 @@ function Dashboard({ agentId, agentStatus, onToggleAgentStatus, onAgentChange })
           smsDelivered: Number(data.smsDelivered) || 0,
           missedCalls: Number(data.missedCalls) || 0
         });
+        setLastUpdated(new Date());
       } catch (err) {
         console.error('Dashboard stats error:', err);
         setStatValues({
@@ -38,6 +40,17 @@ function Dashboard({ agentId, agentStatus, onToggleAgentStatus, onAgentChange })
 
     fetchStats();
   }, []);
+
+  const lastUpdatedLabel = useMemo(() => {
+    if (!lastUpdated) return 'Updated recently';
+
+    const diffMs = Date.now() - lastUpdated.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 1) return 'Updated just now';
+    if (diffMinutes === 1) return 'Updated 1 minute ago';
+    return `Updated ${diffMinutes} minutes ago`;
+  }, [lastUpdated]);
 
   const displayStats = useMemo(() => {
     const mapping = {
@@ -99,7 +112,7 @@ function Dashboard({ agentId, agentStatus, onToggleAgentStatus, onAgentChange })
           <div key={item.label} className="stat-card">
             <div className="stat-label">{item.label}</div>
             <div className="stat-value">{item.value}</div>
-            <div className="text-muted">Updated 2 minutes ago</div>
+            <div className="text-muted">{lastUpdatedLabel}</div>
           </div>
         ))}
       </div>
