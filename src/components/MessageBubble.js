@@ -1,4 +1,4 @@
-function MessageBubble({ message }) {
+function MessageBubble({ message, onRetry }) {
   const getStatusIcon = () => {
     if (message.direction !== 'outbound') return null;
 
@@ -23,7 +23,9 @@ function MessageBubble({ message }) {
   };
 
   const isSending = message.status === 'sending';
-  const isFailed = message.status === 'failed' || message.status === 'undelivered';
+  const isFailed =
+    message.status === 'failed' ||
+    message.status === 'undelivered';
 
   return (
     <div className={`message-row ${message.direction}`}>
@@ -40,9 +42,27 @@ function MessageBubble({ message }) {
           minute: '2-digit',
         })}
 
-        {message.direction === 'outbound' && (
+        {isFailed ? (
+          <span style={{ marginLeft: '6px', fontSize: '12px' }}>
+            Failed
+          </span>
+        ) : message.direction === 'outbound' && (
           <span style={{ marginLeft: '6px', fontSize: '12px' }}>
             {getStatusIcon()}
+          </span>
+        )}
+
+        {isFailed && (
+          <span
+            style={{
+              marginLeft: 8,
+              cursor: 'pointer',
+              fontSize: '12px',
+              color: '#2563eb'
+            }}
+            onClick={() => onRetry?.(message)}
+          >
+            Retry
           </span>
         )}
       </div>

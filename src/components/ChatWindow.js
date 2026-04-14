@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Phone } from 'lucide-react';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
-import MessageInput from './MessageInput';
+import MessageInput, { sendMessageRequest } from './MessageInput';
 import BASE_URL from '../config/api';
 import socket from '../socket';
 import { startCall } from '../services/voice';
@@ -127,6 +127,41 @@ function ChatWindow({
     }
   };
 
+  const handleRetry = async (message) => {
+    if (!message || !message.body || !chat?.phone) return;
+
+    const retryTime = new Date().toISOString();
+    setMessages((prev) =>
+      prev.map((m) =>
+        m._id === message._id
+          ? { ...m, status: 'sending', createdAt: retryTime }
+          : m
+      )
+    );
+
+    try {
+      const res = await sendMessageRequest(chat.phone, message.body);
+      if (!res) throw new Error('Retry failed');
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id === message._id
+            ? { ...res }
+            : m
+        )
+      );
+    } catch (err) {
+      console.error('Retry failed:', err);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id === message._id
+            ? { ...m, status: 'failed' }
+            : m
+        )
+      );
+    }
+  };
+
   const getCallLabel = () => {
     switch (callStatus) {
       case 'initiated': return 'Calling...';
@@ -156,7 +191,7 @@ function ChatWindow({
         {mergedTimeline.map((item, index) => {
 
           if (item.type === 'message') {
-            return <MessageBubble key={index} message={item} />;
+            return <MessageBubble key={index} message={item} onRetry={handleRetry} />;
           }
 
           // ✅ FIXED CALL UI

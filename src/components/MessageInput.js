@@ -2,6 +2,17 @@ import { useState } from 'react';
 import './MessageInput.css';
 import BASE_URL from '../config/api';
 
+export const sendMessageRequest = async (to, message) => {
+  const res = await fetch(`${BASE_URL}/api/sms/send`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to, message }),
+  });
+
+  if (!res.ok) throw new Error('Send failed');
+  return res.json();
+};
+
 function MessageInput({ chatId, onMessageSent, setMessages }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -30,15 +41,7 @@ function MessageInput({ chatId, onMessageSent, setMessages }) {
     setText('');
 
     try {
-      const res = await fetch(`${BASE_URL}/api/sms/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: chatId, message: text }),
-      });
-
-      if (!res.ok) throw new Error('Send failed');
-
-      const data = await res.json();
+      const data = await sendMessageRequest(chatId, text);
 
       if (setMessages) {
         setMessages((prev) =>

@@ -200,6 +200,21 @@ function MessagesPage() {
     return () => socket.off('newMessage', handleMessage);
   }, [activeChatId, fetchConversations]);
 
+  useEffect(() => {
+    const handleStatus = (data) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.sid === data.sid
+            ? { ...msg, status: data.status }
+            : msg
+        )
+      );
+    };
+
+    socket.on('messageStatus', handleStatus);
+    return () => socket.off('messageStatus', handleStatus);
+  }, []);
+
   const handleStartChat = (phone) => {
     const normalized = normalize(phone);
     setActiveChatId(normalized);
