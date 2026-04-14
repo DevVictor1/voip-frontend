@@ -56,13 +56,15 @@ function MessageBubble({ message, onRetry }) {
           <span
             style={{
               marginLeft: 8,
-              cursor: 'pointer',
+              cursor: isSending ? 'not-allowed' : 'pointer',
               fontSize: '12px',
-              color: '#2563eb'
+              color: isSending ? '#9ca3af' : '#2563eb'
             }}
-            onClick={() => onRetry?.(message)}
+            onClick={() => {
+              if (!isSending) onRetry?.(message);
+            }}
           >
-            Retry
+            {isSending ? 'Retrying...' : 'Retry'}
           </span>
         )}
       </div>
