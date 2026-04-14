@@ -13,7 +13,7 @@ export const sendMessageRequest = async (to, message, mediaUrl) => {
   return res.json();
 };
 
-function MessageInput({ chatId, onMessageSent, setMessages }) {
+function MessageInput({ chatId, onMessageSent, setMessages, onFocusInput }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [mediaUrl, setMediaUrl] = useState('');
@@ -130,6 +130,7 @@ function MessageInput({ chatId, onMessageSent, setMessages }) {
           placeholder="Type a message..."
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onFocus={() => onFocusInput?.()}
           onKeyDown={(e) => {
             if (sending || uploading) return;
             if (e.key === 'Enter') handleSend();

@@ -91,9 +91,20 @@ function ChatWindow({
     ...callLogs.map((c) => ({ ...c, type: 'call' }))
   ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
+  const scrollToBottom = useCallback((behavior = 'smooth') => {
+    window.requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior, block: 'end' });
+    });
+  }, []);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [mergedTimeline]);
+    scrollToBottom('smooth');
+  }, [mergedTimeline, scrollToBottom]);
+
+  useEffect(() => {
+    if (!chat?.phone) return;
+    scrollToBottom('auto');
+  }, [chat?.phone, scrollToBottom]);
 
   if (!chat) {
     return (
@@ -245,6 +256,11 @@ function ChatWindow({
       <MessageInput
         chatId={chat.phone}
         setMessages={setMessages}
+        onFocusInput={() => {
+          window.setTimeout(() => {
+            scrollToBottom('smooth');
+          }, 160);
+        }}
         onMessageSent={(msg) => {
           setMessages((prev) => {
             const exists = prev.find(

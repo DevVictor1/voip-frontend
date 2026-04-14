@@ -619,6 +619,7 @@
   position: relative;
   border-left: 3px solid transparent;
   transition: background 0.2s ease, border-color 0.2s ease;
+  overflow: hidden;
 }
 
 .contact-card:hover {
@@ -647,14 +648,35 @@
   align-items: center;
   gap: 10px;
   padding-right: 28px;
+  min-width: 0;
 }
 
 .contact-name {
   font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .contact-card.has-unread .contact-name {
   font-weight: 700;
+}
+
+.contact-last {
+  margin-top: 10px;
+  padding-right: 72px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  max-height: calc(1.35em * 2);
+  word-break: break-word;
 }
 
 /* DBA */
@@ -701,8 +723,10 @@
 .messages-shell {
   display: flex;
   flex: 1;
+  height: 100%;
   min-height: 0;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .messages-contacts-pane,
@@ -714,11 +738,14 @@
 
 .messages-chat-pane {
   flex: 1;
+  height: 100%;
   min-width: 0;
   overflow: hidden;
 }
 
 .chat-window {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -729,12 +756,16 @@
   height: 100%;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: 8px;
 }
 
 .chat-messages-container .message-list {
   overflow: visible;
   flex: 0 0 auto;
+  min-height: 100%;
 }
 
 .numbers-form {
@@ -1068,6 +1099,9 @@
 @media (max-width: 768px) {
   .messages-shell {
     gap: 0;
+    height: 100%;
+    min-height: 100%;
+    overflow: hidden;
   }
 
   .numbers-form {
@@ -1094,6 +1128,7 @@
   .messages-contacts-pane,
   .messages-chat-pane {
     width: 100%;
+    min-height: 0;
   }
 
   .messages-shell.is-chat-open .messages-contacts-pane {
@@ -1102,6 +1137,22 @@
 
   .messages-shell:not(.is-chat-open) .messages-chat-pane {
     display: none;
+  }
+
+  .messages-chat-pane {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .chat-window {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .chat-messages-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-bottom: 12px;
   }
 }
 
@@ -1117,6 +1168,13 @@
   .messages-contacts-pane,
   .messages-chat-pane {
     width: 100%;
+  }
+
+  .contact-last {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    max-height: 1.35em;
+    padding-right: 64px;
   }
 }
 .table tbody tr:hover {
