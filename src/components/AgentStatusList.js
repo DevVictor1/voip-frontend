@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import socket from '../socket';
+import { formatAgentLabel } from '../config/agents';
 
 function AgentStatusList() {
   const [statuses, setStatuses] = useState({});
@@ -43,7 +44,7 @@ function AgentStatusList() {
           {items.map(([userId, status]) => (
             <div key={userId} style={row}>
               <span style={status === 'online' ? dotOnline : dotOffline} />
-              <span style={name}>{userId}</span>
+              <span style={name}>{formatAgentLabel(userId)}</span>
               <span style={status === 'online' ? badgeOnline : badgeOffline}>
                 {status === 'online' ? 'Online' : 'Offline'}
               </span>

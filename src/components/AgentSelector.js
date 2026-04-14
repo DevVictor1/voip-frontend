@@ -1,5 +1,7 @@
+import { AGENTS, formatAgentLabel } from '../config/agents';
+
 function AgentSelector({ value, onChange }) {
-  const agents = ['agent_1', 'agent_2', 'agent_3', 'web_user'];
+  const agents = Object.keys(AGENTS);
 
   return (
     <label style={wrapper}>
@@ -9,9 +11,9 @@ function AgentSelector({ value, onChange }) {
         onChange={(e) => onChange?.(e.target.value)}
         style={select}
       >
-        {agents.map((agent) => (
-          <option key={agent} value={agent}>
-            {agent}
+        {agents.map((agentId) => (
+          <option key={agentId} value={agentId}>
+            {formatAgentLabel(agentId)}
           </option>
         ))}
       </select>
