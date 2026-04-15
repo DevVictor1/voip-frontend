@@ -10,7 +10,7 @@
   background: white;
   position: sticky;
   bottom: 0;
-  z-index: 2;
+  z-index: 5;
   flex-shrink: 0;
   box-sizing: border-box;
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
@@ -35,6 +35,11 @@
   font-size: 14px;
   outline: none;
   box-sizing: border-box;
+  resize: none;
+  line-height: 1.4;
+  font-family: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 .mms-file-input {
@@ -114,7 +119,7 @@
 @media (max-width: 768px) {
   .message-input-container {
     padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
-    background: rgba(255, 255, 255, 0.98);
+    background: #ffffff;
     backdrop-filter: blur(12px);
     width: 100%;
     left: 0;
@@ -134,6 +139,7 @@
 
   .message-input-field {
     font-size: 16px;
+    max-height: 120px;
   }
 }
 

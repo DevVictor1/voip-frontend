@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './MessageInput.css';
 import BASE_URL from '../config/api';
 
@@ -19,6 +19,19 @@ function MessageInput({ chatId, onMessageSent, setMessages, onFocusInput }) {
   const [mediaUrl, setMediaUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = 'auto';
+    textarea.style.overflowY = 'hidden';
+
+    const nextHeight = Math.min(textarea.scrollHeight, 120);
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = textarea.scrollHeight > 120 ? 'auto' : 'hidden';
+  }, [text]);
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -124,16 +137,20 @@ function MessageInput({ chatId, onMessageSent, setMessages, onFocusInput }) {
       )}
 
       <div className="message-input-row">
-        <input
+        <textarea
+          ref={textareaRef}
           className="message-input-field"
-          type="text"
           placeholder="Type a message..."
           value={text}
           onChange={(e) => setText(e.target.value)}
           onFocus={() => onFocusInput?.()}
+          rows={1}
           onKeyDown={(e) => {
             if (sending || uploading) return;
-            if (e.key === 'Enter') handleSend();
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
           }}
         />
 

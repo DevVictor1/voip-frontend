@@ -1252,6 +1252,7 @@
   .messages-shell.is-chat-open .messages-chat-pane {
     min-height: 0;
     height: 100%;
+    overflow: visible;
   }
 
   .contacts-wrapper {
@@ -1286,7 +1287,7 @@
   .messages-shell.is-chat-open .chat-window {
     min-height: 0;
     height: 100%;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .messages-shell.is-chat-open .messages-chat-pane .header {
@@ -1307,7 +1308,7 @@
 
   .messages-shell.is-chat-open .chat-messages-container .message-list {
     min-height: 100%;
-    padding-bottom: 16px;
+    padding-bottom: 24px;
   }
 }
 
