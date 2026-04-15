@@ -153,6 +153,36 @@
   font-size: 13px;
 }
 
+.header-assignment-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.header-assignment-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.header-assignment-pill.is-unassigned {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.header-assignment-role {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .header-meta-strong {
   color: #475569;
   font-weight: 600;
@@ -162,6 +192,83 @@
   display: flex;
   gap: 10px;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.header-user-meta {
+  font-size: 11px;
+  opacity: 0.7;
+  color: var(--text-muted);
+}
+
+.header-assign-menu {
+  position: relative;
+}
+
+.header-assign-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-assign-caret {
+  font-size: 11px;
+  transition: transform 0.2s ease;
+}
+
+.header-assign-caret.is-open {
+  transform: rotate(180deg);
+}
+
+.header-assign-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  max-width: min(260px, calc(100vw - 32px));
+  padding: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+  z-index: 30;
+}
+
+.header-assign-option {
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  display: grid;
+  gap: 2px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.header-assign-option:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.header-assign-option.is-active {
+  background: #eff6ff;
+}
+
+.header-assign-option:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.header-assign-option-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.header-assign-option-role {
+  font-size: 11px;
+  color: #64748b;
 }
 
 .call-status-badge {
@@ -770,6 +877,7 @@
 
   .header-actions {
     width: 100%;
+    justify-content: flex-start;
   }
 
   .chat-list-title {
@@ -880,6 +988,12 @@
   .header-actions {
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .header-assign-dropdown {
+    right: auto;
+    left: 0;
+    min-width: min(220px, calc(100vw - 40px));
   }
 
   .button-icon {

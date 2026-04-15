@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Phone } from "lucide-react";
+import { AGENTS, formatAgentLabel, getAgentMeta } from "../config/agents";
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
+const ASSIGNABLE_AGENTS = Object.entries(AGENTS).filter(([agentId]) =>
+  ['agent_1', 'agent_2', 'agent_3'].includes(agentId)
+);
 
 function Header({
   title,
@@ -19,22 +23,34 @@ function Header({
     typeof window !== 'undefined'
       ? window.localStorage?.getItem("voiceUserId") || "web_user"
       : "web_user";
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [assigning, setAssigning] = useState(false); // ✅ NEW
-  const [assigned, setAssigned] = useState(!chat?.isUnassigned); // ✅ NEW
-  const dropdownRef = useRef(null);
+  const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
+  const [assignMenuOpen, setAssignMenuOpen] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const phoneDropdownRef = useRef(null);
+  const assignMenuRef = useRef(null);
 
   const phones = chat?.phones || [];
   const activeNumber = chat?.phone;
+  const assignedAgentId = chat?.assignedTo;
+  const assignedAgentMeta = getAgentMeta(assignedAgentId);
+  const assignedAgentName = chat?.isUnassigned
+    ? 'Unassigned'
+    : assignedAgentId
+      ? formatAgentLabel(assignedAgentId)
+      : 'Unassigned';
+  const assignedAgentRole = chat?.isUnassigned ? '' : assignedAgentMeta.role;
 
   const activeLabel =
-    phones.find(p => normalize(p.number) === normalize(activeNumber))?.label || 'PHONE';
+    phones.find((p) => normalize(p.number) === normalize(activeNumber))?.label || 'PHONE';
 
-  // ✅ CLOSE ON OUTSIDE CLICK
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setShowDropdown(false);
+      if (phoneDropdownRef.current && !phoneDropdownRef.current.contains(e.target)) {
+        setPhoneDropdownOpen(false);
+      }
+
+      if (assignMenuRef.current && !assignMenuRef.current.contains(e.target)) {
+        setAssignMenuOpen(false);
       }
     };
 
@@ -42,22 +58,19 @@ function Header({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ KEEP ASSIGN STATE IN SYNC
   useEffect(() => {
-    setAssigned(!chat?.isUnassigned);
-  }, [chat]);
+    setAssignMenuOpen(false);
+    setPhoneDropdownOpen(false);
+    setAssigning(false);
+  }, [chat?._id, activeNumber]);
 
-  // ✅ ASSIGN HANDLER
-  const handleAssign = async () => {
-    if (!chat?._id || assigning || assigned) return;
+  const handleAssign = async (agentId) => {
+    if (!chat?._id || assigning || !agentId) return;
 
     try {
       setAssigning(true);
-
-      onAssignContact(chat._id); // ✅ CALL PARENT HANDLER TO ASSIGN
-
-      setAssigned(true); // ✅ update UI instantly
-
+      await onAssignContact(chat._id, agentId);
+      setAssignMenuOpen(false);
     } catch (err) {
       console.error("Assign failed", err);
       alert("Failed to assign");
@@ -79,15 +92,26 @@ function Header({
             Back
           </button>
         )}
-        <div>
-          <h3>{title}</h3>
+        <div className="header-title-text">
+          <div className="header-title-main">
+            <h3>{title}</h3>
+            {status && <span className="status-pill">{status}</span>}
+          </div>
           {subtitle && <div className="header-meta">{subtitle}</div>}
+          <div className="header-assignment-row">
+            <span className={`header-assignment-pill${chat?.isUnassigned ? ' is-unassigned' : ''}`}>
+              Assigned: {assignedAgentName}
+            </span>
+            {assignedAgentRole && (
+              <span className="header-assignment-role">{assignedAgentRole}</span>
+            )}
+          </div>
 
           {phones.length > 1 && (
-            <div ref={dropdownRef} style={{ position: 'relative', marginTop: '6px', display: 'inline-block' }}>
-              
+            <div ref={phoneDropdownRef} style={{ position: 'relative', marginTop: '6px', display: 'inline-block' }}>
               <button
-                onClick={() => setShowDropdown(prev => !prev)}
+                type="button"
+                onClick={() => setPhoneDropdownOpen((prev) => !prev)}
                 style={{
                   background: '#111',
                   color: '#fff',
@@ -106,14 +130,14 @@ function Header({
                   style={{
                     display: 'inline-block',
                     transition: 'transform 0.2s ease',
-                    transform: showDropdown ? 'rotate(180deg)' : 'rotate(0deg)'
+                    transform: phoneDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
                   }}
                 >
                   ▼
                 </span>
               </button>
 
-              {showDropdown && (
+              {phoneDropdownOpen && (
                 <div
                   style={{
                     position: 'absolute',
@@ -139,7 +163,7 @@ function Header({
                           if (onSwitchNumber) {
                             onSwitchNumber(p.number);
                           }
-                          setShowDropdown(false);
+                          setPhoneDropdownOpen(false);
                         }}
                         style={{
                           padding: '10px',
@@ -168,26 +192,46 @@ function Header({
             </div>
           )}
         </div>
-
-        {status && <span className="status-pill">{status}</span>}
       </div>
 
       <div className="header-actions">
-        <span style={{ fontSize: '11px', opacity: 0.7, color: 'var(--text-muted)' }}>
-          Agent: {userId}
+        <span className="header-user-meta">
+          Agent: {formatAgentLabel(userId)}
         </span>
-        {/* ✅ UPDATED ASSIGN BUTTON */}
-        <button
-          className="button-icon"
-          onClick={handleAssign}
-          disabled={assigned || assigning}
-          style={{
-            opacity: assigned ? 0.6 : 1,
-            cursor: assigned ? 'not-allowed' : 'pointer'
-          }}
-        >
-          {assigned ? "Assigned" : assigning ? "Assigning..." : "Assign"}
-        </button>
+        <div ref={assignMenuRef} className="header-assign-menu">
+          <button
+            className="button-icon header-assign-trigger"
+            onClick={() => setAssignMenuOpen((prev) => !prev)}
+            disabled={!chat?._id || assigning}
+            type="button"
+          >
+            {assigning ? "Assigning..." : chat?.isUnassigned ? "Assign" : "Reassign"}
+            <span className={`header-assign-caret${assignMenuOpen ? ' is-open' : ''}`}>
+              ▼
+            </span>
+          </button>
+
+          {assignMenuOpen && (
+            <div className="header-assign-dropdown">
+              {ASSIGNABLE_AGENTS.map(([agentId, agent]) => {
+                const isCurrentAgent = assignedAgentId === agentId && !chat?.isUnassigned;
+
+                return (
+                  <button
+                    key={agentId}
+                    type="button"
+                    className={`header-assign-option${isCurrentAgent ? ' is-active' : ''}`}
+                    onClick={() => handleAssign(agentId)}
+                    disabled={assigning}
+                  >
+                    <span className="header-assign-option-name">{agent.name}</span>
+                    <span className="header-assign-option-role">{agent.role}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <button className="button-icon">Notes</button>
         <button className="button-icon">Options</button>

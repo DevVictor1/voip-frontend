@@ -73,19 +73,21 @@ function MessagesPage() {
   };
 
   // ✅ 🔥 NEW: LIVE ASSIGN UPDATE
-  const handleAssignContact = async (contactId) => {
+  const handleAssignContact = async (contactId, userId) => {
+    if (!contactId || !userId) return;
+
     try {
       await fetch(`${BASE_URL}/api/contacts/${contactId}/assign`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: "user_1" })
+        body: JSON.stringify({ userId })
       });
 
       // 🔥 UPDATE LOCAL STATE (NO RELOAD)
       setContacts((prev) =>
         prev.map((c) =>
           c._id === contactId
-            ? { ...c, isUnassigned: false }
+            ? { ...c, assignedTo: userId, isUnassigned: false }
             : c
         )
       );
