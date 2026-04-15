@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Phone } from "lucide-react";
-import { AGENTS, formatAgentLabel, getAgentMeta } from "../config/agents";
+import { AGENTS, formatAgentLabel } from "../config/agents";
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 const ASSIGNABLE_AGENTS = Object.entries(AGENTS).filter(([agentId]) =>
@@ -19,10 +19,6 @@ function Header({
   callLabel,
   onAssignContact
 }) {
-  const userId =
-    typeof window !== 'undefined'
-      ? window.localStorage?.getItem("voiceUserId") || "web_user"
-      : "web_user";
   const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
   const [assignMenuOpen, setAssignMenuOpen] = useState(false);
   const [assigning, setAssigning] = useState(false);
@@ -32,13 +28,12 @@ function Header({
   const phones = chat?.phones || [];
   const activeNumber = chat?.phone;
   const assignedAgentId = chat?.assignedTo;
-  const assignedAgentMeta = getAgentMeta(assignedAgentId);
   const assignedAgentName = chat?.isUnassigned
     ? 'Unassigned'
     : assignedAgentId
       ? formatAgentLabel(assignedAgentId)
       : 'Unassigned';
-  const assignedAgentRole = chat?.isUnassigned ? '' : assignedAgentMeta.role;
+  const metaLine = subtitle || [chat?.phone, chat?.dba || chat?.mid].filter(Boolean).join(' / ');
 
   const activeLabel =
     phones.find((p) => normalize(p.number) === normalize(activeNumber))?.label || 'PHONE';
@@ -97,14 +92,11 @@ function Header({
             <h3>{title}</h3>
             {status && <span className="status-pill">{status}</span>}
           </div>
-          {subtitle && <div className="header-meta">{subtitle}</div>}
+          {metaLine && <div className="header-meta">{metaLine}</div>}
           <div className="header-assignment-row">
             <span className={`header-assignment-pill${chat?.isUnassigned ? ' is-unassigned' : ''}`}>
-              Assigned: {assignedAgentName}
+              {chat?.isUnassigned ? 'Unassigned' : `Assigned to ${assignedAgentName}`}
             </span>
-            {assignedAgentRole && (
-              <span className="header-assignment-role">{assignedAgentRole}</span>
-            )}
           </div>
 
           {phones.length > 1 && (
@@ -234,19 +226,9 @@ function Header({
         <button className="button-icon">Options</button>
 
         <button
+          className="header-call-button"
           onClick={onCall}
-          style={{
-            background: '#1d9bf0',
-            color: '#fff',
-            border: 'none',
-            padding: '6px 12px',
-            borderRadius: '6px',
-            marginLeft: '8px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
+          type="button"
         >
           <Phone size={16} />
           {callLabel || 'Call'}
