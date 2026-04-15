@@ -590,75 +590,130 @@
   height: 100%;
   min-height: 0;
   padding: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
 }
 
 .contacts-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 16px 10px;
+  margin-bottom: 0;
+  border-bottom: 1px solid #eef2f7;
+  background: linear-gradient(180deg, #fcfdff 0%, #f8fafc 100%);
+}
+
+.contacts-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.contacts-header span {
+  font-size: 12px;
+  color: #64748b;
 }
 
 .contacts-import {
-  margin-bottom: 8px;
+  padding: 10px 16px;
+  margin-bottom: 0;
+  border-bottom: 1px solid #eef2f7;
+  background: #fbfcfe;
 }
 
 .contacts-scroll {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  padding-right: 6px;
+  padding: 10px 8px 10px 10px;
   -webkit-overflow-scrolling: touch;
 }
 
 /* CARD */
 .contact-card {
   background: transparent;
-  border-radius: 10px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
+  border-radius: 12px;
+  padding: 9px 12px;
+  margin-bottom: 4px;
   position: relative;
+  border: 1px solid transparent;
   border-left: 3px solid transparent;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .contact-card-body {
   min-width: 0;
-  padding-right: 54px;
-  padding-bottom: 16px;
+  padding-right: 26px;
 }
 
 .contact-card:hover {
-  background: rgba(0,0,0,0.04);
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 
 .contact-card.is-active {
-  background: rgba(59, 130, 246, 0.08);
+  background: #eff6ff;
+  border-color: #bfdbfe;
   border-left-color: #3b82f6;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.08);
 }
 
 /* DELETE */
 .delete-btn {
   position: absolute;
-  top: 8px;
+  top: 10px;
   right: 8px;
   border: none;
-  background: #eee;
-  border-radius: 4px;
+  background: #f8fafc;
+  color: #64748b;
+  border-radius: 6px;
   cursor: pointer;
+  padding: 4px;
+  opacity: 0;
+  transition: opacity 0.18s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.contact-card:hover .delete-btn,
+.contact-card:focus-within .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  background: #eef2f7;
+  color: #0f172a;
 }
 
 /* NAME */
 .contact-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-right: 24px;
+  align-items: flex-start;
+  gap: 10px;
   min-width: 0;
+}
+
+.contact-row-top {
+  justify-content: space-between;
+}
+
+.contact-main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  flex: 1;
 }
 
 .contact-name {
   font-weight: 600;
+  font-size: 14px;
+  line-height: 1.3;
+  color: #0f172a;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -669,8 +724,7 @@
   font-weight: 700;
 }
 
-.contact-preview {
-  margin-top: 4px;
+.contact-meta {
   min-width: 0;
   color: #64748b;
   font-size: 12px;
@@ -678,7 +732,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.contact-preview {
+  margin-top: 4px;
+  min-width: 0;
+  color: #64748b;
+  font-size: 11.5px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   display: block;
+}
+
+.contact-preview.is-unread {
+  color: #475569;
 }
 
 /* DBA */
@@ -687,32 +756,13 @@
   color: #777;
 }
 
-/* PHONES */
-.contact-phones {
-  margin-top: 4px;
-}
-
-.phone-item {
+.contact-indicators {
   display: flex;
-  justify-content: space-between;
-  padding: 4px 6px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-top: 4px;
-  background: #f5f7fb;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.phone-item.active {
-  background: #dbeafe;
-}
-
-.phone-label {
-  font-size: 11px;
-  color: #555;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-right: 22px;
 }
 
 .unread-badge {
@@ -720,9 +770,31 @@
   color: white;
   font-size: 11px;
   font-weight: 600;
-  padding: 2px 6px;
+  line-height: 1;
+  padding: 4px 7px;
   border-radius: 999px;
-  margin-left: auto;
+  min-width: 24px;
+  text-align: center;
+}
+
+.assignment-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #475569;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.assignment-badge.is-unassigned {
+  background: #e0f2fe;
+  color: #0369a1;
 }
 
 /* Messages layout helpers */
@@ -744,9 +816,9 @@
 }
 
 .messages-contacts-pane {
-  flex: 0 0 360px;
-  min-width: 320px;
-  max-width: 380px;
+  flex: 0 0 344px;
+  min-width: 300px;
+  max-width: 356px;
 }
 
 .messages-chat-pane {
@@ -1109,9 +1181,9 @@
   }
 
   .messages-contacts-pane {
-    flex-basis: 330px;
-    min-width: 300px;
-    max-width: 340px;
+    flex-basis: 320px;
+    min-width: 280px;
+    max-width: 328px;
   }
 }
 
@@ -1165,6 +1237,13 @@
     overflow: hidden;
   }
 
+  .contacts-wrapper {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    box-shadow: none;
+  }
+
   .chat-window {
     min-height: 0;
     height: 100%;
@@ -1192,8 +1271,15 @@
   }
 
   .contact-card-body {
-    padding-right: 50px;
-    padding-bottom: 16px;
+    padding-right: 22px;
+  }
+
+  .contact-card {
+    padding: 8px 10px;
+  }
+
+  .contact-indicators {
+    padding-right: 24px;
   }
 }
 .table tbody tr:hover {

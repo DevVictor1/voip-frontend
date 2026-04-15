@@ -5,6 +5,24 @@ import BASE_URL from "../config/api";
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
 function ContactsList({ list, activeId, onSelect }) {
+  const getDisplayName = (item) => {
+    const fullName = [item.firstName, item.lastName].filter(Boolean).join(' ').trim();
+    return fullName || item.name || item.phone;
+  };
+
+  const getActivePhone = (item) => {
+    const phones = item.phones || [];
+    return (
+      phones.find((p) => normalize(p.number) === normalize(activeId))?.number ||
+      phones[0]?.number ||
+      item.phone ||
+      ''
+    );
+  };
+
+  const getSecondaryLine = (item, phone) => {
+    return [phone, item.dba].filter(Boolean).join(' / ');
+  };
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
@@ -34,10 +52,14 @@ function ContactsList({ list, activeId, onSelect }) {
 
         {list.map((item, index) => {
           const phones = item.phones || [];
-          const isActive =
-            normalize(activeId) === normalize(item.phone);
+          const activePhone = getActivePhone(item);
+          const isActive = phones.length
+            ? phones.some((p) => normalize(activeId) === normalize(p.number))
+            : normalize(activeId) === normalize(item.phone);
 
           const hasUnread = item.unread > 0;
+          const displayName = getDisplayName(item);
+          const secondaryLine = getSecondaryLine(item, activePhone);
 
           return (
             <div
@@ -51,94 +73,38 @@ function ContactsList({ list, activeId, onSelect }) {
               {/* DELETE */}
               {item._id && (
                 <button
+                  className="delete-btn"
                   onClick={(e) => handleDelete(item._id, e)}
-                  style={{
-                    position: 'absolute',
-                    top: '8px',
-                    right: '8px',
-                    background: '#222',
-                    border: 'none',
-                    color: '#aaa',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    padding: '2px 6px'
-                  }}
                 >
                   <X size={12} />
                 </button>
               )}
 
-              {/* STATUS */}
-              {!item.isUnassigned && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '8px',
-                  right: '8px',
-                  background: '#333',
-                  color: '#fff',
-                  borderRadius: '4px',
-                  padding: '3px 6px',
-                  fontSize: '10px'
-                }}>
-                  Assigned
-                </div>
-              )}
-
-              {item.isUnassigned && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: '8px',
-                  right: '8px',
-                  background: '#1d9bf0',
-                  color: '#fff',
-                  borderRadius: '4px',
-                  padding: '3px 6px',
-                  fontSize: '10px'
-                }}>
-                  Unassigned
-                </div>
-              )}
-
               <div className="contact-card-body">
-                <div className="contact-row">
-                  <div className="contact-name">
-                    {item.firstName
-                      ? `${item.firstName} ${item.lastName || ""}`
-                      : item.name}
-                  </div>
-                  {hasUnread && (
-                    <span className="unread-badge">{item.unread}</span>
-                  )}
-                </div>
-
-                <div className="contact-phones" style={{ marginTop: '6px' }}>
-                  {phones.map((p, i) => (
-                    <div
-                      key={i}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelect(p.number);
-                      }}
-                      className={`phone-item ${
-                        normalize(activeId) === normalize(p.number) ? 'active' : ''
-                      }`}
-                    >
-                      {p.label} - {p.number}
+                <div className="contact-row contact-row-top">
+                  <div className="contact-main">
+                    <div className="contact-name">
+                      {displayName}
                     </div>
-                  ))}
+                    {secondaryLine && (
+                      <div className="contact-meta">
+                        {secondaryLine}
+                      </div>
+                    )}
+                  </div>
+                  <div className="contact-indicators">
+                    {hasUnread && (
+                      <span className="unread-badge">{item.unread}</span>
+                    )}
+                    <span className={`assignment-badge${item.isUnassigned ? ' is-unassigned' : ''}`}>
+                      {item.isUnassigned ? 'Unassigned' : 'Assigned'}
+                    </span>
+                  </div>
                 </div>
 
-                {item.lastMessage && (
-                  <div
-                    className="contact-preview"
-                    style={{
-                      opacity: hasUnread ? 1 : 0.7,
-                      fontWeight: hasUnread ? 'bold' : 'normal'
-                    }}
-                  >
-                    {item.lastMessage}
-                  </div>
-                )}
+                <div className={`contact-preview${hasUnread ? ' is-unread' : ''}`}>
+                  {item.lastMessage || 'No messages yet'}
+                </div>
               </div>
             </div>
           );
