@@ -3,17 +3,36 @@ import './MessageInput.css';
 import BASE_URL from '../config/api';
 
 export const sendMessageRequest = async (to, message, mediaUrl) => {
-  const res = await fetch(`${BASE_URL}/api/sms/send`, {
+  const isCustomerChat = !to?.conversationType || to.conversationType === 'customer';
+  const endpoint = isCustomerChat ? '/api/sms/send' : '/api/messages/send';
+  const payload = isCustomerChat
+    ? { to: to?.chatId || to, message, mediaUrl }
+    : {
+        conversationType: to.conversationType,
+        conversationId: to.chatId,
+        userId: to.userId,
+        body: message,
+      };
+
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to, message, mediaUrl }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) throw new Error('Send failed');
   return res.json();
 };
 
-function MessageInput({ chatId, onMessageSent, setMessages, onFocusInput }) {
+function MessageInput({
+  chatId,
+  conversationType = 'customer',
+  userId,
+  allowAttachments = true,
+  onMessageSent,
+  setMessages,
+  onFocusInput
+}) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [mediaUrl, setMediaUrl] = useState('');
@@ -79,6 +98,9 @@ function MessageInput({ chatId, onMessageSent, setMessages, onFocusInput }) {
       body: text,
       media: mediaUrl ? [mediaUrl] : [],
       direction: 'outbound',
+      conversationType,
+      conversationId: chatId,
+      senderId: userId,
       status: 'sending',
       createdAt: new Date().toISOString(),
     };
@@ -92,7 +114,15 @@ function MessageInput({ chatId, onMessageSent, setMessages, onFocusInput }) {
     setText('');
 
     try {
-      const data = await sendMessageRequest(chatId, text, mediaUrl || undefined);
+      const data = await sendMessageRequest(
+        {
+          chatId,
+          conversationType,
+          userId,
+        },
+        text,
+        mediaUrl || undefined
+      );
 
       if (setMessages) {
         setMessages((prev) =>
@@ -154,23 +184,27 @@ function MessageInput({ chatId, onMessageSent, setMessages, onFocusInput }) {
           }}
         />
 
-        <input
-          ref={fileInputRef}
-          className="mms-file-input"
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          disabled={uploading}
-        />
+        {allowAttachments && (
+          <>
+            <input
+              ref={fileInputRef}
+              className="mms-file-input"
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              disabled={uploading}
+            />
 
-        <button
-          type="button"
-          className="mms-attach-btn"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-        >
-          {uploading ? 'Uploading...' : 'Attach'}
-        </button>
+            <button
+              type="button"
+              className="mms-attach-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? 'Uploading...' : 'Attach'}
+            </button>
+          </>
+        )}
 
         <button className="message-send-btn" onClick={handleSend} disabled={sending || uploading}>
           {sending ? 'Sending...' : 'Send'}

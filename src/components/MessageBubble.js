@@ -33,6 +33,10 @@ function MessageBubble({ message, onRetry }) {
         className={`message-bubble ${message.direction}`}
         style={isSending ? { opacity: 0.6 } : undefined}
       >
+        {message.conversationType === 'team' && message.direction !== 'outbound' && message.senderName ? (
+          <div className="message-author">{message.senderName}</div>
+        ) : null}
+
         {message.media?.length > 0 && (
           <img
             src={message.media[0]}

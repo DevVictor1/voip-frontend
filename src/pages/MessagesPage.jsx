@@ -6,20 +6,39 @@ import socket from '../socket';
 import BASE_URL from '../config/api';
 import { Plus } from 'lucide-react';
 
-// NORMALIZE PHONE
 const normalize = (phone) => {
   if (!phone) return '';
   return phone.toString().replace(/\D/g, '').slice(-10);
 };
 
+const getStoredRole = () => {
+  if (typeof window === 'undefined') return 'admin';
+  return window.localStorage?.getItem('userRole') === 'agent' ? 'agent' : 'admin';
+};
+
+const getStoredUserId = () => {
+  if (typeof window === 'undefined') return 'agent_1';
+  return window.localStorage?.getItem('voiceUserId') || 'agent_1';
+};
+
+const buildConversationKey = (conversationType, conversationId) => {
+  const safeId = conversationType === 'customer'
+    ? normalize(conversationId)
+    : conversationId;
+  return `${conversationType}:${safeId}`;
+};
+
 function MessagesPage() {
   const [chats, setChats] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [internalChats, setInternalChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [showModal, setShowModal] = useState(false);
-
   const [activeTab, setActiveTab] = useState('all');
+
+  const currentRole = getStoredRole();
+  const currentUserId = getStoredUserId();
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -32,15 +51,31 @@ function MessagesPage() {
     }
   }, []);
 
+  const fetchInternalConversations = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({
+        role: currentRole,
+        userId: currentUserId,
+      });
+
+      const res = await fetch(`${BASE_URL}/api/messages/conversations?${params.toString()}`);
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      setInternalChats(data || []);
+    } catch (err) {
+      console.error('Fetch internal conversations error:', err);
+    }
+  }, [currentRole, currentUserId]);
+
   const fetchContacts = useCallback(async () => {
     try {
-      const role = 'admin';
-      const userId = 'user_1';
+      const params = new URLSearchParams({
+        role: currentRole,
+        userId: currentUserId,
+      });
 
-      const res = await fetch(
-        `${BASE_URL}/api/contacts?role=${role}&userId=${userId}`
-      );
-
+      const res = await fetch(`${BASE_URL}/api/contacts?${params.toString()}`);
       if (!res.ok) throw new Error();
 
       const data = await res.json();
@@ -48,18 +83,9 @@ function MessagesPage() {
     } catch (err) {
       console.error('Fetch contacts error:', err);
     }
-  }, []);
+  }, [currentRole, currentUserId]);
 
-  const markChatRead = useCallback((phone) => {
-    const target = normalize(phone);
-    setChats((prev) =>
-      prev.map((c) =>
-        normalize(c.phone) === target ? { ...c, unread: 0 } : c
-      )
-    );
-  }, []);
-
-  const fetchMessages = async (phone) => {
+  const fetchCustomerMessages = useCallback(async (phone) => {
     try {
       const res = await fetch(`${BASE_URL}/api/sms/messages/${phone}`);
       if (!res.ok) throw new Error();
@@ -67,64 +93,235 @@ function MessagesPage() {
       const data = await res.json();
       setMessages(data || []);
     } catch (err) {
-      console.error('Fetch messages error:', err);
+      console.error('Fetch customer messages error:', err);
       setMessages([]);
     }
-  };
+  }, []);
 
-  // ✅ 🔥 NEW: LIVE ASSIGN UPDATE
+  const fetchInternalMessages = useCallback(async (conversationId) => {
+    try {
+      const params = new URLSearchParams({
+        role: currentRole,
+        userId: currentUserId,
+      });
+
+      const res = await fetch(
+        `${BASE_URL}/api/messages/thread/${encodeURIComponent(conversationId)}?${params.toString()}`
+      );
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      setMessages(data || []);
+    } catch (err) {
+      console.error('Fetch internal messages error:', err);
+      setMessages([]);
+    }
+  }, [currentRole, currentUserId]);
+
+  const markChatRead = useCallback((conversation) => {
+    if (!conversation) return;
+
+    if (conversation.conversationType === 'customer') {
+      const target = normalize(conversation.phone || conversation.conversationId);
+      setChats((prev) =>
+        prev.map((item) =>
+          normalize(item.phone) === target ? { ...item, unread: 0 } : item
+        )
+      );
+      return;
+    }
+
+    setInternalChats((prev) =>
+      prev.map((item) =>
+        item.conversationId === conversation.conversationId
+          ? { ...item, unread: 0 }
+          : item
+      )
+    );
+  }, []);
+
   const handleAssignContact = async (contactId, userId) => {
     if (!contactId || !userId) return;
 
     try {
       await fetch(`${BASE_URL}/api/contacts/${contactId}/assign`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId })
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
       });
 
-      // 🔥 UPDATE LOCAL STATE (NO RELOAD)
       setContacts((prev) =>
-        prev.map((c) =>
-          c._id === contactId
-            ? { ...c, assignedTo: userId, isUnassigned: false }
-            : c
+        prev.map((contact) =>
+          contact._id === contactId
+            ? { ...contact, assignedTo: userId, isUnassigned: false }
+            : contact
         )
       );
-
     } catch (err) {
-      console.error("Assign error:", err);
+      console.error('Assign error:', err);
     }
   };
 
   useEffect(() => {
     fetchConversations();
     fetchContacts();
-  }, [fetchConversations, fetchContacts]);
+    fetchInternalConversations();
+  }, [fetchContacts, fetchConversations, fetchInternalConversations]);
+
+  const customerList = contacts.map((contact) => {
+    const phones = contact.phones || [];
+    const numbers = phones.map((phone) => normalize(phone.number));
+
+    const chat = chats.find((item) =>
+      numbers.includes(normalize(item.phone))
+    );
+
+    const primaryPhone = chat?.phone || phones[0]?.number || '';
+    const conversationId = normalize(primaryPhone);
+
+    return {
+      ...contact,
+      conversationType: 'customer',
+      conversationId,
+      phones,
+      phone: primaryPhone,
+      lastMessage: chat?.lastMessage || '',
+      unread: chat?.unread || 0,
+      updatedAt: chat?.updatedAt || 0,
+      isInternal: false,
+      isTeam: false,
+      previewFallback: 'No messages yet',
+      key: buildConversationKey('customer', conversationId),
+    };
+  });
+
+  chats.forEach((chat) => {
+    const phone = normalize(chat.phone);
+    const exists = customerList.find((item) =>
+      (item.phones || []).some((phoneEntry) => normalize(phoneEntry.number) === phone)
+    );
+
+    if (!exists) {
+      customerList.push({
+        conversationType: 'customer',
+        conversationId: phone,
+        key: buildConversationKey('customer', phone),
+        phone,
+        name: phone,
+        phones: [{ number: phone, label: 'mobile' }],
+        lastMessage: chat.lastMessage,
+        unread: chat.unread,
+        updatedAt: chat.updatedAt,
+        isInternal: false,
+        isTeam: false,
+        previewFallback: 'No messages yet',
+        isUnassigned: true,
+      });
+    }
+  });
+
+  const internalList = internalChats.map((conversation) => ({
+    ...conversation,
+    key: buildConversationKey(conversation.conversationType, conversation.conversationId),
+  }));
+
+  const combinedList = [...customerList, ...internalList].sort((a, b) => {
+    if ((b.unread || 0) !== (a.unread || 0)) {
+      return (b.unread || 0) - (a.unread || 0);
+    }
+
+    return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+  });
+
+  const unreadCount = combinedList.filter((item) => item.unread > 0).length;
+  const allCount = combinedList.length;
+  const teamCount = combinedList.filter((item) => item.conversationType === 'team').length;
+
+  let filteredList = combinedList;
+
+  if (activeTab === 'unread') {
+    filteredList = combinedList.filter((item) => item.unread > 0);
+  } else if (activeTab === 'team') {
+    filteredList = combinedList.filter((item) => item.conversationType === 'team');
+  }
+
+  const activeChat = combinedList.find((item) => item.key === activeChatId)
+    || (activeChatId?.startsWith('customer:')
+      ? {
+          conversationType: 'customer',
+          conversationId: activeChatId.replace('customer:', ''),
+          key: activeChatId,
+          phone: activeChatId.replace('customer:', ''),
+          phones: [],
+          isInternal: false,
+          isTeam: false,
+        }
+      : null);
+  const activeConversationType = activeChat?.conversationType || null;
+  const activeConversationId = activeChat?.conversationId || null;
+  const activeCustomerPhone = activeConversationType === 'customer'
+    ? normalize(activeChat?.phone || activeConversationId)
+    : '';
 
   useEffect(() => {
-    if (!activeChatId) return;
+    if (!activeConversationType) return;
 
     const loadChat = async () => {
-      const phone = normalize(activeChatId);
-
-      await fetchMessages(phone);
-
-      await fetch(`${BASE_URL}/api/sms/read/${phone}`, {
-        method: 'PUT',
-      });
-
-      fetchConversations();
+      if (activeConversationType === 'customer') {
+        const phone = activeCustomerPhone;
+        await fetchCustomerMessages(phone);
+        await fetch(`${BASE_URL}/api/sms/read/${phone}`, {
+          method: 'PUT',
+        });
+        fetchConversations();
+      } else {
+        await fetchInternalMessages(activeConversationId);
+        await fetch(`${BASE_URL}/api/messages/read/${encodeURIComponent(activeConversationId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUserId }),
+        });
+        fetchInternalConversations();
+      }
     };
 
     loadChat();
-  }, [activeChatId, fetchConversations, markChatRead]);
+    markChatRead(
+      activeConversationType === 'customer'
+        ? {
+            conversationType: 'customer',
+            conversationId: activeConversationId,
+            phone: activeCustomerPhone,
+          }
+        : {
+            conversationType: activeConversationType,
+            conversationId: activeConversationId,
+          }
+    );
+  }, [
+    activeChatId,
+    activeConversationId,
+    activeConversationType,
+    activeCustomerPhone,
+    currentUserId,
+    fetchConversations,
+    fetchCustomerMessages,
+    fetchInternalConversations,
+    fetchInternalMessages,
+    markChatRead,
+  ]);
 
   useEffect(() => {
     const handler = (e) => {
       const normalized = normalize(e.detail);
-      setActiveChatId(normalized);
-      markChatRead(normalized);
+      const nextChat = {
+        conversationType: 'customer',
+        conversationId: normalized,
+        phone: normalized,
+      };
+
+      setActiveChatId(buildConversationKey('customer', normalized));
+      markChatRead(nextChat);
     };
 
     window.addEventListener('switchChatNumber', handler);
@@ -133,24 +330,53 @@ function MessagesPage() {
 
   useEffect(() => {
     const handleMessage = (msg) => {
+      if (msg.conversationType === 'internal_dm' || msg.conversationType === 'team') {
+        const conversationKey = buildConversationKey(msg.conversationType, msg.conversationId);
+        const normalizedMessage = {
+          ...msg,
+          direction: msg.senderId === currentUserId ? 'outbound' : 'inbound',
+        };
+
+        if (conversationKey === activeChatId) {
+          setMessages((prev) => {
+            const exists = prev.find((item) => item._id === msg._id);
+            if (exists) return prev;
+            return [...prev, normalizedMessage];
+          });
+
+          if (msg.senderId !== currentUserId) {
+            fetch(`${BASE_URL}/api/messages/read/${encodeURIComponent(msg.conversationId)}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: currentUserId }),
+            }).catch((error) => console.error('Mark internal read error:', error));
+          }
+        }
+
+        fetchInternalConversations();
+        return;
+      }
+
       const msgFrom = normalize(msg.from);
       const msgTo = normalize(msg.to);
-      const active = normalize(activeChatId);
+      const activePhone = activeCustomerPhone;
 
-      if (msgFrom === active || msgTo === active) {
+      if (msgFrom === activePhone || msgTo === activePhone) {
         setMessages((prev) => {
           const exists = prev.find(
-            (m) => m._id === msg._id || m.sid === msg.sid
+            (item) => item._id === msg._id || item.sid === msg.sid
           );
           if (exists) return prev;
+
           if (msg.direction === 'outbound') {
             const msgTime = msg.createdAt ? new Date(msg.createdAt).getTime() : null;
-            const tempIndex = prev.findIndex((m) => {
-              if (m.status !== 'sending') return false;
-              if (m.direction !== 'outbound') return false;
-              if (m.body !== msg.body) return false;
-              if (!msgTime || !m.createdAt) return true;
-              const tempTime = new Date(m.createdAt).getTime();
+            const tempIndex = prev.findIndex((item) => {
+              if (item.status !== 'sending') return false;
+              if (item.direction !== 'outbound') return false;
+              if (item.body !== msg.body) return false;
+              if (!msgTime || !item.createdAt) return true;
+
+              const tempTime = new Date(item.createdAt).getTime();
               return Math.abs(tempTime - msgTime) < 120000;
             });
 
@@ -160,39 +386,17 @@ function MessagesPage() {
               return next;
             }
           }
+
           return [...prev, msg];
         });
-        markChatRead(active);
-      } else if (!msg.direction || msg.direction === 'inbound') {
-        const target = normalize(msg.from);
-        setChats((prev) => {
-          let found = false;
-          const next = prev.map((c) => {
-            if (normalize(c.phone) === target) {
-              found = true;
-              return {
-                ...c,
-                unread: (c.unread || 0) + 1,
-                lastMessage: msg.body || c.lastMessage,
-                updatedAt: msg.createdAt || c.updatedAt,
-              };
-            }
-            return c;
+
+        if (activeConversationType === 'customer') {
+          markChatRead({
+            conversationType: 'customer',
+            phone: activePhone,
+            conversationId: activeConversationId,
           });
-
-          if (!found && target) {
-            next.push({
-              phone: target,
-              name: target,
-              lastMessage: msg.body || '',
-              unread: 1,
-              updatedAt: msg.createdAt || new Date().toISOString(),
-              isInternal: false
-            });
-          }
-
-          return next;
-        });
+        }
       }
 
       fetchConversations();
@@ -200,7 +404,16 @@ function MessagesPage() {
 
     socket.on('newMessage', handleMessage);
     return () => socket.off('newMessage', handleMessage);
-  }, [activeChatId, fetchConversations]);
+  }, [
+    activeChatId,
+    activeConversationId,
+    activeConversationType,
+    activeCustomerPhone,
+    currentUserId,
+    fetchConversations,
+    fetchInternalConversations,
+    markChatRead,
+  ]);
 
   useEffect(() => {
     const handleStatus = (data) => {
@@ -219,158 +432,62 @@ function MessagesPage() {
 
   const handleStartChat = (phone) => {
     const normalized = normalize(phone);
-    setActiveChatId(normalized);
+    setActiveChatId(buildConversationKey('customer', normalized));
     setMessages([]);
-    markChatRead(normalized);
+    markChatRead({
+      conversationType: 'customer',
+      conversationId: normalized,
+      phone: normalized,
+    });
   };
 
-  const handleSelectChat = (phone) => {
-    const normalized = normalize(phone);
-    setActiveChatId(normalized);
-    markChatRead(normalized);
+  const handleSelectChat = (conversation) => {
+    if (!conversation) return;
+
+    const nextKey = buildConversationKey(
+      conversation.conversationType || 'customer',
+      conversation.conversationId || conversation.phone
+    );
+
+    setActiveChatId(nextKey);
+    markChatRead(conversation);
   };
-
-  const mergedList = contacts.map((contact) => {
-    const phones = contact.phones || [];
-    const numbers = phones.map((p) => normalize(p.number));
-
-    const chat = chats.find((c) =>
-      numbers.includes(normalize(c.phone))
-    );
-
-    return {
-      ...contact,
-      phones,
-      phone: phones[0]?.number || '',
-      dba: contact.dba,
-      lastMessage: chat?.lastMessage || '',
-      unread: chat?.unread || 0,
-      updatedAt: chat?.updatedAt || 0,
-      isInternal: false
-    };
-  });
-
-  chats.forEach((chat) => {
-    const phone = normalize(chat.phone);
-
-    const exists = mergedList.find((c) =>
-      (c.phones || []).some(p => p.number === phone)
-    );
-
-    if (!exists) {
-      mergedList.push({
-        phone,
-        name: phone,
-        phones: [{ number: phone, label: 'mobile' }],
-        lastMessage: chat.lastMessage,
-        unread: chat.unread,
-        updatedAt: chat.updatedAt,
-        isInternal: false
-      });
-    }
-  });
-
-  const sortedList = [...mergedList].sort((a, b) => {
-    if (b.unread !== a.unread) {
-      return b.unread - a.unread;
-    }
-    return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
-  });
-
-  const unreadCount = sortedList.filter(c => c.unread > 0).length;
-  const allCount = sortedList.length;
-  const teamCount = sortedList.filter(c => c.isInternal).length;
-
-  let filteredList = sortedList;
-
-  if (activeTab === 'unread') {
-    filteredList = sortedList.filter(c => c.unread > 0);
-  }
-
-  if (activeTab === 'team') {
-    filteredList = sortedList.filter(c => c.isInternal);
-  }
-
-  const activeChatBase = sortedList.find((c) =>
-    (c.phones || []).some(
-      (p) => normalize(p.number) === normalize(activeChatId)
-    )
-  );
-
-  const activeChat = activeChatBase
-    ? { ...activeChatBase, phone: normalize(activeChatId) }
-    : activeChatId
-    ? { phone: normalize(activeChatId), phones: [] }
-    : null;
 
   const isChatOpen = Boolean(activeChatId);
 
   return (
     <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}`}>
-
       <div className="messages-contacts-pane">
-
-        <div style={{ display: 'flex', gap: '8px', padding: '10px' }}>
-
+        <div className="messages-filters">
           <button
             onClick={() => setActiveTab('all')}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              border: 'none',
-              cursor: 'pointer',
-              background: activeTab === 'all' ? '#1d9bf0' : '#333',
-              color: '#fff'
-            }}
+            className={`messages-filter-btn${activeTab === 'all' ? ' is-active' : ''}`}
+            type="button"
           >
             All ({allCount})
           </button>
 
           <button
             onClick={() => setActiveTab('unread')}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              border: 'none',
-              cursor: 'pointer',
-              background: activeTab === 'unread' ? '#1d9bf0' : '#333',
-              color: '#fff'
-            }}
+            className={`messages-filter-btn${activeTab === 'unread' ? ' is-active' : ''}`}
+            type="button"
           >
             Unread ({unreadCount})
           </button>
 
           <button
             onClick={() => setActiveTab('team')}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '6px',
-              border: 'none',
-              cursor: 'pointer',
-              background: activeTab === 'team' ? '#1d9bf0' : '#333',
-              color: '#fff'
-            }}
+            className={`messages-filter-btn${activeTab === 'team' ? ' is-active' : ''}`}
+            type="button"
           >
             Team ({teamCount})
           </button>
-
         </div>
 
         <button
           onClick={() => setShowModal(true)}
-          style={{
-            margin: '10px',
-            padding: '10px',
-            background: '#1d9bf0',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}
+          className="messages-new-button"
+          type="button"
         >
           <Plus size={16} />
           New Message
@@ -378,7 +495,7 @@ function MessagesPage() {
 
         <ContactsList
           list={filteredList}
-          activeId={normalize(activeChatId)}
+          activeId={activeChatId}
           onSelect={handleSelectChat}
         />
       </div>
@@ -388,8 +505,9 @@ function MessagesPage() {
           chat={activeChat}
           messages={messages}
           setMessages={setMessages}
-          onSwitchNumber={(num) => setActiveChatId(normalize(num))}
-          onAssignContact={handleAssignContact} // ✅ PASS DOWN
+          currentUserId={currentUserId}
+          onSwitchNumber={(num) => setActiveChatId(buildConversationKey('customer', normalize(num)))}
+          onAssignContact={handleAssignContact}
           onBack={() => setActiveChatId(null)}
           showBack={isChatOpen}
         />

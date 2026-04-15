@@ -13,6 +13,7 @@ function ChatWindow({
   chat,
   messages,
   setMessages,
+  currentUserId,
   onSwitchNumber,
   onAssignContact,
   onBack,
@@ -24,31 +25,26 @@ function ChatWindow({
   const [currentCallSid, setCurrentCallSid] = useState(null);
 
   const safeMessages = messages || [];
+  const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
 
   const formatPhone = (num) => {
     if (!num) return '';
 
-    let cleaned = num.replace(/\D/g, '');
+    const cleaned = num.replace(/\D/g, '');
 
     if (num.startsWith('+')) return num;
+    if (cleaned.length === 11 && cleaned.startsWith('0')) return `+234${cleaned.slice(1)}`;
+    if (cleaned.length === 10 && /^[789]/.test(cleaned)) return `+234${cleaned}`;
+    if (cleaned.length === 10) return `+1${cleaned}`;
 
-    if (cleaned.length === 11 && cleaned.startsWith('0')) {
-      return '+234' + cleaned.slice(1);
-    }
-
-    if (cleaned.length === 10 && /^[789]/.test(cleaned)) {
-      return '+234' + cleaned;
-    }
-
-    if (cleaned.length === 10) {
-      return '+1' + cleaned;
-    }
-
-    return '+' + cleaned;
+    return `+${cleaned}`;
   };
 
   const fetchCalls = useCallback(async () => {
-    if (!chat?.phone) return;
+    if (!chat?.phone || !isCustomerChat) {
+      setCallLogs([]);
+      return;
+    }
 
     try {
       const res = await fetch(`${BASE_URL}/api/calls/by-number/${chat.phone}`);
@@ -57,7 +53,7 @@ function ChatWindow({
     } catch (err) {
       console.error('Fetch call logs error:', err);
     }
-  }, [chat?.phone]);
+  }, [chat?.phone, isCustomerChat]);
 
   useEffect(() => {
     fetchCalls();
@@ -82,13 +78,15 @@ function ChatWindow({
   }, [currentCallSid]);
 
   useEffect(() => {
+    if (!isCustomerChat) return undefined;
+
     socket.on('callStatus', fetchCalls);
     return () => socket.off('callStatus', fetchCalls);
-  }, [fetchCalls]);
+  }, [fetchCalls, isCustomerChat]);
 
   const mergedTimeline = [
-    ...safeMessages.map((m) => ({ ...m, type: 'message' })),
-    ...callLogs.map((c) => ({ ...c, type: 'call' }))
+    ...safeMessages.map((message) => ({ ...message, type: 'message' })),
+    ...(isCustomerChat ? callLogs.map((call) => ({ ...call, type: 'call' })) : [])
   ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
@@ -102,28 +100,29 @@ function ChatWindow({
   }, [mergedTimeline, scrollToBottom]);
 
   useEffect(() => {
-    if (!chat?.phone) return;
+    if (!chat?.conversationId && !chat?.phone) return;
     scrollToBottom('auto');
-  }, [chat?.phone, scrollToBottom]);
+  }, [chat?.conversationId, chat?.phone, scrollToBottom]);
 
   if (!chat) {
     return (
       <div className="panel chat-window">
         <div className="message-list">
           <div className="empty-state">
-            <div className="empty-title">Select a contact</div>
+            <div className="empty-title">Select a conversation</div>
           </div>
         </div>
       </div>
     );
   }
 
-  const displayName =
-    chat.firstName || chat.lastName
+  const displayName = chat.name
+    || (chat.firstName || chat.lastName
       ? `${chat.firstName || ''} ${chat.lastName || ''}`.trim()
-      : chat.phone;
+      : chat.phone);
 
   const handleCall = async () => {
+    if (!isCustomerChat || !chat?.phone) return;
     if (callStatus === 'initiated' || callStatus === 'ringing') return;
 
     try {
@@ -137,39 +136,47 @@ function ChatWindow({
   };
 
   const handleRetry = async (message) => {
-    if (!message || !message.body || !chat?.phone) return;
+    if (!message || !message.body) return;
 
     const retryTime = new Date().toISOString();
     setMessages((prev) =>
-      prev.map((m) =>
-        m._id === message._id
-          ? { ...m, status: 'sending', createdAt: retryTime }
-          : m
+      prev.map((item) =>
+        item._id === message._id
+          ? { ...item, status: 'sending', createdAt: retryTime }
+          : item
       )
     );
 
     try {
       const res = await sendMessageRequest(
-        chat.phone,
+        {
+          chatId: isCustomerChat ? chat.phone : chat.conversationId,
+          conversationType: chat.conversationType || 'customer',
+          userId: currentUserId,
+        },
         message.body,
         message.media?.[0]
       );
+
       if (!res) throw new Error('Retry failed');
 
       setMessages((prev) =>
-        prev.map((m) =>
-          m._id === message._id
-            ? { ...res }
-            : m
+        prev.map((item) =>
+          item._id === message._id
+            ? {
+                ...res,
+                direction: res.senderId && res.senderId !== currentUserId ? 'inbound' : 'outbound',
+              }
+            : item
         )
       );
     } catch (err) {
       console.error('Retry failed:', err);
       setMessages((prev) =>
-        prev.map((m) =>
-          m._id === message._id
-            ? { ...m, status: 'failed' }
-            : m
+        prev.map((item) =>
+          item._id === message._id
+            ? { ...item, status: 'failed' }
+            : item
         )
       );
     }
@@ -186,10 +193,9 @@ function ChatWindow({
 
   return (
     <div className="panel chat-window">
-
       <Header
         title={displayName}
-        status="Active"
+        status={isCustomerChat ? 'Active' : (chat.conversationType === 'team' ? 'Team Chat' : 'Internal Chat')}
         chat={chat}
         callStatus={callStatus}
         callLabel={getCallLabel()}
@@ -203,18 +209,15 @@ function ChatWindow({
       <div className="chat-messages-container">
         <div className="message-list">
           {mergedTimeline.map((item, index) => {
-
             if (item.type === 'message') {
-              return <MessageBubble key={index} message={item} onRetry={handleRetry} />;
+              return <MessageBubble key={item._id || index} message={item} onRetry={handleRetry} />;
             }
 
-            // ✅ FIXED CALL UI
-            const isOutbound =
-  normalize(item.from) === normalize(chat.phone);
+            const isOutbound = normalize(item.from) === normalize(chat.phone);
 
             return (
               <div
-                key={index}
+                key={item._id || item.sid || index}
                 style={{
                   display: 'flex',
                   justifyContent: isOutbound ? 'flex-end' : 'flex-start',
@@ -254,7 +257,10 @@ function ChatWindow({
       </div>
 
       <MessageInput
-        chatId={chat.phone}
+        chatId={isCustomerChat ? chat.phone : chat.conversationId}
+        conversationType={chat.conversationType || 'customer'}
+        userId={currentUserId}
+        allowAttachments={isCustomerChat}
         setMessages={setMessages}
         onFocusInput={() => {
           window.setTimeout(() => {
@@ -264,10 +270,16 @@ function ChatWindow({
         onMessageSent={(msg) => {
           setMessages((prev) => {
             const exists = prev.find(
-              (m) => m._id === msg._id || m.sid === msg.sid
+              (item) => item._id === msg._id || item.sid === msg.sid
             );
             if (exists) return prev;
-            return [...prev, msg];
+            return [
+              ...prev,
+              {
+                ...msg,
+                direction: msg.senderId && msg.senderId !== currentUserId ? 'inbound' : 'outbound',
+              },
+            ];
           });
         }}
       />
