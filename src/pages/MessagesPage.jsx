@@ -35,6 +35,12 @@ const normalizeUnreadCount = (value) => {
 };
 
 const hasUnreadConversation = (conversation) => normalizeUnreadCount(conversation?.unreadCount) > 0;
+const isDirectoryOnlyCustomer = (conversation) => (
+  conversation?.conversationType === 'customer'
+  && !conversation?.rawConversation
+  && !conversation?.lastMessage
+  && !hasUnreadConversation(conversation)
+);
 
 const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
   const phones = contact?.phones || [];
@@ -399,7 +405,9 @@ function MessagesPage() {
   let filteredList = conversationList;
 
   if (activeTab === 'unread') {
-    filteredList = conversationList.filter(hasUnreadConversation);
+    filteredList = conversationList.filter(
+      (item) => !isDirectoryOnlyCustomer(item) && hasUnreadConversation(item)
+    );
   } else if (activeTab === 'team') {
     filteredList = conversationList.filter((item) => item.conversationType === 'team');
   }
