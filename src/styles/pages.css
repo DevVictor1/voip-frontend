@@ -1225,6 +1225,11 @@
     max-width: none;
   }
 
+  .messages-contacts-pane {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
   .messages-shell.is-chat-open .messages-contacts-pane {
     display: none;
   }
@@ -1239,10 +1244,19 @@
   }
 
   .contacts-wrapper {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
     border-radius: 0;
     border-left: none;
     border-right: none;
     box-shadow: none;
+  }
+
+  .contacts-scroll {
+    flex: 0 0 auto;
+    overflow: visible;
+    min-height: auto;
   }
 
   .chat-window {
