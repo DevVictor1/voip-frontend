@@ -5,6 +5,9 @@ import BASE_URL from '../config/api';
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
 function ContactsList({ list, activeId, onSelect }) {
+  const conversationItems = list.filter((item) => item.conversationType !== 'team');
+  const teamItems = list.filter((item) => item.conversationType === 'team');
+
   const getDisplayName = (item) => {
     if (item.conversationType === 'team') {
       return item.name || item.teamName || 'Team Chat';
@@ -64,6 +67,62 @@ function ContactsList({ list, activeId, onSelect }) {
     window.location.reload();
   };
 
+  const renderItems = (items) => {
+    return items.map((item, index) => {
+      const activePhone = getActivePhone(item);
+      const conversationKey = item.key || `${item.conversationType || 'customer'}:${item.conversationId || item.phone}`;
+      const isActive = activeId === conversationKey;
+      const hasUnread = item.unread > 0;
+      const displayName = getDisplayName(item);
+      const secondaryLine = getSecondaryLine(item, activePhone);
+
+      return (
+        <div
+          key={conversationKey || index}
+          className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}`}
+          onClick={() => onSelect(item)}
+        >
+          {item._id && item.conversationType === 'customer' && (
+            <button
+              className="delete-btn"
+              onClick={(e) => handleDelete(item._id, e)}
+            >
+              <X size={12} />
+            </button>
+          )}
+
+          <div className="contact-card-body">
+            <div className="contact-row contact-row-top">
+              <div className="contact-main">
+                <div className="contact-name">
+                  {displayName}
+                </div>
+                {secondaryLine && (
+                  <div className="contact-meta">
+                    {secondaryLine}
+                  </div>
+                )}
+              </div>
+
+              <div className="contact-indicators">
+                {hasUnread && (
+                  <span className="unread-badge">{item.unread}</span>
+                )}
+                <span className={getBadgeClassName(item)}>
+                  {getBadgeLabel(item)}
+                </span>
+              </div>
+            </div>
+
+            <div className={`contact-preview${hasUnread ? ' is-unread' : ''}`}>
+              {item.lastMessage || item.previewFallback || 'No messages yet'}
+            </div>
+          </div>
+        </div>
+      );
+    });
+  };
+
   return (
     <div className="contacts-wrapper">
       <div className="contacts-header">
@@ -76,59 +135,19 @@ function ContactsList({ list, activeId, onSelect }) {
       </div>
 
       <div className="contacts-scroll">
-        {list.map((item, index) => {
-          const activePhone = getActivePhone(item);
-          const conversationKey = item.key || `${item.conversationType || 'customer'}:${item.conversationId || item.phone}`;
-          const isActive = activeId === conversationKey;
-          const hasUnread = item.unread > 0;
-          const displayName = getDisplayName(item);
-          const secondaryLine = getSecondaryLine(item, activePhone);
+        {conversationItems.length > 0 && (
+          <div className="contacts-section">
+            <div className="contacts-section-title">Conversations</div>
+            {renderItems(conversationItems)}
+          </div>
+        )}
 
-          return (
-            <div
-              key={conversationKey || index}
-              className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}`}
-              onClick={() => onSelect(item)}
-            >
-              {item._id && item.conversationType === 'customer' && (
-                <button
-                  className="delete-btn"
-                  onClick={(e) => handleDelete(item._id, e)}
-                >
-                  <X size={12} />
-                </button>
-              )}
-
-              <div className="contact-card-body">
-                <div className="contact-row contact-row-top">
-                  <div className="contact-main">
-                    <div className="contact-name">
-                      {displayName}
-                    </div>
-                    {secondaryLine && (
-                      <div className="contact-meta">
-                        {secondaryLine}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="contact-indicators">
-                    {hasUnread && (
-                      <span className="unread-badge">{item.unread}</span>
-                    )}
-                    <span className={getBadgeClassName(item)}>
-                      {getBadgeLabel(item)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className={`contact-preview${hasUnread ? ' is-unread' : ''}`}>
-                  {item.lastMessage || item.previewFallback || 'No messages yet'}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {teamItems.length > 0 && (
+          <div className="contacts-section">
+            <div className="contacts-section-title">Teams</div>
+            {renderItems(teamItems)}
+          </div>
+        )}
       </div>
     </div>
   );
