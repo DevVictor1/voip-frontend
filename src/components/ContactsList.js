@@ -10,7 +10,8 @@ function ContactsList({ list, activeId, onSelect }) {
 
   const getDisplayName = (item) => {
     if (item.conversationType === 'team') {
-      return item.name || item.teamName || 'Team Chat';
+      const teamName = item.name || item.teamName || 'Team Chat';
+      return teamName.startsWith('#') ? teamName : `# ${teamName}`;
     }
 
     if (item.conversationType === 'internal_dm') {
@@ -33,11 +34,14 @@ function ContactsList({ list, activeId, onSelect }) {
 
   const getSecondaryLine = (item, phone) => {
     if (item.conversationType === 'team') {
-      return item.role || 'Team channel';
+      const memberCount = item.participants?.length || 0;
+      return memberCount > 0
+        ? `${memberCount} member${memberCount === 1 ? '' : 's'}`
+        : (item.role || 'Team channel');
     }
 
     if (item.conversationType === 'internal_dm') {
-      return item.role || 'Internal chat';
+      return item.role || 'Direct message';
     }
 
     return [phone, item.dba].filter(Boolean).join(' / ');
@@ -137,14 +141,14 @@ function ContactsList({ list, activeId, onSelect }) {
       <div className="contacts-scroll">
         {conversationItems.length > 0 && (
           <div className="contacts-section">
-            <div className="contacts-section-title">Conversations</div>
+            <div className="contacts-section-title">Conversations ({conversationItems.length})</div>
             {renderItems(conversationItems)}
           </div>
         )}
 
         {teamItems.length > 0 && (
           <div className="contacts-section">
-            <div className="contacts-section-title">Teams</div>
+            <div className="contacts-section-title">Teams ({teamItems.length})</div>
             {renderItems(teamItems)}
           </div>
         )}

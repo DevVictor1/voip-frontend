@@ -5,6 +5,7 @@ import NewMessageModal from '../components/NewMessageModal';
 import socket from '../socket';
 import BASE_URL from '../config/api';
 import { Plus } from 'lucide-react';
+import { AGENTS, getAgentMeta } from '../config/agents';
 
 const normalize = (phone) => {
   if (!phone) return '';
@@ -153,6 +154,8 @@ function MessagesPage() {
   const [activeChatId, setActiveChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showTeammatePicker, setShowTeammatePicker] = useState(false);
+  const [startingDirectChat, setStartingDirectChat] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
 
   const currentRole = getStoredRole();
@@ -285,6 +288,83 @@ function MessagesPage() {
     fetchContacts();
     fetchInternalConversations();
   }, [fetchContacts, fetchConversations, fetchInternalConversations]);
+
+  const teammateOptions = Object.entries(AGENTS)
+    .filter(([agentId]) => ['agent_1', 'agent_2', 'agent_3'].includes(agentId) && agentId !== currentUserId)
+    .map(([agentId, agent]) => ({
+      agentId,
+      name: agent.name,
+      role: agent.role,
+    }));
+
+  const upsertInternalConversation = useCallback((conversation) => {
+    if (!conversation?.conversationId) return;
+
+    setInternalChats((prev) => {
+      const next = [...prev];
+      const index = next.findIndex((item) => item.conversationId === conversation.conversationId);
+
+      if (index === -1) {
+        return [conversation, ...next];
+      }
+
+      next[index] = {
+        ...next[index],
+        ...conversation,
+      };
+
+      return next;
+    });
+  }, []);
+
+  const handleStartDirectChat = useCallback(async (targetUserId) => {
+    if (!targetUserId || startingDirectChat) return;
+
+    try {
+      setStartingDirectChat(true);
+
+      const res = await fetch(`${BASE_URL}/api/messages/direct/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentUserId,
+          targetUserId,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to start direct chat');
+
+      const conversation = await res.json();
+      const participants = conversation.participants || [currentUserId, targetUserId].sort();
+      const otherParticipant = participants.find((participant) => participant !== currentUserId) || targetUserId;
+      const otherAgent = getAgentMeta(otherParticipant);
+
+      upsertInternalConversation({
+        conversationType: 'internal_dm',
+        conversationId: conversation.conversationId,
+        participants,
+        name: otherAgent.name,
+        role: otherAgent.role,
+        agentId: otherParticipant,
+        lastMessage: conversation.lastMessagePreview || '',
+        updatedAt: conversation.lastMessageAt || conversation.updatedAt || new Date().toISOString(),
+        unread: 0,
+        isInternal: true,
+        isTeam: false,
+        previewFallback: `Message ${otherAgent.name}`,
+      });
+
+      setActiveTab('all');
+      setActiveChatId(buildConversationKey('internal_dm', conversation.conversationId));
+      setMessages([]);
+      setShowTeammatePicker(false);
+      fetchInternalConversations();
+    } catch (err) {
+      console.error('Start direct chat error:', err);
+    } finally {
+      setStartingDirectChat(false);
+    }
+  }, [currentUserId, fetchInternalConversations, startingDirectChat, upsertInternalConversation]);
 
   const conversationList = buildConversationList({
     contacts,
@@ -593,14 +673,24 @@ function MessagesPage() {
           </button>
         </div>
 
-        <button
-          onClick={() => setShowModal(true)}
-          className="messages-new-button"
-          type="button"
-        >
-          <Plus size={16} />
-          New Message
-        </button>
+        <div className="messages-actions">
+          <button
+            onClick={() => setShowModal(true)}
+            className="messages-new-button"
+            type="button"
+          >
+            <Plus size={16} />
+            New Message
+          </button>
+
+          <button
+            onClick={() => setShowTeammatePicker(true)}
+            className="messages-secondary-button"
+            type="button"
+          >
+            Message Teammate
+          </button>
+        </div>
 
         <ContactsList
           list={filteredList}
@@ -627,6 +717,49 @@ function MessagesPage() {
         onClose={() => setShowModal(false)}
         onStart={handleStartChat}
       />
+
+      {showTeammatePicker && (
+        <div
+          className="messages-picker-overlay"
+          onClick={() => !startingDirectChat && setShowTeammatePicker(false)}
+        >
+          <div
+            className="messages-picker-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="messages-picker-header">
+              <h3>Message teammate</h3>
+              <p>Start or reopen a direct internal chat.</p>
+            </div>
+
+            <div className="messages-picker-list">
+              {teammateOptions.map((agent) => (
+                <button
+                  key={agent.agentId}
+                  type="button"
+                  className="messages-picker-option"
+                  onClick={() => handleStartDirectChat(agent.agentId)}
+                  disabled={startingDirectChat}
+                >
+                  <span className="messages-picker-option-name">{agent.name}</span>
+                  <span className="messages-picker-option-role">{agent.role}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="messages-picker-footer">
+              <button
+                type="button"
+                className="messages-picker-cancel"
+                onClick={() => setShowTeammatePicker(false)}
+                disabled={startingDirectChat}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
