@@ -195,9 +195,6 @@ function Header({
       </div>
 
       <div className="header-actions">
-        <span className="header-user-meta">
-          Agent: {formatAgentLabel(userId)}
-        </span>
         <div ref={assignMenuRef} className="header-assign-menu">
           <button
             className="button-icon header-assign-trigger"
