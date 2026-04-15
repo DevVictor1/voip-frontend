@@ -29,6 +29,13 @@ const buildConversationKey = (conversationType, conversationId) => {
   return `${conversationType}:${safeId}`;
 };
 
+const normalizeUnreadCount = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+};
+
+const hasUnreadConversation = (conversation) => normalizeUnreadCount(conversation?.unreadCount) > 0;
+
 const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
   const phones = contact?.phones || [];
   const normalizedPhones = phones.map((phone) => ({
@@ -40,7 +47,7 @@ const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
   const fullName = [contact?.firstName, contact?.lastName].filter(Boolean).join(' ').trim();
   const title = fullName || contact?.name || chat?.name || primaryPhone;
   const subtitle = [primaryPhone, contact?.dba].filter(Boolean).join(' / ');
-  const unreadCount = chat?.unread || 0;
+  const unreadCount = normalizeUnreadCount(chat?.unread);
   const lastMessageAt = chat?.updatedAt || contact?.updatedAt || 0;
 
   return {
@@ -84,7 +91,7 @@ const normalizeInternalConversation = (conversation, currentUserId) => {
   const subtitle = conversationType === 'team'
     ? (conversation?.role || conversation?.teamName || 'Team channel')
     : (otherAgent?.role || conversation?.role || 'Internal chat');
-  const unreadCount = conversation?.unread || 0;
+  const unreadCount = normalizeUnreadCount(conversation?.unread);
   const lastMessageAt = conversation?.updatedAt || 0;
 
   return {
@@ -385,14 +392,14 @@ function MessagesPage() {
     currentUserId,
   });
 
-  const unreadCount = conversationList.filter((item) => item.unreadCount > 0).length;
+  const unreadCount = conversationList.filter(hasUnreadConversation).length;
   const allCount = conversationList.length;
   const teamCount = conversationList.filter((item) => item.conversationType === 'team').length;
 
   let filteredList = conversationList;
 
   if (activeTab === 'unread') {
-    filteredList = conversationList.filter((item) => item.unreadCount > 0);
+    filteredList = conversationList.filter(hasUnreadConversation);
   } else if (activeTab === 'team') {
     filteredList = conversationList.filter((item) => item.conversationType === 'team');
   }
