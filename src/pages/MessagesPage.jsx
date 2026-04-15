@@ -28,6 +28,124 @@ const buildConversationKey = (conversationType, conversationId) => {
   return `${conversationType}:${safeId}`;
 };
 
+const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
+  const phones = contact?.phones || [];
+  const normalizedPhones = phones.map((phone) => ({
+    ...phone,
+    number: normalize(phone.number),
+  }));
+  const primaryPhone = normalize(chat?.phone || phones[0]?.number || '');
+  const conversationId = primaryPhone;
+  const fullName = [contact?.firstName, contact?.lastName].filter(Boolean).join(' ').trim();
+  const title = fullName || contact?.name || chat?.name || primaryPhone;
+  const subtitle = [primaryPhone, contact?.dba].filter(Boolean).join(' / ');
+  const unreadCount = chat?.unread || 0;
+  const lastMessageAt = chat?.updatedAt || contact?.updatedAt || 0;
+
+  return {
+    ...contact,
+    id: buildConversationKey('customer', conversationId),
+    key: buildConversationKey('customer', conversationId),
+    conversationId,
+    conversationType: 'customer',
+    title,
+    subtitle,
+    name: title,
+    phone: primaryPhone,
+    phones: normalizedPhones.length > 0 ? normalizedPhones : [{ number: primaryPhone, label: 'mobile' }].filter((item) => item.number),
+    lastMessage: chat?.lastMessage || '',
+    lastMessageAt,
+    updatedAt: lastMessageAt,
+    unreadCount,
+    unread: unreadCount,
+    assignedTo: contact?.assignedTo || null,
+    isUnassigned: contact?.isUnassigned ?? !contact?.assignedTo,
+    isInternal: false,
+    isTeam: false,
+    previewFallback: 'No messages yet',
+    sourceType: 'customer',
+    rawContact: contact,
+    rawConversation: chat,
+  };
+};
+
+const normalizeInternalConversation = (conversation) => {
+  const conversationId = conversation?.conversationId || '';
+  const conversationType = conversation?.conversationType || 'internal_dm';
+  const title = conversation?.name || conversation?.teamName || conversationId;
+  const subtitle = conversationType === 'team'
+    ? (conversation?.role || conversation?.teamName || 'Team channel')
+    : (conversation?.role || 'Internal chat');
+  const unreadCount = conversation?.unread || 0;
+  const lastMessageAt = conversation?.updatedAt || 0;
+
+  return {
+    ...conversation,
+    id: buildConversationKey(conversationType, conversationId),
+    key: buildConversationKey(conversationType, conversationId),
+    conversationId,
+    conversationType,
+    title,
+    subtitle,
+    name: title,
+    lastMessage: conversation?.lastMessage || '',
+    lastMessageAt,
+    updatedAt: lastMessageAt,
+    unreadCount,
+    unread: unreadCount,
+    teamId: conversation?.teamId || null,
+    teamName: conversation?.teamName || null,
+    participants: conversation?.participants || [],
+    isInternal: true,
+    isTeam: conversationType === 'team',
+    sourceType: conversationType,
+    rawConversation: conversation,
+  };
+};
+
+const buildConversationList = ({ contacts, chats, internalChats }) => {
+  const normalizedCustomers = [];
+  const matchedPhones = new Set();
+
+  contacts.forEach((contact) => {
+    const contactPhones = (contact.phones || []).map((phone) => normalize(phone.number));
+    const chat = chats.find((item) => contactPhones.includes(normalize(item.phone)));
+    const normalizedConversation = normalizeCustomerConversation({ contact, chat });
+
+    normalizedCustomers.push(normalizedConversation);
+    contactPhones.forEach((phone) => matchedPhones.add(phone));
+    if (chat?.phone) {
+      matchedPhones.add(normalize(chat.phone));
+    }
+  });
+
+  chats.forEach((chat) => {
+    const phone = normalize(chat.phone);
+    if (!phone || matchedPhones.has(phone)) return;
+
+    normalizedCustomers.push(
+      normalizeCustomerConversation({
+        chat,
+        contact: {
+          name: chat.name || phone,
+          phones: [{ number: phone, label: 'mobile' }],
+          isUnassigned: true,
+        },
+      })
+    );
+  });
+
+  const normalizedInternal = internalChats.map(normalizeInternalConversation);
+
+  return [...normalizedCustomers, ...normalizedInternal].sort((a, b) => {
+    if ((b.unreadCount || 0) !== (a.unreadCount || 0)) {
+      return (b.unreadCount || 0) - (a.unreadCount || 0);
+    }
+
+    return new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0);
+  });
+};
+
 function MessagesPage() {
   const [chats, setChats] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -168,89 +286,33 @@ function MessagesPage() {
     fetchInternalConversations();
   }, [fetchContacts, fetchConversations, fetchInternalConversations]);
 
-  const customerList = contacts.map((contact) => {
-    const phones = contact.phones || [];
-    const numbers = phones.map((phone) => normalize(phone.number));
-
-    const chat = chats.find((item) =>
-      numbers.includes(normalize(item.phone))
-    );
-
-    const primaryPhone = chat?.phone || phones[0]?.number || '';
-    const conversationId = normalize(primaryPhone);
-
-    return {
-      ...contact,
-      conversationType: 'customer',
-      conversationId,
-      phones,
-      phone: primaryPhone,
-      lastMessage: chat?.lastMessage || '',
-      unread: chat?.unread || 0,
-      updatedAt: chat?.updatedAt || 0,
-      isInternal: false,
-      isTeam: false,
-      previewFallback: 'No messages yet',
-      key: buildConversationKey('customer', conversationId),
-    };
+  const conversationList = buildConversationList({
+    contacts,
+    chats,
+    internalChats,
   });
 
-  chats.forEach((chat) => {
-    const phone = normalize(chat.phone);
-    const exists = customerList.find((item) =>
-      (item.phones || []).some((phoneEntry) => normalize(phoneEntry.number) === phone)
-    );
+  const unreadCount = conversationList.filter((item) => item.unreadCount > 0).length;
+  const allCount = conversationList.length;
+  const teamCount = conversationList.filter((item) => item.conversationType === 'team').length;
 
-    if (!exists) {
-      customerList.push({
-        conversationType: 'customer',
-        conversationId: phone,
-        key: buildConversationKey('customer', phone),
-        phone,
-        name: phone,
-        phones: [{ number: phone, label: 'mobile' }],
-        lastMessage: chat.lastMessage,
-        unread: chat.unread,
-        updatedAt: chat.updatedAt,
-        isInternal: false,
-        isTeam: false,
-        previewFallback: 'No messages yet',
-        isUnassigned: true,
-      });
-    }
-  });
-
-  const internalList = internalChats.map((conversation) => ({
-    ...conversation,
-    key: buildConversationKey(conversation.conversationType, conversation.conversationId),
-  }));
-
-  const combinedList = [...customerList, ...internalList].sort((a, b) => {
-    if ((b.unread || 0) !== (a.unread || 0)) {
-      return (b.unread || 0) - (a.unread || 0);
-    }
-
-    return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
-  });
-
-  const unreadCount = combinedList.filter((item) => item.unread > 0).length;
-  const allCount = combinedList.length;
-  const teamCount = combinedList.filter((item) => item.conversationType === 'team').length;
-
-  let filteredList = combinedList;
+  let filteredList = conversationList;
 
   if (activeTab === 'unread') {
-    filteredList = combinedList.filter((item) => item.unread > 0);
+    filteredList = conversationList.filter((item) => item.unreadCount > 0);
   } else if (activeTab === 'team') {
-    filteredList = combinedList.filter((item) => item.conversationType === 'team');
+    filteredList = conversationList.filter((item) => item.conversationType === 'team');
   }
 
-  const activeChat = combinedList.find((item) => item.key === activeChatId)
+  const activeChat = conversationList.find((item) => item.key === activeChatId)
     || (activeChatId?.startsWith('customer:')
       ? {
+          id: activeChatId,
           conversationType: 'customer',
           conversationId: activeChatId.replace('customer:', ''),
           key: activeChatId,
+          title: activeChatId.replace('customer:', ''),
+          name: activeChatId.replace('customer:', ''),
           phone: activeChatId.replace('customer:', ''),
           phones: [],
           isInternal: false,
@@ -379,6 +441,14 @@ function MessagesPage() {
         return;
       }
 
+      const normalizedCustomerMessage = normalizeCustomerConversation({
+        chat: {
+          phone: msg.conversationId || msg.from || msg.to,
+          lastMessage: msg.body || '',
+          unread: !msg.direction || msg.direction === 'inbound' ? 1 : 0,
+          updatedAt: msg.createdAt || new Date().toISOString(),
+        },
+      });
       const msgFrom = normalize(msg.from);
       const msgTo = normalize(msg.to);
       const activePhone = activeCustomerPhone;
@@ -419,6 +489,23 @@ function MessagesPage() {
             conversationId: activeConversationId,
           });
         }
+      }
+
+      if (!activePhone && (!msg.direction || msg.direction === 'inbound')) {
+        setChats((prev) => {
+          const exists = prev.find((item) => normalize(item.phone) === normalize(normalizedCustomerMessage.phone));
+          if (exists) return prev;
+          return [
+            ...prev,
+            {
+              phone: normalizedCustomerMessage.phone,
+              name: normalizedCustomerMessage.title,
+              lastMessage: normalizedCustomerMessage.lastMessage,
+              unread: normalizedCustomerMessage.unreadCount,
+              updatedAt: normalizedCustomerMessage.lastMessageAt,
+            },
+          ];
+        });
       }
 
       fetchConversations();
