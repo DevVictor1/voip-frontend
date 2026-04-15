@@ -70,13 +70,20 @@ const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
   };
 };
 
-const normalizeInternalConversation = (conversation) => {
+const normalizeInternalConversation = (conversation, currentUserId) => {
   const conversationId = conversation?.conversationId || '';
   const conversationType = conversation?.conversationType || 'internal_dm';
-  const title = conversation?.name || conversation?.teamName || conversationId;
+  const participants = conversation?.participants || [];
+  const otherParticipant = conversationType === 'internal_dm'
+    ? participants.find((participant) => participant && participant !== currentUserId)
+    : null;
+  const otherAgent = otherParticipant ? getAgentMeta(otherParticipant) : null;
+  const title = conversationType === 'internal_dm'
+    ? (otherAgent?.name || conversation?.name || conversation?.teamName || conversationId)
+    : (conversation?.name || conversation?.teamName || conversationId);
   const subtitle = conversationType === 'team'
     ? (conversation?.role || conversation?.teamName || 'Team channel')
-    : (conversation?.role || 'Internal chat');
+    : (otherAgent?.role || conversation?.role || 'Internal chat');
   const unreadCount = conversation?.unread || 0;
   const lastMessageAt = conversation?.updatedAt || 0;
 
@@ -96,7 +103,10 @@ const normalizeInternalConversation = (conversation) => {
     unread: unreadCount,
     teamId: conversation?.teamId || null,
     teamName: conversation?.teamName || null,
-    participants: conversation?.participants || [],
+    participants,
+    agentId: conversationType === 'internal_dm'
+      ? (otherParticipant || conversation?.agentId || null)
+      : (conversation?.agentId || null),
     isInternal: true,
     isTeam: conversationType === 'team',
     sourceType: conversationType,
@@ -104,7 +114,7 @@ const normalizeInternalConversation = (conversation) => {
   };
 };
 
-const buildConversationList = ({ contacts, chats, internalChats }) => {
+const buildConversationList = ({ contacts, chats, internalChats, currentUserId }) => {
   const normalizedCustomers = [];
   const matchedPhones = new Set();
 
@@ -136,7 +146,9 @@ const buildConversationList = ({ contacts, chats, internalChats }) => {
     );
   });
 
-  const normalizedInternal = internalChats.map(normalizeInternalConversation);
+  const normalizedInternal = internalChats.map((conversation) =>
+    normalizeInternalConversation(conversation, currentUserId)
+  );
 
   return [...normalizedCustomers, ...normalizedInternal].sort((a, b) => {
     if ((b.unreadCount || 0) !== (a.unreadCount || 0)) {
@@ -370,6 +382,7 @@ function MessagesPage() {
     contacts,
     chats,
     internalChats,
+    currentUserId,
   });
 
   const unreadCount = conversationList.filter((item) => item.unreadCount > 0).length;
