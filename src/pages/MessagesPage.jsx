@@ -341,6 +341,28 @@ function MessagesPage() {
           setMessages((prev) => {
             const exists = prev.find((item) => item._id === msg._id);
             if (exists) return prev;
+
+            if (msg.senderId === currentUserId) {
+              const msgTime = msg.createdAt ? new Date(msg.createdAt).getTime() : null;
+              const tempIndex = prev.findIndex((item) => {
+                if (item.status !== 'sending') return false;
+                if (item.direction !== 'outbound') return false;
+                if ((item.conversationType || 'customer') !== msg.conversationType) return false;
+                if ((item.conversationId || '') !== msg.conversationId) return false;
+                if (item.body !== msg.body) return false;
+                if (!msgTime || !item.createdAt) return true;
+
+                const tempTime = new Date(item.createdAt).getTime();
+                return Math.abs(tempTime - msgTime) < 120000;
+              });
+
+              if (tempIndex !== -1) {
+                const next = [...prev];
+                next[tempIndex] = normalizedMessage;
+                return next;
+              }
+            }
+
             return [...prev, normalizedMessage];
           });
 
