@@ -1196,6 +1196,12 @@
     overflow-x: hidden;
   }
 
+  .messages-shell.is-chat-open {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .numbers-form {
     grid-template-columns: 1fr;
   }
@@ -1243,6 +1249,11 @@
     overflow: hidden;
   }
 
+  .messages-shell.is-chat-open .messages-chat-pane {
+    min-height: 0;
+    height: 100%;
+  }
+
   .contacts-wrapper {
     height: auto;
     min-height: 0;
@@ -1267,7 +1278,36 @@
   .chat-messages-container {
     flex: 1 1 auto;
     min-height: 0;
-    padding-bottom: 12px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 20px;
+  }
+
+  .messages-shell.is-chat-open .chat-window {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .messages-shell.is-chat-open .messages-chat-pane .header {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    flex-shrink: 0;
+  }
+
+  .messages-shell.is-chat-open .chat-messages-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .messages-shell.is-chat-open .chat-messages-container .message-list {
+    min-height: 100%;
+    padding-bottom: 16px;
   }
 }
 

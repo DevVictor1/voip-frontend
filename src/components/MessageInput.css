@@ -3,6 +3,8 @@
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
+  width: 100%;
+  min-width: 0;
   padding: 12px;
   border-top: 1px solid #e5e7eb;
   background: white;
@@ -10,6 +12,7 @@
   bottom: 0;
   z-index: 2;
   flex-shrink: 0;
+  box-sizing: border-box;
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -17,16 +20,21 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
   min-width: 0;
+  box-sizing: border-box;
 }
 
 .message-input-field {
   flex: 1;
+  width: 100%;
   min-width: 0;
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid #d1d5db;
+  font-size: 14px;
   outline: none;
+  box-sizing: border-box;
 }
 
 .mms-file-input {
@@ -40,6 +48,7 @@
   padding: 8px 12px;
   font-size: 13px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .mms-attach-btn:disabled {
@@ -55,6 +64,7 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .message-send-btn:disabled {
@@ -106,16 +116,24 @@
     padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(12px);
+    width: 100%;
+    left: 0;
   }
 
   .message-input-row {
     align-items: stretch;
+    width: 100%;
+    min-width: 0;
   }
 
   .mms-attach-btn,
   .message-send-btn,
   .message-input-field {
     min-height: 42px;
+  }
+
+  .message-input-field {
+    font-size: 16px;
   }
 }
 
@@ -132,5 +150,6 @@
   .mms-attach-btn,
   .message-send-btn {
     flex: 1 1 0;
+    min-width: 0;
   }
 }
