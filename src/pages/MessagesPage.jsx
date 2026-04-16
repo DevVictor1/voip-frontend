@@ -557,11 +557,13 @@ function MessagesPage() {
           updatedAt: msg.createdAt || new Date().toISOString(),
         },
       });
-      const msgFrom = normalize(msg.from);
-      const msgTo = normalize(msg.to);
+      const customerConversationId = normalize(msg.conversationId || msg.from || msg.to);
+      const customerConversationKey = buildConversationKey('customer', customerConversationId);
       const activePhone = activeCustomerPhone;
+      const isActiveCustomerConversation = activeConversationType === 'customer'
+        && customerConversationKey === activeChatId;
 
-      if (msgFrom === activePhone || msgTo === activePhone) {
+      if (isActiveCustomerConversation) {
         setMessages((prev) => {
           const exists = prev.find(
             (item) => item._id === msg._id || item.sid === msg.sid
@@ -596,6 +598,12 @@ function MessagesPage() {
             phone: activePhone,
             conversationId: activeConversationId,
           });
+
+          if (msg.direction === 'inbound') {
+            fetch(`${BASE_URL}/api/sms/read/${activePhone}`, {
+              method: 'PUT',
+            }).catch((error) => console.error('Mark customer read error:', error));
+          }
         }
       }
 
