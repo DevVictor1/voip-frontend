@@ -597,7 +597,9 @@ function MessagesPage() {
       if (isActiveCustomerConversation) {
         setMessages((prev) => {
           const exists = prev.find(
-            (item) => item._id === msg._id || item.sid === msg.sid
+            (item) =>
+              (msg._id && item._id === msg._id)
+              || (msg.sid && item.sid === msg.sid)
           );
           if (exists) return prev;
 
