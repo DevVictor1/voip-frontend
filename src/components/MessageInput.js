@@ -124,12 +124,35 @@ function MessageInput({
         mediaUrl || undefined
       );
 
+      const resolvedMessage = {
+        ...data,
+        direction: data.direction || (data.senderId && data.senderId !== userId ? 'inbound' : 'outbound'),
+        conversationType: data.conversationType || conversationType,
+        conversationId: data.conversationId || chatId,
+      };
+
       if (setMessages) {
-        setMessages((prev) =>
-          prev.map((m) => (m._id === tempId ? data : m))
-        );
+        setMessages((prev) => {
+          const tempIndex = prev.findIndex((m) => m._id === tempId);
+
+          if (tempIndex !== -1) {
+            const next = [...prev];
+            next[tempIndex] = resolvedMessage;
+            return next;
+          }
+
+          const exists = prev.find(
+            (m) =>
+              (resolvedMessage._id && m._id === resolvedMessage._id)
+              || (resolvedMessage.sid && m.sid === resolvedMessage.sid)
+          );
+
+          if (exists) return prev;
+
+          return [...prev, resolvedMessage];
+        });
       } else if (onMessageSent) {
-        onMessageSent(data);
+        onMessageSent(resolvedMessage);
       }
     } catch (err) {
       console.error(err);
