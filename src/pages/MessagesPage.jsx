@@ -34,6 +34,37 @@ const normalizeUnreadCount = (value) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 };
 
+const getCustomerMessagePhone = (message) => normalize(
+  message?.conversationId || message?.from || message?.to || ''
+);
+
+const mergeCustomerMessages = (existingMessages, fetchedMessages, phone) => {
+  const normalizedPhone = normalize(phone);
+  const nextMessages = Array.isArray(fetchedMessages) ? [...fetchedMessages] : [];
+
+  if (!normalizedPhone) {
+    return nextMessages;
+  }
+
+  const existingSameThread = (existingMessages || []).filter(
+    (message) => getCustomerMessagePhone(message) === normalizedPhone
+  );
+
+  existingSameThread.forEach((message) => {
+    const exists = nextMessages.find(
+      (item) =>
+        (message?._id && item?._id === message._id)
+        || (message?.sid && item?.sid === message.sid)
+    );
+
+    if (!exists) {
+      nextMessages.push(message);
+    }
+  });
+
+  return nextMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+};
+
 const hasUnreadConversation = (conversation) => normalizeUnreadCount(conversation?.unreadCount) > 0;
 const isDirectoryOnlyCustomer = (conversation) => (
   conversation?.conversationType === 'customer'
@@ -237,7 +268,7 @@ function MessagesPage() {
       if (!res.ok) throw new Error();
 
       const data = await res.json();
-      setMessages(data || []);
+      setMessages((prev) => mergeCustomerMessages(prev, data || [], phone));
     } catch (err) {
       console.error('Fetch customer messages error:', err);
       setMessages([]);
