@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AGENTS } from '../config/agents';
 import {
   createUserRequest,
   deleteUserRequest,
@@ -22,6 +23,13 @@ const emptyPasswordForm = {
   password: '',
 };
 
+const AGENT_OPTIONS = Object.entries(AGENTS)
+  .filter(([agentId]) => agentId !== 'web_user')
+  .map(([agentId, meta]) => ({
+    value: agentId,
+    label: `${agentId} - ${meta.name}${meta.role ? ` / ${meta.role}` : ''}`,
+  }));
+
 function Users({ currentUserRole = 'admin', currentUserId = '' }) {
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState(emptyCreateForm);
@@ -39,6 +47,11 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
   const [success, setSuccess] = useState('');
   const toastType = error ? 'error' : success ? 'success' : '';
   const toastMessage = error || success;
+  const assignedAgentIds = new Set(
+    users
+      .map((user) => user.agentId)
+      .filter(Boolean)
+  );
 
   useEffect(() => {
     if (currentUserRole !== 'admin') {
@@ -307,14 +320,29 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
             <option value="agent">Agent</option>
             <option value="admin">Admin</option>
           </select>
-          <input
-            className="numbers-input"
-            placeholder="Agent ID"
-            value={form.agentId}
-            onChange={handleCreateChange('agentId')}
-            disabled={form.role !== 'agent'}
-            required={form.role === 'agent'}
-          />
+          <div style={fieldGroupStyle}>
+            <select
+              className="numbers-input"
+              value={form.agentId}
+              onChange={handleCreateChange('agentId')}
+              disabled={form.role !== 'agent'}
+              required={form.role === 'agent'}
+            >
+              <option value="">{form.role === 'agent' ? 'Select agent identity' : 'No agent identity needed'}</option>
+              {AGENT_OPTIONS.map((option) => (
+                <option
+                  key={option.value}
+                  value={option.value}
+                  disabled={assignedAgentIds.has(option.value)}
+                >
+                  {assignedAgentIds.has(option.value) ? `${option.label} (Assigned)` : option.label}
+                </option>
+              ))}
+            </select>
+            <div className="text-muted" style={helperTextStyle}>
+              This identity is used for IVR, call routing, voice, and internal agent presence.
+            </div>
+          </div>
           <label style={checkboxStyle}>
             <input type="checkbox" checked={form.isActive} onChange={handleCreateChange('isActive')} />
             <span>Active user</span>
@@ -425,14 +453,33 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                           <option value="agent">Agent</option>
                           <option value="admin">Admin</option>
                         </select>
-                        <input
-                          className="numbers-input"
-                          placeholder="Agent ID"
-                          value={editForm.agentId}
-                          onChange={handleEditChange('agentId')}
-                          disabled={editForm.role !== 'agent'}
-                          required={editForm.role === 'agent'}
-                        />
+                        <div style={fieldGroupStyle}>
+                          <select
+                            className="numbers-input"
+                            value={editForm.agentId}
+                            onChange={handleEditChange('agentId')}
+                            disabled={editForm.role !== 'agent'}
+                            required={editForm.role === 'agent'}
+                          >
+                            <option value="">{editForm.role === 'agent' ? 'Select agent identity' : 'No agent identity needed'}</option>
+                            {AGENT_OPTIONS.map((option) => {
+                              const isAssignedElsewhere = assignedAgentIds.has(option.value) && option.value !== detailUser.agentId;
+
+                              return (
+                                <option
+                                  key={option.value}
+                                  value={option.value}
+                                  disabled={isAssignedElsewhere}
+                                >
+                                  {isAssignedElsewhere ? `${option.label} (Assigned)` : option.label}
+                                </option>
+                              );
+                            })}
+                          </select>
+                          <div className="text-muted" style={helperTextStyle}>
+                            Choose the exact internal agent identity used by IVR and call routing.
+                          </div>
+                        </div>
                         <label style={checkboxStyle}>
                           <input type="checkbox" checked={editForm.isActive} onChange={handleEditChange('isActive')} />
                           <span>Active user</span>
@@ -553,6 +600,11 @@ const detailFormStyle = {
   background: 'rgba(248, 250, 252, 0.7)',
   alignContent: 'start',
   boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+};
+
+const fieldGroupStyle = {
+  display: 'grid',
+  gap: '8px',
 };
 
 const actionsStyle = {
