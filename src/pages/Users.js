@@ -377,19 +377,21 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                               .slice(0, 2)}
                           </div>
                           <div>
-                            <h3 style={{ margin: 0 }}>{detailUser.name}</h3>
+                            <h3 style={detailTitleStyle}>{detailUser.name}</h3>
                             <div className="user-role">{detailUser.email}</div>
                           </div>
                         </div>
-                        <div style={detailMetaStyle}>
+                        <div style={detailMetaWrapStyle}>
                           <span className="tag">{detailUser.isActive ? 'Active' : 'Inactive'}</span>
-                          <div className="text-muted">Role: {detailUser.role}</div>
-                          <div className="text-muted">Agent ID: {detailUser.agentId || 'None'}</div>
-                          <div className="text-muted">Created: {formatDate(detailUser.createdAt)}</div>
-                          <div className="text-muted">Updated: {formatDate(detailUser.updatedAt)}</div>
+                          <div style={detailMetaStyle}>
+                            <span className="text-muted">Role: {detailUser.role}</span>
+                            <span className="text-muted">Agent ID: {detailUser.agentId || 'None'}</span>
+                            <span className="text-muted">Created: {formatDate(detailUser.createdAt)}</span>
+                            <span className="text-muted">Updated: {formatDate(detailUser.updatedAt)}</span>
+                          </div>
                         </div>
                       </div>
-                      <button type="button" style={secondaryButtonStyle} onClick={() => openUserDetails(selectedUserId)}>
+                      <button type="button" style={closeButtonStyle} onClick={() => openUserDetails(selectedUserId)}>
                         Close
                       </button>
                     </div>
@@ -397,7 +399,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                     <div style={detailContentStyle}>
                       <form onSubmit={handleUpdateUser} style={detailFormStyle}>
                         <div className="section-header">
-                          <h3 style={{ margin: 0 }}>Edit User</h3>
+                          <h3 style={sectionTitleStyle}>Edit User</h3>
                           <span className="tag">Admin only</span>
                         </div>
                         <input className="numbers-input" placeholder="Full name" value={editForm.name} onChange={handleEditChange('name')} required />
@@ -435,8 +437,11 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
 
                       <form onSubmit={handleResetPassword} style={detailFormStyle}>
                         <div className="section-header">
-                          <h3 style={{ margin: 0 }}>Reset Password</h3>
+                          <h3 style={sectionTitleStyle}>Reset Password</h3>
                           <span className="tag">Set new password</span>
+                        </div>
+                        <div className="text-muted" style={helperTextStyle}>
+                          Set a new password for this user.
                         </div>
                         <input
                           className="numbers-input"
@@ -446,7 +451,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                           onChange={handlePasswordChange}
                           required
                         />
-                        <button className="numbers-primary-btn" type="submit" disabled={passwordSaving}>
+                        <button className="numbers-primary-btn" style={compactPrimaryButtonStyle} type="submit" disabled={passwordSaving}>
                           {passwordSaving ? 'Resetting...' : 'Reset password'}
                         </button>
                       </form>
@@ -487,8 +492,8 @@ const formStyle = {
 
 const detailShellStyle = {
   display: 'grid',
-  gap: '20px',
-  marginTop: '8px',
+  gap: '28px',
+  marginTop: '12px',
 };
 
 const detailHeaderStyle = {
@@ -498,28 +503,39 @@ const detailHeaderStyle = {
 
 const detailHeaderInfoStyle = {
   display: 'grid',
-  gap: '14px',
+  gap: '16px',
   flex: '1 1 auto',
 };
 
-const detailMetaStyle = {
+const detailMetaWrapStyle = {
   display: 'grid',
-  gap: '6px',
+  gap: '10px',
+};
+
+const detailMetaStyle = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px 18px',
+  fontSize: '13px',
+  lineHeight: 1.5,
 };
 
 const detailContentStyle = {
   display: 'grid',
-  gap: '16px',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gap: '20px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+  alignItems: 'stretch',
 };
 
 const detailFormStyle = {
   display: 'grid',
-  gap: '12px',
-  padding: '18px',
+  gap: '14px',
+  padding: '20px',
   border: '1px solid rgba(148, 163, 184, 0.18)',
   borderRadius: '16px',
   background: 'rgba(248, 250, 252, 0.7)',
+  alignContent: 'start',
+  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.6)',
 };
 
 const actionsStyle = {
@@ -544,6 +560,38 @@ const secondaryButtonStyle = {
   padding: '10px 14px',
   cursor: 'pointer',
   fontWeight: 600,
+};
+
+const closeButtonStyle = {
+  ...secondaryButtonStyle,
+  padding: '8px 12px',
+  fontSize: '13px',
+  alignSelf: 'flex-start',
+};
+
+const compactPrimaryButtonStyle = {
+  justifySelf: 'flex-start',
+  width: 'auto',
+  minWidth: '150px',
+};
+
+const sectionTitleStyle = {
+  margin: 0,
+  fontSize: '18px',
+  fontWeight: 700,
+  color: '#0f172a',
+};
+
+const detailTitleStyle = {
+  margin: 0,
+  fontSize: '22px',
+  fontWeight: 700,
+  color: '#0f172a',
+};
+
+const helperTextStyle = {
+  fontSize: '13px',
+  lineHeight: 1.5,
 };
 
 const dangerButtonStyle = {
