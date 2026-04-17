@@ -55,6 +55,10 @@ function App() {
   });
 
   const isAuthenticated = Boolean(authToken && authUser);
+  const authenticatedAgentId = authUser?.agentId || '';
+  const workspaceAgentId = isAuthenticated
+    ? (authenticatedAgentId || 'web_user')
+    : (agentId || 'web_user');
 
   useEffect(() => {
     let isMounted = true;
@@ -104,29 +108,26 @@ function App() {
     if (!authUser) return;
 
     setUserRole(authUser.role === 'agent' ? 'agent' : 'admin');
-
-    if (authUser.agentId) {
-      setAgentId(authUser.agentId);
-    }
+    setAgentId(authUser.agentId || 'web_user');
   }, [authUser]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const userId = agentId || 'web_user';
+    const userId = workspaceAgentId;
 
     if (socket && userId) {
       socket.emit('registerUser', userId);
       socket.emit('agentStatus', { userId, status: agentStatus });
       console.log('Registered socket user:', userId);
     }
-  }, [agentId, agentStatus, isAuthenticated]);
+  }, [agentStatus, isAuthenticated, workspaceAgentId]);
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;
 
     const startVoice = async () => {
-      const userId = agentId || '';
+      const userId = workspaceAgentId || '';
       await initVoice(userId || undefined);
     };
 
@@ -135,7 +136,7 @@ function App() {
     return () => {
       window.removeEventListener('click', startVoice);
     };
-  }, [agentId, isAuthenticated]);
+  }, [isAuthenticated, workspaceAgentId]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -255,7 +256,7 @@ function App() {
   const toggleAgentStatus = () => {
     if (!isAuthenticated) return;
 
-    const userId = agentId || 'web_user';
+    const userId = workspaceAgentId;
     const nextStatus = agentStatus === 'online' ? 'offline' : 'online';
     setAgentStatus(nextStatus);
     window.localStorage?.setItem('agentStatus', nextStatus);
@@ -275,7 +276,7 @@ function App() {
 
   const handleRetryVoice = async () => {
     if (!isAuthenticated) return;
-    await initVoice(agentId || undefined);
+    await initVoice(workspaceAgentId || undefined);
   };
 
   const handleRoleChange = (nextRole) => {
@@ -299,9 +300,7 @@ function App() {
       setAuthToken(token);
       setAuthUser(user);
       setUserRole(user?.role === 'agent' ? 'agent' : 'admin');
-      if (user?.agentId) {
-        setAgentId(user.agentId);
-      }
+      setAgentId(user?.agentId || 'web_user');
     } catch (error) {
       setAuthError(error.message || 'Login failed');
     } finally {
@@ -346,7 +345,7 @@ function App() {
         onLogout={handleLogout}
         deviceStatus={deviceStatus}
         callState={callState}
-        agentId={agentId}
+        agentId={workspaceAgentId}
         agentStatus={agentStatus}
         onRetryVoice={handleRetryVoice}
         onToggleAgentStatus={toggleAgentStatus}
@@ -416,7 +415,7 @@ function App() {
               renderProtectedLayout(
                 userRole === 'admin' ? (
                   <Dashboard
-                    agentId={agentId}
+                    agentId={workspaceAgentId}
                     onAgentChange={handleAgentChange}
                   />
                 ) : (

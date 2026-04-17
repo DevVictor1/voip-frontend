@@ -41,6 +41,8 @@ export const syncLegacyUserState = (user) => {
 
   if (user.agentId) {
     writeStorage('voiceUserId', user.agentId);
+  } else {
+    removeStorage('voiceUserId');
   }
 };
 
