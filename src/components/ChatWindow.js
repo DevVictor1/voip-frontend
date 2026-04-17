@@ -124,6 +124,22 @@ function ChatWindow({
     return () => socket.off('callStatus', fetchCalls);
   }, [fetchCalls, isCustomerChat]);
 
+  useEffect(() => {
+    if (!isCustomerChat) return undefined;
+
+    const handleCallEnded = () => {
+      fetchCalls();
+    };
+
+    socket.on('callEnded', handleCallEnded);
+    window.addEventListener('callEnded', handleCallEnded);
+
+    return () => {
+      socket.off('callEnded', handleCallEnded);
+      window.removeEventListener('callEnded', handleCallEnded);
+    };
+  }, [fetchCalls, isCustomerChat]);
+
   const mergedTimeline = [
     ...safeMessages.map((message) => ({ ...message, type: 'message' })),
     ...(isCustomerChat ? callLogs.map((call) => ({ ...call, type: 'call' })) : [])
