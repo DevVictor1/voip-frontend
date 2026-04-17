@@ -467,7 +467,10 @@ function App() {
           <Route
             path="/users"
             element={renderProtectedLayout(
-              <Users currentUserRole={authUser?.role || userRole} />,
+              <Users
+                currentUserRole={authUser?.role || userRole}
+                currentUserId={authUser?.id || ''}
+              />,
               { adminOnly: true }
             )}
           />

@@ -170,3 +170,75 @@ export const createUserRequest = async (token, userData) => {
 
   return payload;
 };
+
+export const fetchUserDetailsRequest = async (token, userId) => {
+  const response = await fetch(`${BASE_URL}/api/auth/users/${encodeURIComponent(userId)}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const payload = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to fetch user details');
+  }
+
+  return payload;
+};
+
+export const updateUserRequest = async (token, userId, userData) => {
+  const response = await fetch(`${BASE_URL}/api/auth/users/${encodeURIComponent(userId)}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(userData),
+  });
+
+  const payload = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to update user');
+  }
+
+  return payload;
+};
+
+export const resetUserPasswordRequest = async (token, userId, password) => {
+  const response = await fetch(`${BASE_URL}/api/auth/users/${encodeURIComponent(userId)}/password`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ password }),
+  });
+
+  const payload = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to reset password');
+  }
+
+  return payload;
+};
+
+export const deleteUserRequest = async (token, userId) => {
+  const response = await fetch(`${BASE_URL}/api/auth/users/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const payload = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to delete user');
+  }
+
+  return payload;
+};
