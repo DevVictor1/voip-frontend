@@ -48,6 +48,19 @@ const destroyExistingDevice = () => {
   emitDeviceStatus('offline');
 };
 
+export const resetVoice = () => {
+  if (currentConnection) {
+    try {
+      currentConnection.disconnect();
+    } catch (err) {
+      console.error('Voice reset disconnect error:', err);
+    }
+  }
+
+  currentConnection = null;
+  destroyExistingDevice();
+};
+
 const attachConnectionListeners = (conn, direction = 'outgoing') => {
   if (!conn) return;
 

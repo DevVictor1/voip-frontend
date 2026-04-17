@@ -9,7 +9,7 @@ const navItems = [
   { label: 'Users', to: '/users', icon: Users, roles: ['admin'] }
 ];
 
-function Sidebar({ userRole = 'admin', onRoleChange }) {
+function Sidebar({ userRole = 'admin', onRoleChange, roleLocked = false }) {
   const visibleItems = navItems.filter((item) => item.roles.includes(userRole));
   return (
     <aside className="sidebar">
@@ -27,6 +27,7 @@ function Sidebar({ userRole = 'admin', onRoleChange }) {
           value={userRole}
           onChange={(e) => onRoleChange?.(e.target.value)}
           style={roleSelect}
+          disabled={roleLocked}
         >
           <option value="admin">Admin</option>
           <option value="agent">Agent</option>

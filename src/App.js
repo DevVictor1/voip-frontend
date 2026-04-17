@@ -14,11 +14,26 @@ import {
   getDeviceStatus,
   muteCall,
   unmuteCall,
-  disconnectCall
+  disconnectCall,
+  resetVoice,
 } from './services/voice';
 import OptInPage from './pages/OptInPage';
+import LoginPage from './pages/LoginPage';
+import {
+  clearAuthSession,
+  fetchCurrentUser,
+  getStoredAuthToken,
+  getStoredAuthUser,
+  loginRequest,
+  storeAuthSession,
+} from './services/auth';
 
 function App() {
+  const [authToken, setAuthToken] = useState(() => getStoredAuthToken());
+  const [authUser, setAuthUser] = useState(() => getStoredAuthUser());
+  const [authChecking, setAuthChecking] = useState(() => Boolean(getStoredAuthToken()));
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [authError, setAuthError] = useState('');
   const [connection, setConnection] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [onHold, setOnHold] = useState(false);
@@ -39,19 +54,77 @@ function App() {
     return window.localStorage?.getItem('voiceUserId') || 'web_user';
   });
 
-  // ✅ REGISTER USER TO SOCKET (🔥 NEW — SAFE)
+  const isAuthenticated = Boolean(authToken && authUser);
+
   useEffect(() => {
+    let isMounted = true;
+
+    const restoreSession = async () => {
+      const storedToken = getStoredAuthToken();
+
+      if (!storedToken) {
+        if (isMounted) {
+          setAuthToken(null);
+          setAuthUser(null);
+          setAuthChecking(false);
+        }
+        return;
+      }
+
+      try {
+        const payload = await fetchCurrentUser(storedToken);
+        if (!isMounted) return;
+
+        const user = payload?.user || null;
+        storeAuthSession({ token: storedToken, user });
+        setAuthToken(storedToken);
+        setAuthUser(user);
+        setAuthError('');
+      } catch (error) {
+        if (!isMounted) return;
+
+        clearAuthSession();
+        setAuthToken(null);
+        setAuthUser(null);
+      } finally {
+        if (isMounted) {
+          setAuthChecking(false);
+        }
+      }
+    };
+
+    restoreSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authUser) return;
+
+    setUserRole(authUser.role === 'agent' ? 'agent' : 'admin');
+
+    if (authUser.agentId) {
+      setAgentId(authUser.agentId);
+    }
+  }, [authUser]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
     const userId = agentId || 'web_user';
 
     if (socket && userId) {
       socket.emit('registerUser', userId);
       socket.emit('agentStatus', { userId, status: agentStatus });
-      console.log('🔗 Registered socket user:', userId);
+      console.log('Registered socket user:', userId);
     }
-  }, [agentId, agentStatus]);
+  }, [agentId, agentStatus, isAuthenticated]);
 
-  // INIT VOICE
   useEffect(() => {
+    if (!isAuthenticated) return undefined;
+
     const startVoice = async () => {
       const userId = agentId || '';
       await initVoice(userId || undefined);
@@ -62,9 +135,8 @@ function App() {
     return () => {
       window.removeEventListener('click', startVoice);
     };
-  }, [agentId]);
+  }, [agentId, isAuthenticated]);
 
-  // LISTEN FOR ACCEPTED CALL
   useEffect(() => {
     const handler = (e) => {
       const conn = e.detail;
@@ -128,10 +200,8 @@ function App() {
     return () => window.clearTimeout(timeoutId);
   }, [callNotice]);
 
-  // SOCKET (optional)
   useEffect(() => {
-    socket.on('incomingCall', (data) => {
-      console.log('Incoming (socket):', data);
+    socket.on('incomingCall', () => {
       setCallState('incoming');
     });
 
@@ -153,14 +223,12 @@ function App() {
     };
   }, []);
 
-  // END CALL
   const hangUp = () => {
     disconnectCall();
     setConnection(null);
     setCallState('ended');
   };
 
-  // MUTE
   const toggleMute = () => {
     if (!isMuted) {
       muteCall();
@@ -170,7 +238,6 @@ function App() {
     setIsMuted(!isMuted);
   };
 
-  // HOLD
   const toggleHold = () => {
     if (!connection) return;
 
@@ -186,6 +253,8 @@ function App() {
   };
 
   const toggleAgentStatus = () => {
+    if (!isAuthenticated) return;
+
     const userId = agentId || 'web_user';
     const nextStatus = agentStatus === 'online' ? 'offline' : 'online';
     setAgentStatus(nextStatus);
@@ -196,6 +265,8 @@ function App() {
   };
 
   const handleAgentChange = async (nextAgent) => {
+    if (!isAuthenticated) return;
+
     const userId = nextAgent || 'web_user';
     setAgentId(userId);
     window.localStorage?.setItem('voiceUserId', userId);
@@ -203,29 +274,99 @@ function App() {
   };
 
   const handleRetryVoice = async () => {
+    if (!isAuthenticated) return;
     await initVoice(agentId || undefined);
   };
 
   const handleRoleChange = (nextRole) => {
+    if (authUser) return;
+
     const normalized = nextRole === 'agent' ? 'agent' : 'admin';
     setUserRole(normalized);
     window.localStorage?.setItem('userRole', normalized);
   };
 
+  const handleLogin = async ({ email, password }) => {
+    try {
+      setAuthSubmitting(true);
+      setAuthError('');
+
+      const payload = await loginRequest({ email, password });
+      const token = payload?.token || '';
+      const user = payload?.user || null;
+
+      storeAuthSession({ token, user });
+      setAuthToken(token);
+      setAuthUser(user);
+      setUserRole(user?.role === 'agent' ? 'agent' : 'admin');
+      if (user?.agentId) {
+        setAgentId(user.agentId);
+      }
+    } catch (error) {
+      setAuthError(error.message || 'Login failed');
+    } finally {
+      setAuthSubmitting(false);
+    }
+  };
+
+  const handleLogout = () => {
+    clearAuthSession();
+    resetVoice();
+    setAuthToken(null);
+    setAuthUser(null);
+    setAuthError('');
+    setConnection(null);
+    setIsMuted(false);
+    setOnHold(false);
+    setCallState('idle');
+    setCallNotice(null);
+    setUserRole('admin');
+    setAgentId('web_user');
+  };
+
+  const renderProtectedLayout = (children, { adminOnly = false } = {}) => {
+    if (authChecking) {
+      return <div style={authLoadingStyle}>Restoring your session...</div>;
+    }
+
+    if (!isAuthenticated) {
+      return <Navigate to="/login" replace />;
+    }
+
+    if (adminOnly && userRole !== 'admin') {
+      return <Navigate to="/messages" replace />;
+    }
+
+    return (
+      <MainLayout
+        userRole={userRole}
+        onRoleChange={handleRoleChange}
+        roleLocked={Boolean(authUser)}
+        authUser={authUser}
+        onLogout={handleLogout}
+        deviceStatus={deviceStatus}
+        callState={callState}
+        agentId={agentId}
+        agentStatus={agentStatus}
+        onRetryVoice={handleRetryVoice}
+        onToggleAgentStatus={toggleAgentStatus}
+      >
+        {children}
+      </MainLayout>
+    );
+  };
+
   return (
     <div className="App">
+      {isAuthenticated ? <IncomingCallPopup /> : null}
 
-      {/* MAIN POPUP SYSTEM */}
-      <IncomingCallPopup />
-
-      {callNotice ? (
+      {isAuthenticated && callNotice ? (
         <div style={noticeStyle}>
           {callNotice}
         </div>
       ) : null}
 
-      {/* ACTIVE CALL UI */}
-      {connection && (
+      {isAuthenticated && connection && (
         <div style={callStyle}>
           <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>
             {getCallLabel(callState)}
@@ -252,106 +393,57 @@ function App() {
       )}
 
       <BrowserRouter>
-
-        {/* Pages WITH layout */}
         <Routes>
+          <Route
+            path="/login"
+            element={
+              authChecking ? (
+                <div style={authLoadingStyle}>Restoring your session...</div>
+              ) : isAuthenticated ? (
+                <Navigate to="/" replace />
+              ) : (
+                <LoginPage
+                  onLogin={handleLogin}
+                  isSubmitting={authSubmitting}
+                  error={authError}
+                />
+              )
+            }
+          />
           <Route
             path="/"
             element={
-              <MainLayout
-                userRole={userRole}
-                onRoleChange={handleRoleChange}
-                deviceStatus={deviceStatus}
-                callState={callState}
-                agentId={agentId}
-                agentStatus={agentStatus}
-                onRetryVoice={handleRetryVoice}
-                onToggleAgentStatus={toggleAgentStatus}
-              >
-                {userRole === 'admin' ? (
+              renderProtectedLayout(
+                userRole === 'admin' ? (
                   <Dashboard
                     agentId={agentId}
                     onAgentChange={handleAgentChange}
                   />
                 ) : (
                   <Navigate to="/messages" replace />
-                )}
-              </MainLayout>
+                )
+              )
             }
           />
           <Route
             path="/messages"
-            element={
-              <MainLayout
-                userRole={userRole}
-                onRoleChange={handleRoleChange}
-                deviceStatus={deviceStatus}
-                callState={callState}
-                agentId={agentId}
-                agentStatus={agentStatus}
-                onRetryVoice={handleRetryVoice}
-                onToggleAgentStatus={toggleAgentStatus}
-              >
-                <Messages />
-              </MainLayout>
-            }
+            element={renderProtectedLayout(<Messages />)}
           />
           <Route
             path="/calls"
-            element={
-              <MainLayout
-                userRole={userRole}
-                onRoleChange={handleRoleChange}
-                deviceStatus={deviceStatus}
-                callState={callState}
-                agentId={agentId}
-                agentStatus={agentStatus}
-                onRetryVoice={handleRetryVoice}
-                onToggleAgentStatus={toggleAgentStatus}
-              >
-                <CallLogs />
-              </MainLayout>
-            }
+            element={renderProtectedLayout(<CallLogs />)}
           />
           <Route
             path="/users"
-            element={
-              <MainLayout
-                userRole={userRole}
-                onRoleChange={handleRoleChange}
-                deviceStatus={deviceStatus}
-                callState={callState}
-                agentId={agentId}
-                agentStatus={agentStatus}
-                onRetryVoice={handleRetryVoice}
-                onToggleAgentStatus={toggleAgentStatus}
-              >
-                {userRole === 'admin' ? <Users /> : <Navigate to="/messages" replace />}
-              </MainLayout>
-            }
+            element={renderProtectedLayout(<Users />, { adminOnly: true })}
           />
           <Route
             path="/numbers"
-            element={
-              <MainLayout
-                userRole={userRole}
-                onRoleChange={handleRoleChange}
-                deviceStatus={deviceStatus}
-                callState={callState}
-                agentId={agentId}
-                agentStatus={agentStatus}
-                onRetryVoice={handleRetryVoice}
-                onToggleAgentStatus={toggleAgentStatus}
-              >
-                {userRole === 'admin' ? <NumbersPage /> : <Navigate to="/messages" replace />}
-              </MainLayout>
-            }
+            element={renderProtectedLayout(<NumbersPage />, { adminOnly: true })}
           />
-
-          {/* Opt-in WITHOUT layout */}
           <Route path="/opt-in" element={<OptInPage />} />
+          <Route path="*" element={<Navigate to={isAuthenticated ? '/' : '/login'} replace />} />
         </Routes>
-
       </BrowserRouter>
     </div>
   );
@@ -425,7 +517,6 @@ const mapCallStatus = (status) => {
   }
 };
 
-// STYLES
 const callStyle = {
   position: 'fixed',
   bottom: '20px',
@@ -436,13 +527,13 @@ const callStyle = {
   borderRadius: '12px',
   zIndex: 9999,
   boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-  minWidth: '220px'
+  minWidth: '220px',
 };
 
 const callMetaStyle = {
   fontSize: '12px',
   color: 'rgba(255,255,255,0.75)',
-  marginBottom: '12px'
+  marginBottom: '12px',
 };
 
 const btn = {
@@ -451,12 +542,12 @@ const btn = {
   border: 'none',
   background: '#333',
   color: '#fff',
-  cursor: 'pointer'
+  cursor: 'pointer',
 };
 
 const endBtn = {
   ...btn,
-  background: '#e53935'
+  background: '#e53935',
 };
 
 const noticeStyle = {
@@ -470,7 +561,17 @@ const noticeStyle = {
   color: '#fff',
   boxShadow: '0 10px 24px rgba(15,23,42,0.22)',
   fontSize: '13px',
-  fontWeight: 600
+  fontWeight: 600,
+};
+
+const authLoadingStyle = {
+  minHeight: '100vh',
+  display: 'grid',
+  placeItems: 'center',
+  background: 'linear-gradient(135deg, #eef4ff 0%, #f8fafc 55%, #eef6f0 100%)',
+  color: '#0f172a',
+  fontSize: '15px',
+  fontWeight: 600,
 };
 
 export default App;

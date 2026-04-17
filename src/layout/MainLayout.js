@@ -6,6 +6,9 @@ function MainLayout({
   children,
   userRole,
   onRoleChange,
+  roleLocked,
+  authUser,
+  onLogout,
   deviceStatus,
   callState,
   agentId,
@@ -19,12 +22,18 @@ function MainLayout({
   return (
     <div className="app-root">
       <div className="app-shell">
-        <Sidebar userRole={userRole} onRoleChange={onRoleChange} />
+        <Sidebar userRole={userRole} onRoleChange={onRoleChange} roleLocked={roleLocked} />
         <main className="app-main">
           <div className="app-topbar">
             <div className="app-topbar-copy">
-              <div className="app-topbar-title">Logged in as: {formatAgentLabel(agentId)}</div>
-              <div className="app-topbar-subtitle">Shared voice status and availability across the workspace</div>
+              <div className="app-topbar-title">
+                {authUser?.name ? `Signed in as: ${authUser.name}` : `Logged in as: ${formatAgentLabel(agentId)}`}
+              </div>
+              <div className="app-topbar-subtitle">
+                {authUser?.email
+                  ? `${authUser.email} - Active workspace identity: ${formatAgentLabel(agentId)}`
+                  : 'Shared voice status and availability across the workspace'}
+              </div>
               <div className="app-topbar-tags">
                 {agentMeta.role ? (
                   <span className="app-topbar-tag">{agentMeta.role}</span>
@@ -49,6 +58,10 @@ function MainLayout({
                 <span className="availability-pill-label">Availability</span>
                 <span>{agentStatus === 'online' ? 'Online' : 'Offline'}</span>
               </button>
+
+              <button type="button" onClick={onLogout} style={logoutButtonStyle}>
+                Logout
+              </button>
             </div>
           </div>
 
@@ -58,6 +71,17 @@ function MainLayout({
     </div>
   );
 }
+
+const logoutButtonStyle = {
+  border: '1px solid rgba(15, 23, 42, 0.12)',
+  background: '#ffffff',
+  color: '#0f172a',
+  borderRadius: '999px',
+  padding: '10px 14px',
+  fontSize: '13px',
+  fontWeight: 600,
+  cursor: 'pointer',
+};
 
 export default MainLayout;
 
