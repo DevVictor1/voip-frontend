@@ -21,8 +21,8 @@ function TermsPage() {
               Kaylad LLC.
             </p>
             <p>
-              Messages may include customer support replies, appointment reminders, account-related
-              follow-ups, and service notifications.
+              Messages may include customer support responses, appointment reminders, service
+              notifications, and account-related updates.
             </p>
             <p>
               Message frequency varies based on your requests, account activity, and ongoing service
@@ -33,7 +33,10 @@ function TermsPage() {
               HELP for assistance.
             </p>
             <p>
-              Additional information about how phone numbers are handled is available in our{' '}
+              Consent to receive SMS from Kaylad LLC is not a condition of purchase.
+            </p>
+            <p>
+              Additional information about how phone numbers and consent data are handled is available in our{' '}
               <Link to="/privacy">Privacy Policy</Link>.
             </p>
           </section>

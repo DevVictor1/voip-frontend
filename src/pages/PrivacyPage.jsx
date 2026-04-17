@@ -9,8 +9,9 @@ function PrivacyPage() {
             <div className="compliance-eyebrow">Kaylad LLC</div>
             <h1 className="compliance-title">Privacy Policy</h1>
             <p className="compliance-copy">
-              This Privacy Policy explains how Kaylad LLC uses phone numbers and related contact
-              information when communicating with customers by SMS.
+              This Privacy Policy explains how Kaylad LLC collects and uses phone numbers and related
+              contact information when communicating with customers by SMS for customer care and
+              service-related conversations.
             </p>
           </header>
 
@@ -29,11 +30,15 @@ function PrivacyPage() {
               for assistance.
             </p>
             <p>
-              Kaylad LLC does not share mobile information or phone numbers with third parties for
-              marketing or promotional purposes.
+              Kaylad LLC does not share, sell, rent, or disclose mobile phone numbers or SMS consent
+              data to third parties for marketing or promotional purposes.
             </p>
             <p>
-              If you need additional information about these practices, please review our{' '}
+              These SMS communications are intended for customer care and conversational use cases,
+              not unsolicited marketing.
+            </p>
+            <p>
+              For additional information about the SMS program terms, please review our{' '}
               <Link to="/terms">Terms & Conditions</Link>.
             </p>
           </section>
