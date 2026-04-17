@@ -8,6 +8,7 @@ import socket from '../socket';
 import { startCall } from '../services/voice';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
+const FINAL_CALL_STATUSES = ['completed', 'failed', 'no-answer', 'busy', 'canceled'];
 
 function ChatWindow({
   chat,
@@ -65,7 +66,7 @@ function ChatWindow({
 
       setCallStatus(data.status);
 
-      if (['completed', 'failed', 'no-answer', 'busy', 'canceled'].includes(data.status)) {
+      if (FINAL_CALL_STATUSES.includes(data.status)) {
         setTimeout(() => {
           setCallStatus(null);
           setCurrentCallSid(null);
@@ -120,15 +121,45 @@ function ChatWindow({
   useEffect(() => {
     if (!isCustomerChat) return undefined;
 
-    socket.on('callStatus', fetchCalls);
-    return () => socket.off('callStatus', fetchCalls);
+    let refreshTimeoutId = null;
+
+    const refreshCallLogs = () => {
+      fetchCalls();
+    };
+
+    const handleCallStatusRefresh = (data) => {
+      refreshCallLogs();
+
+      if (FINAL_CALL_STATUSES.includes(data?.status)) {
+        window.clearTimeout(refreshTimeoutId);
+
+        // A second fetch gives the recording callback time to persist final duration/recording fields.
+        refreshTimeoutId = window.setTimeout(() => {
+          fetchCalls();
+        }, 2000);
+      }
+    };
+
+    socket.on('callStatus', handleCallStatusRefresh);
+
+    return () => {
+      socket.off('callStatus', handleCallStatusRefresh);
+      window.clearTimeout(refreshTimeoutId);
+    };
   }, [fetchCalls, isCustomerChat]);
 
   useEffect(() => {
     if (!isCustomerChat) return undefined;
 
+    let refreshTimeoutId = null;
+
     const handleCallEnded = () => {
       fetchCalls();
+
+      window.clearTimeout(refreshTimeoutId);
+      refreshTimeoutId = window.setTimeout(() => {
+        fetchCalls();
+      }, 2000);
     };
 
     socket.on('callEnded', handleCallEnded);
@@ -137,6 +168,7 @@ function ChatWindow({
     return () => {
       socket.off('callEnded', handleCallEnded);
       window.removeEventListener('callEnded', handleCallEnded);
+      window.clearTimeout(refreshTimeoutId);
     };
   }, [fetchCalls, isCustomerChat]);
 
