@@ -2,6 +2,8 @@ import BASE_URL from '../config/api';
 
 const AUTH_TOKEN_KEY = 'authToken';
 const AUTH_USER_KEY = 'authUser';
+const LEGACY_ROLE_KEY = 'userRole';
+const LEGACY_AGENT_KEY = 'voiceUserId';
 
 const isBrowser = () => typeof window !== 'undefined';
 
@@ -34,16 +36,38 @@ export const getStoredAuthUser = () => {
   }
 };
 
+export const getLegacyRole = () => {
+  const role = readStorage(LEGACY_ROLE_KEY);
+  return role === 'agent' ? 'agent' : 'admin';
+};
+
+export const getLegacyAgentId = () => {
+  return readStorage(LEGACY_AGENT_KEY) || 'web_user';
+};
+
+export const getEffectiveRole = (user = null) => {
+  const resolvedUser = user || getStoredAuthUser();
+  if (resolvedUser?.role) {
+    return resolvedUser.role === 'agent' ? 'agent' : 'admin';
+  }
+
+  return getLegacyRole();
+};
+
+export const getEffectiveAgentId = (user = null) => {
+  const resolvedUser = user || getStoredAuthUser();
+  if (resolvedUser?.agentId) {
+    return resolvedUser.agentId;
+  }
+
+  return getLegacyAgentId();
+};
+
 export const syncLegacyUserState = (user) => {
   if (!user || !isBrowser()) return;
 
-  writeStorage('userRole', user.role === 'agent' ? 'agent' : 'admin');
-
-  if (user.agentId) {
-    writeStorage('voiceUserId', user.agentId);
-  } else {
-    removeStorage('voiceUserId');
-  }
+  removeStorage(LEGACY_ROLE_KEY);
+  removeStorage(LEGACY_AGENT_KEY);
 };
 
 export const storeAuthSession = ({ token, user }) => {
@@ -60,8 +84,8 @@ export const storeAuthSession = ({ token, user }) => {
 export const clearAuthSession = () => {
   removeStorage(AUTH_TOKEN_KEY);
   removeStorage(AUTH_USER_KEY);
-  removeStorage('userRole');
-  removeStorage('voiceUserId');
+  removeStorage(LEGACY_ROLE_KEY);
+  removeStorage(LEGACY_AGENT_KEY);
 };
 
 const parseJsonResponse = async (response) => {

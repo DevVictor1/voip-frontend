@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './App.css';
 import MainLayout from './layout/MainLayout';
 import Dashboard from './pages/Dashboard';
@@ -22,6 +22,8 @@ import LoginPage from './pages/LoginPage';
 import {
   clearAuthSession,
   fetchCurrentUser,
+  getEffectiveAgentId,
+  getEffectiveRole,
   getStoredAuthToken,
   getStoredAuthUser,
   loginRequest,
@@ -29,6 +31,7 @@ import {
 } from './services/auth';
 
 function App() {
+  const lastRegisteredSocketIdentityRef = useRef(null);
   const [authToken, setAuthToken] = useState(() => getStoredAuthToken());
   const [authUser, setAuthUser] = useState(() => getStoredAuthUser());
   const [authChecking, setAuthChecking] = useState(() => Boolean(getStoredAuthToken()));
@@ -40,19 +43,12 @@ function App() {
   const [deviceStatus, setDeviceStatus] = useState(() => getDeviceStatus());
   const [callState, setCallState] = useState('idle');
   const [callNotice, setCallNotice] = useState(null);
-  const [userRole, setUserRole] = useState(() => {
-    if (typeof window === 'undefined') return 'admin';
-    const saved = window.localStorage?.getItem('userRole');
-    return saved === 'agent' ? 'agent' : 'admin';
-  });
+  const [userRole, setUserRole] = useState(() => getEffectiveRole(getStoredAuthUser()));
   const [agentStatus, setAgentStatus] = useState(() => {
     if (typeof window === 'undefined') return 'online';
     return window.localStorage?.getItem('agentStatus') || 'online';
   });
-  const [agentId, setAgentId] = useState(() => {
-    if (typeof window === 'undefined') return 'web_user';
-    return window.localStorage?.getItem('voiceUserId') || 'web_user';
-  });
+  const [agentId, setAgentId] = useState(() => getEffectiveAgentId(getStoredAuthUser()));
 
   const isAuthenticated = Boolean(authToken && authUser);
   const authenticatedAgentId = authUser?.agentId || '';
@@ -116,11 +112,37 @@ function App() {
 
     const userId = workspaceAgentId;
 
-    if (socket && userId) {
+    if (!socket || !userId) return;
+
+    const registerIdentity = () => {
       socket.emit('registerUser', userId);
       socket.emit('agentStatus', { userId, status: agentStatus });
+      lastRegisteredSocketIdentityRef.current = userId;
       console.log('Registered socket user:', userId);
+    };
+
+    const needsReconnect = Boolean(
+      lastRegisteredSocketIdentityRef.current
+      && lastRegisteredSocketIdentityRef.current !== userId
+    );
+
+    if (needsReconnect && socket.connected) {
+      socket.disconnect();
     }
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    if (socket.connected) {
+      registerIdentity();
+    } else {
+      socket.once('connect', registerIdentity);
+    }
+
+    return () => {
+      socket.off('connect', registerIdentity);
+    };
   }, [agentStatus, isAuthenticated, workspaceAgentId]);
 
   useEffect(() => {
@@ -266,7 +288,7 @@ function App() {
   };
 
   const handleAgentChange = async (nextAgent) => {
-    if (!isAuthenticated) return;
+    if (isAuthenticated) return;
 
     const userId = nextAgent || 'web_user';
     setAgentId(userId);
@@ -310,6 +332,10 @@ function App() {
 
   const handleLogout = () => {
     clearAuthSession();
+    if (socket.connected) {
+      socket.disconnect();
+    }
+    lastRegisteredSocketIdentityRef.current = null;
     resetVoice();
     setAuthToken(null);
     setAuthUser(null);
@@ -417,6 +443,7 @@ function App() {
                   <Dashboard
                     agentId={workspaceAgentId}
                     onAgentChange={handleAgentChange}
+                    agentSelectionLocked={isAuthenticated}
                   />
                 ) : (
                   <Navigate to="/messages" replace />
@@ -426,7 +453,12 @@ function App() {
           />
           <Route
             path="/messages"
-            element={renderProtectedLayout(<Messages />)}
+            element={renderProtectedLayout(
+              <Messages
+                currentRole={authUser?.role || userRole}
+                currentUserId={workspaceAgentId}
+              />
+            )}
           />
           <Route
             path="/calls"

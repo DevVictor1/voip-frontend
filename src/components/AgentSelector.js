@@ -1,6 +1,6 @@
 import { AGENTS, formatAgentLabel, getAgentMeta } from '../config/agents';
 
-function AgentSelector({ value, onChange }) {
+function AgentSelector({ value, onChange, disabled = false }) {
   const agents = Object.keys(AGENTS);
   const current = getAgentMeta(value);
 
@@ -11,6 +11,7 @@ function AgentSelector({ value, onChange }) {
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         style={select}
+        disabled={disabled}
       >
         {agents.map((agentId) => (
           <option key={agentId} value={agentId}>

@@ -6,20 +6,11 @@ import socket from '../socket';
 import BASE_URL from '../config/api';
 import { Plus } from 'lucide-react';
 import { AGENTS, getAgentMeta } from '../config/agents';
+import { getEffectiveAgentId, getEffectiveRole } from '../services/auth';
 
 const normalize = (phone) => {
   if (!phone) return '';
   return phone.toString().replace(/\D/g, '').slice(-10);
-};
-
-const getStoredRole = () => {
-  if (typeof window === 'undefined') return 'admin';
-  return window.localStorage?.getItem('userRole') === 'agent' ? 'agent' : 'admin';
-};
-
-const getStoredUserId = () => {
-  if (typeof window === 'undefined') return 'agent_1';
-  return window.localStorage?.getItem('voiceUserId') || 'agent_1';
 };
 
 const buildConversationKey = (conversationType, conversationId) => {
@@ -203,7 +194,7 @@ const buildConversationList = ({ contacts, chats, internalChats, currentUserId }
   });
 };
 
-function MessagesPage() {
+function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId }) {
   const [chats, setChats] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [internalChats, setInternalChats] = useState([]);
@@ -214,8 +205,8 @@ function MessagesPage() {
   const [startingDirectChat, setStartingDirectChat] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
 
-  const currentRole = getStoredRole();
-  const currentUserId = getStoredUserId();
+  const currentRole = providedRole || getEffectiveRole();
+  const currentUserId = providedUserId || getEffectiveAgentId() || 'agent_1';
 
   const fetchConversations = useCallback(async () => {
     try {

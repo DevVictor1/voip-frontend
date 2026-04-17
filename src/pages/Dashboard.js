@@ -4,7 +4,7 @@ import AgentStatusList from '../components/AgentStatusList';
 import AgentSelector from '../components/AgentSelector';
 import BASE_URL from '../config/api';
 
-function Dashboard({ agentId, onAgentChange }) {
+function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
   const [statValues, setStatValues] = useState({
     activeConversations: 0,
     dailyCallMinutes: 0,
@@ -90,7 +90,7 @@ function Dashboard({ agentId, onAgentChange }) {
         </div>
 
         <div className="dashboard-controls">
-          <AgentSelector value={agentId} onChange={onAgentChange} />
+          <AgentSelector value={agentId} onChange={onAgentChange} disabled={agentSelectionLocked} />
         </div>
       </div>
 
