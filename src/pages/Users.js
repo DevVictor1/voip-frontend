@@ -37,6 +37,8 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
   const [deletingId, setDeletingId] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const toastType = error ? 'error' : success ? 'success' : '';
+  const toastMessage = error || success;
 
   useEffect(() => {
     if (currentUserRole !== 'admin') {
@@ -46,6 +48,17 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
 
     loadUsers();
   }, [currentUserRole]);
+
+  useEffect(() => {
+    if (!toastMessage) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setError('');
+      setSuccess('');
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [toastMessage]);
 
   const loadUsers = async () => {
     try {
@@ -267,6 +280,12 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
 
   return (
     <div style={{ display: 'grid', gap: '24px' }}>
+      {toastMessage ? (
+        <div className={`numbers-toast numbers-toast-${toastType}`}>
+          {toastMessage}
+        </div>
+      ) : null}
+
       <div>
         <h1 className="page-title">Users</h1>
         <div className="page-subtitle">
@@ -305,8 +324,6 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
           </button>
         </form>
 
-        {error ? <div className="text-muted" style={errorStyle}>{error}</div> : null}
-        {success ? <div className="text-muted" style={successStyle}>{success}</div> : null}
       </div>
 
       <div className="section-card" style={{ display: 'grid', gap: '16px' }}>
@@ -603,14 +620,6 @@ const dangerButtonStyle = {
 const activeCardStyle = {
   border: '1px solid rgba(37, 99, 235, 0.25)',
   boxShadow: '0 10px 24px rgba(37, 99, 235, 0.08)',
-};
-
-const errorStyle = {
-  color: '#b91c1c',
-};
-
-const successStyle = {
-  color: '#047857',
 };
 
 export default Users;
