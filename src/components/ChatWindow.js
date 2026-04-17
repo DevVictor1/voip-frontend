@@ -78,6 +78,46 @@ function ChatWindow({
   }, [currentCallSid]);
 
   useEffect(() => {
+    const handleVoiceState = (e) => {
+      const nextState = e.detail?.state;
+      if (!nextState) return;
+
+      switch (nextState) {
+        case 'connecting':
+          setCallStatus('initiated');
+          break;
+        case 'ringing':
+          setCallStatus('ringing');
+          break;
+        case 'in-call':
+          setCallStatus('in-progress');
+          break;
+        case 'ended':
+        case 'failed':
+        case 'missed':
+          setCallStatus(null);
+          setCurrentCallSid(null);
+          break;
+        default:
+          break;
+      }
+    };
+
+    const handleCallEnded = () => {
+      setCallStatus(null);
+      setCurrentCallSid(null);
+    };
+
+    window.addEventListener('voiceCallState', handleVoiceState);
+    window.addEventListener('callEnded', handleCallEnded);
+
+    return () => {
+      window.removeEventListener('voiceCallState', handleVoiceState);
+      window.removeEventListener('callEnded', handleCallEnded);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isCustomerChat) return undefined;
 
     socket.on('callStatus', fetchCalls);

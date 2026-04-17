@@ -81,7 +81,9 @@ const attachConnectionListeners = (conn, direction = 'outgoing') => {
 
   conn.on('error', (err) => {
     console.error('Call connection error:', err);
+    currentConnection = null;
     emitCallState('failed', { error: err });
+    window.dispatchEvent(new Event('callEnded'));
   });
 };
 
@@ -169,6 +171,7 @@ export const startCall = async (phone) => {
   if (!device) {
     console.error('Device not ready');
     emitCallState('failed');
+    window.dispatchEvent(new Event('callEnded'));
     return;
   }
 
@@ -192,6 +195,7 @@ export const startCall = async (phone) => {
   } catch (err) {
     console.error('Outgoing call error:', err);
     emitCallState('failed', { error: err });
+    window.dispatchEvent(new Event('callEnded'));
   }
 };
 
