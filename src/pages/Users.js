@@ -305,49 +305,98 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
           <span className="tag">Admin only</span>
         </div>
 
-        <form onSubmit={handleCreateSubmit} style={formStyle}>
-          <input className="numbers-input" placeholder="Full name" value={form.name} onChange={handleCreateChange('name')} required />
-          <input className="numbers-input" type="email" placeholder="Email" value={form.email} onChange={handleCreateChange('email')} required />
-          <input className="numbers-input" type="password" placeholder="Password" value={form.password} onChange={handleCreateChange('password')} required />
-          <select className="numbers-input" value={form.role} onChange={handleCreateChange('role')}>
-            <option value="agent">Agent</option>
-            <option value="admin">Admin</option>
-          </select>
-          <div style={fieldGroupStyle}>
-            <label style={fieldLabelStyle}>Agent Slot</label>
-            <select
-              className="numbers-input"
-              value={form.agentId}
-              onChange={handleCreateChange('agentId')}
-              disabled={form.role !== 'agent'}
-              required={form.role === 'agent'}
-            >
-              <option value="">{form.role === 'agent' ? 'Select IVR / routing slot' : 'No agent slot needed'}</option>
-              {Object.entries(AGENT_SLOT_GROUPS).map(([department, options]) => (
-                <optgroup key={department} label={department}>
-                  {options.map((option) => (
-                    <option
-                      key={option.agentId}
-                      value={option.agentId}
-                      disabled={assignedAgentIds.has(option.agentId)}
-                    >
-                      {assignedAgentIds.has(option.agentId) ? `${option.label} (Assigned)` : option.label}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-            <div className="text-muted" style={helperTextStyle}>
-              Assign the user to an internal IVR/call-routing slot. The saved value still maps to the same backend `agentId`.
+        <form onSubmit={handleCreateSubmit} style={createFormStyle}>
+          <div style={createPrimaryRowStyle}>
+            <div style={fieldGroupStyle}>
+              <label style={fieldLabelStyle}>Full Name</label>
+              <input
+                className="numbers-input"
+                style={compactFieldStyle}
+                placeholder="Full name"
+                value={form.name}
+                onChange={handleCreateChange('name')}
+                required
+              />
+            </div>
+            <div style={fieldGroupStyle}>
+              <label style={fieldLabelStyle}>Email</label>
+              <input
+                className="numbers-input"
+                style={compactFieldStyle}
+                type="email"
+                placeholder="Email"
+                value={form.email}
+                onChange={handleCreateChange('email')}
+                required
+              />
+            </div>
+            <div style={fieldGroupStyle}>
+              <label style={fieldLabelStyle}>Password</label>
+              <input
+                className="numbers-input"
+                style={compactFieldStyle}
+                type="password"
+                placeholder="Password"
+                value={form.password}
+                onChange={handleCreateChange('password')}
+                required
+              />
             </div>
           </div>
-          <label style={checkboxStyle}>
-            <input type="checkbox" checked={form.isActive} onChange={handleCreateChange('isActive')} />
-            <span>Active user</span>
-          </label>
-          <button className="numbers-primary-btn" type="submit" disabled={saving}>
-            {saving ? 'Creating...' : 'Create User'}
-          </button>
+
+          <div style={createSecondaryRowStyle}>
+            <div style={fieldGroupStyle}>
+              <label style={fieldLabelStyle}>Role</label>
+              <select className="numbers-input" style={compactFieldStyle} value={form.role} onChange={handleCreateChange('role')}>
+                <option value="agent">Agent</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            <div style={fieldGroupStyle}>
+              <label style={fieldLabelStyle}>Agent Slot</label>
+              <select
+                className="numbers-input"
+                style={compactFieldStyle}
+                value={form.agentId}
+                onChange={handleCreateChange('agentId')}
+                disabled={form.role !== 'agent'}
+                required={form.role === 'agent'}
+              >
+                <option value="">{form.role === 'agent' ? 'Select IVR / routing slot' : 'No agent slot needed'}</option>
+                {Object.entries(AGENT_SLOT_GROUPS).map(([department, options]) => (
+                  <optgroup key={department} label={department}>
+                    {options.map((option) => (
+                      <option
+                        key={option.agentId}
+                        value={option.agentId}
+                        disabled={assignedAgentIds.has(option.agentId)}
+                      >
+                        {assignedAgentIds.has(option.agentId) ? `${option.label} (Assigned)` : option.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <div className="text-muted" style={helperTextStyle}>
+                Assign the user to an internal IVR/call-routing slot. The saved value still maps to the same backend `agentId`.
+              </div>
+            </div>
+
+            <div style={checkboxFieldStyle}>
+              <label style={fieldLabelStyle}>Status</label>
+              <label style={createCheckboxStyle}>
+                <input type="checkbox" checked={form.isActive} onChange={handleCreateChange('isActive')} />
+                <span>Active user</span>
+              </label>
+            </div>
+
+            <div style={createButtonWrapStyle}>
+              <button className="numbers-primary-btn" style={createButtonStyle} type="submit" disabled={saving}>
+                {saving ? 'Creating...' : 'Create User'}
+              </button>
+            </div>
+          </div>
         </form>
 
       </div>
@@ -551,10 +600,27 @@ function formatDate(value) {
   return date.toLocaleString();
 }
 
-const formStyle = {
+const createFormStyle = {
   display: 'grid',
-  gap: '12px',
+  gap: '18px',
+};
+
+const createPrimaryRowStyle = {
+  display: 'grid',
+  gap: '14px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+};
+
+const createSecondaryRowStyle = {
+  display: 'grid',
+  gap: '14px',
   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+};
+
+const compactFieldStyle = {
+  minHeight: '38px',
+  padding: '8px 12px',
+  borderRadius: '10px',
 };
 
 const detailShellStyle = {
@@ -617,6 +683,23 @@ const fieldLabelStyle = {
   letterSpacing: '0.02em',
 };
 
+const checkboxFieldStyle = {
+  display: 'grid',
+  gap: '8px',
+  alignContent: 'start',
+};
+
+const createButtonWrapStyle = {
+  display: 'grid',
+  alignContent: 'end',
+};
+
+const createButtonStyle = {
+  minHeight: '38px',
+  padding: '8px 14px',
+  width: '100%',
+};
+
 const actionsStyle = {
   display: 'flex',
   gap: '10px',
@@ -629,6 +712,12 @@ const checkboxStyle = {
   gap: '8px',
   fontSize: '14px',
   color: '#475569',
+};
+
+const createCheckboxStyle = {
+  ...checkboxStyle,
+  minHeight: '38px',
+  padding: '8px 2px',
 };
 
 const secondaryButtonStyle = {
