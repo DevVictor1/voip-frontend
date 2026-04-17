@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AGENTS } from '../config/agents';
+import { AGENT_SLOT_GROUPS } from '../config/agents';
 import {
   createUserRequest,
   deleteUserRequest,
@@ -22,13 +22,6 @@ const emptyCreateForm = {
 const emptyPasswordForm = {
   password: '',
 };
-
-const AGENT_OPTIONS = Object.entries(AGENTS)
-  .filter(([agentId]) => agentId !== 'web_user')
-  .map(([agentId, meta]) => ({
-    value: agentId,
-    label: `${agentId} - ${meta.name}${meta.role ? ` / ${meta.role}` : ''}`,
-  }));
 
 function Users({ currentUserRole = 'admin', currentUserId = '' }) {
   const [users, setUsers] = useState([]);
@@ -321,6 +314,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
             <option value="admin">Admin</option>
           </select>
           <div style={fieldGroupStyle}>
+            <label style={fieldLabelStyle}>Agent Slot</label>
             <select
               className="numbers-input"
               value={form.agentId}
@@ -328,19 +322,23 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
               disabled={form.role !== 'agent'}
               required={form.role === 'agent'}
             >
-              <option value="">{form.role === 'agent' ? 'Select agent identity' : 'No agent identity needed'}</option>
-              {AGENT_OPTIONS.map((option) => (
-                <option
-                  key={option.value}
-                  value={option.value}
-                  disabled={assignedAgentIds.has(option.value)}
-                >
-                  {assignedAgentIds.has(option.value) ? `${option.label} (Assigned)` : option.label}
-                </option>
+              <option value="">{form.role === 'agent' ? 'Select IVR / routing slot' : 'No agent slot needed'}</option>
+              {Object.entries(AGENT_SLOT_GROUPS).map(([department, options]) => (
+                <optgroup key={department} label={department}>
+                  {options.map((option) => (
+                    <option
+                      key={option.agentId}
+                      value={option.agentId}
+                      disabled={assignedAgentIds.has(option.agentId)}
+                    >
+                      {assignedAgentIds.has(option.agentId) ? `${option.label} (Assigned)` : option.label}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
             <div className="text-muted" style={helperTextStyle}>
-              This identity is used for IVR, call routing, voice, and internal agent presence.
+              Assign the user to an internal IVR/call-routing slot. The saved value still maps to the same backend `agentId`.
             </div>
           </div>
           <label style={checkboxStyle}>
@@ -454,6 +452,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                           <option value="admin">Admin</option>
                         </select>
                         <div style={fieldGroupStyle}>
+                          <label style={fieldLabelStyle}>Agent Slot</label>
                           <select
                             className="numbers-input"
                             value={editForm.agentId}
@@ -461,23 +460,27 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                             disabled={editForm.role !== 'agent'}
                             required={editForm.role === 'agent'}
                           >
-                            <option value="">{editForm.role === 'agent' ? 'Select agent identity' : 'No agent identity needed'}</option>
-                            {AGENT_OPTIONS.map((option) => {
-                              const isAssignedElsewhere = assignedAgentIds.has(option.value) && option.value !== detailUser.agentId;
+                            <option value="">{editForm.role === 'agent' ? 'Select IVR / routing slot' : 'No agent slot needed'}</option>
+                            {Object.entries(AGENT_SLOT_GROUPS).map(([department, options]) => (
+                              <optgroup key={department} label={department}>
+                                {options.map((option) => {
+                                  const isAssignedElsewhere = assignedAgentIds.has(option.agentId) && option.agentId !== detailUser.agentId;
 
-                              return (
-                                <option
-                                  key={option.value}
-                                  value={option.value}
-                                  disabled={isAssignedElsewhere}
-                                >
-                                  {isAssignedElsewhere ? `${option.label} (Assigned)` : option.label}
-                                </option>
-                              );
-                            })}
+                                  return (
+                                    <option
+                                      key={option.agentId}
+                                      value={option.agentId}
+                                      disabled={isAssignedElsewhere}
+                                    >
+                                      {isAssignedElsewhere ? `${option.label} (Assigned)` : option.label}
+                                    </option>
+                                  );
+                                })}
+                              </optgroup>
+                            ))}
                           </select>
                           <div className="text-muted" style={helperTextStyle}>
-                            Choose the exact internal agent identity used by IVR and call routing.
+                            Choose the internal department slot tied to IVR, call routing, voice identity, and agent presence.
                           </div>
                         </div>
                         <label style={checkboxStyle}>
@@ -605,6 +608,13 @@ const detailFormStyle = {
 const fieldGroupStyle = {
   display: 'grid',
   gap: '8px',
+};
+
+const fieldLabelStyle = {
+  fontSize: '13px',
+  fontWeight: 700,
+  color: '#334155',
+  letterSpacing: '0.02em',
 };
 
 const actionsStyle = {
