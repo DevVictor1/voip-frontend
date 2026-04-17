@@ -320,114 +320,142 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
         ) : users.length === 0 ? (
           <div className="text-muted">No users found.</div>
         ) : (
-          <div className="user-grid">
-            {users.map((user) => (
-              <div key={user.id} className="user-card" style={selectedUserId === user.id ? activeCardStyle : undefined}>
-                <div className="avatar-stack">
-                  <div className="avatar-circle">
-                    {String(user.name || '?')
-                      .split(' ')
-                      .filter(Boolean)
-                      .map((part) => part[0])
-                      .join('')
-                      .slice(0, 2)}
+          <>
+            <div className="user-grid">
+              {users.map((user) => (
+                <div key={user.id} className="user-card" style={selectedUserId === user.id ? activeCardStyle : undefined}>
+                  <div className="avatar-stack">
+                    <div className="avatar-circle">
+                      {String(user.name || '?')
+                        .split(' ')
+                        .filter(Boolean)
+                        .map((part) => part[0])
+                        .join('')
+                        .slice(0, 2)}
+                    </div>
+                    <div>
+                      <h4>{user.name}</h4>
+                      <div className="user-role">{user.role}</div>
+                    </div>
                   </div>
-                  <div>
-                    <h4>{user.name}</h4>
-                    <div className="user-role">{user.role}</div>
+                  <div className="text-muted">{user.email}</div>
+                  <div className="text-muted">Agent ID: {user.agentId || 'None'}</div>
+                  <span className="tag">{user.isActive ? 'Active' : 'Inactive'}</span>
+
+                  <div style={actionsStyle}>
+                    <button type="button" style={secondaryButtonStyle} onClick={() => openUserDetails(user.id)}>
+                      {selectedUserId === user.id ? 'Hide details' : 'View details'}
+                    </button>
+                    <button
+                      type="button"
+                      style={dangerButtonStyle}
+                      onClick={() => handleDeleteUser(user.id)}
+                      disabled={deletingId === user.id || user.id === currentUserId}
+                    >
+                      {deletingId === user.id ? 'Deleting...' : 'Delete'}
+                    </button>
                   </div>
                 </div>
-                <div className="text-muted">{user.email}</div>
-                <div className="text-muted">Agent ID: {user.agentId || 'None'}</div>
-                <span className="tag">{user.isActive ? 'Active' : 'Inactive'}</span>
+              ))}
+            </div>
 
-                <div style={actionsStyle}>
-                  <button type="button" style={secondaryButtonStyle} onClick={() => openUserDetails(user.id)}>
-                    {selectedUserId === user.id ? 'Hide details' : 'View details'}
-                  </button>
-                  <button
-                    type="button"
-                    style={dangerButtonStyle}
-                    onClick={() => handleDeleteUser(user.id)}
-                    disabled={deletingId === user.id || user.id === currentUserId}
-                  >
-                    {deletingId === user.id ? 'Deleting...' : 'Delete'}
-                  </button>
-                </div>
-
-                {selectedUserId === user.id ? (
-                  <div style={detailPanelStyle}>
-                    {detailLoading || !detailUser || !editForm ? (
-                      <div className="text-muted">Loading details...</div>
-                    ) : (
-                      <>
-                        <div style={detailSectionStyle}>
-                          <div className="section-header">
-                            <h3 style={{ margin: 0 }}>User Details</h3>
-                            <span className="tag">{detailUser.isActive ? 'Active' : 'Inactive'}</span>
+            {selectedUserId ? (
+              <div className="section-card" style={detailShellStyle}>
+                {detailLoading || !detailUser || !editForm ? (
+                  <div className="text-muted">Loading details...</div>
+                ) : (
+                  <>
+                    <div className="section-header" style={detailHeaderStyle}>
+                      <div style={detailHeaderInfoStyle}>
+                        <div className="avatar-stack">
+                          <div className="avatar-circle">
+                            {String(detailUser.name || '?')
+                              .split(' ')
+                              .filter(Boolean)
+                              .map((part) => part[0])
+                              .join('')
+                              .slice(0, 2)}
                           </div>
+                          <div>
+                            <h3 style={{ margin: 0 }}>{detailUser.name}</h3>
+                            <div className="user-role">{detailUser.email}</div>
+                          </div>
+                        </div>
+                        <div style={detailMetaStyle}>
+                          <span className="tag">{detailUser.isActive ? 'Active' : 'Inactive'}</span>
+                          <div className="text-muted">Role: {detailUser.role}</div>
+                          <div className="text-muted">Agent ID: {detailUser.agentId || 'None'}</div>
                           <div className="text-muted">Created: {formatDate(detailUser.createdAt)}</div>
                           <div className="text-muted">Updated: {formatDate(detailUser.updatedAt)}</div>
                         </div>
+                      </div>
+                      <button type="button" style={secondaryButtonStyle} onClick={() => openUserDetails(selectedUserId)}>
+                        Close
+                      </button>
+                    </div>
 
-                        <form onSubmit={handleUpdateUser} style={detailFormStyle}>
-                          <input className="numbers-input" placeholder="Full name" value={editForm.name} onChange={handleEditChange('name')} required />
-                          <input className="numbers-input" type="email" placeholder="Email" value={editForm.email} onChange={handleEditChange('email')} required />
-                          <select className="numbers-input" value={editForm.role} onChange={handleEditChange('role')}>
-                            <option value="agent">Agent</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                          <input
-                            className="numbers-input"
-                            placeholder="Agent ID"
-                            value={editForm.agentId}
-                            onChange={handleEditChange('agentId')}
-                            disabled={editForm.role !== 'agent'}
-                            required={editForm.role === 'agent'}
-                          />
-                          <label style={checkboxStyle}>
-                            <input type="checkbox" checked={editForm.isActive} onChange={handleEditChange('isActive')} />
-                            <span>Active user</span>
-                          </label>
-                          <div style={actionsStyle}>
-                            <button className="numbers-primary-btn" type="submit" disabled={editing}>
-                              {editing ? 'Saving...' : 'Save changes'}
-                            </button>
-                            <button
-                              type="button"
-                              style={secondaryButtonStyle}
-                              onClick={handleToggleActive}
-                              disabled={editing}
-                            >
-                              {detailUser.isActive ? 'Deactivate' : 'Activate'}
-                            </button>
-                          </div>
-                        </form>
-
-                        <form onSubmit={handleResetPassword} style={detailFormStyle}>
-                          <div className="section-header">
-                            <h3 style={{ margin: 0 }}>Reset Password</h3>
-                            <span className="tag">Set new password</span>
-                          </div>
-                          <input
-                            className="numbers-input"
-                            type="password"
-                            placeholder="New password"
-                            value={passwordForm.password}
-                            onChange={handlePasswordChange}
-                            required
-                          />
-                          <button className="numbers-primary-btn" type="submit" disabled={passwordSaving}>
-                            {passwordSaving ? 'Resetting...' : 'Reset password'}
+                    <div style={detailContentStyle}>
+                      <form onSubmit={handleUpdateUser} style={detailFormStyle}>
+                        <div className="section-header">
+                          <h3 style={{ margin: 0 }}>Edit User</h3>
+                          <span className="tag">Admin only</span>
+                        </div>
+                        <input className="numbers-input" placeholder="Full name" value={editForm.name} onChange={handleEditChange('name')} required />
+                        <input className="numbers-input" type="email" placeholder="Email" value={editForm.email} onChange={handleEditChange('email')} required />
+                        <select className="numbers-input" value={editForm.role} onChange={handleEditChange('role')}>
+                          <option value="agent">Agent</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                        <input
+                          className="numbers-input"
+                          placeholder="Agent ID"
+                          value={editForm.agentId}
+                          onChange={handleEditChange('agentId')}
+                          disabled={editForm.role !== 'agent'}
+                          required={editForm.role === 'agent'}
+                        />
+                        <label style={checkboxStyle}>
+                          <input type="checkbox" checked={editForm.isActive} onChange={handleEditChange('isActive')} />
+                          <span>Active user</span>
+                        </label>
+                        <div style={actionsStyle}>
+                          <button className="numbers-primary-btn" type="submit" disabled={editing}>
+                            {editing ? 'Saving...' : 'Save changes'}
                           </button>
-                        </form>
-                      </>
-                    )}
-                  </div>
-                ) : null}
+                          <button
+                            type="button"
+                            style={secondaryButtonStyle}
+                            onClick={handleToggleActive}
+                            disabled={editing}
+                          >
+                            {detailUser.isActive ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
+                      </form>
+
+                      <form onSubmit={handleResetPassword} style={detailFormStyle}>
+                        <div className="section-header">
+                          <h3 style={{ margin: 0 }}>Reset Password</h3>
+                          <span className="tag">Set new password</span>
+                        </div>
+                        <input
+                          className="numbers-input"
+                          type="password"
+                          placeholder="New password"
+                          value={passwordForm.password}
+                          onChange={handlePasswordChange}
+                          required
+                        />
+                        <button className="numbers-primary-btn" type="submit" disabled={passwordSaving}>
+                          {passwordSaving ? 'Resetting...' : 'Reset password'}
+                        </button>
+                      </form>
+                    </div>
+                  </>
+                )}
               </div>
-            ))}
-          </div>
+            ) : null}
+          </>
         )}
       </div>
     </div>
@@ -457,22 +485,41 @@ const formStyle = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
 };
 
-const detailFormStyle = {
+const detailShellStyle = {
   display: 'grid',
-  gap: '12px',
+  gap: '20px',
+  marginTop: '8px',
 };
 
-const detailPanelStyle = {
-  marginTop: '16px',
-  paddingTop: '16px',
-  borderTop: '1px solid rgba(148, 163, 184, 0.2)',
-  display: 'grid',
+const detailHeaderStyle = {
+  alignItems: 'flex-start',
   gap: '16px',
 };
 
-const detailSectionStyle = {
+const detailHeaderInfoStyle = {
+  display: 'grid',
+  gap: '14px',
+  flex: '1 1 auto',
+};
+
+const detailMetaStyle = {
   display: 'grid',
   gap: '6px',
+};
+
+const detailContentStyle = {
+  display: 'grid',
+  gap: '16px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+};
+
+const detailFormStyle = {
+  display: 'grid',
+  gap: '12px',
+  padding: '18px',
+  border: '1px solid rgba(148, 163, 184, 0.18)',
+  borderRadius: '16px',
+  background: 'rgba(248, 250, 252, 0.7)',
 };
 
 const actionsStyle = {
