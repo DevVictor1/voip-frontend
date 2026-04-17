@@ -63,13 +63,13 @@ function InfoPage() {
 
           <section className="compliance-grid compliance-grid-balanced">
             <article className="compliance-card">
-              <h2>SMS Opt-In Example</h2>
+              <h2>SMS Consent Form</h2>
               <p>
-                The example below shows the type of public customer consent language used to verify
-                SMS opt-in for Kaylad LLC.
+                Customers can opt in to receive SMS messages from Kaylad LLC using the public
+                consent form below.
               </p>
 
-              <div className="compliance-demo-form" aria-label="SMS consent example">
+              <div className="compliance-demo-form" aria-label="SMS consent form">
                 <label className="compliance-field">
                   <span>Mobile phone number</span>
                   <input type="tel" placeholder="(555) 123-4567" readOnly />
@@ -88,7 +88,7 @@ function InfoPage() {
                 </label>
 
                 <button type="button" className="compliance-primary-button">
-                  Submit Consent Example
+                  Submit
                 </button>
               </div>
             </article>
