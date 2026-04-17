@@ -1365,6 +1365,193 @@
   color: #64748b;
 }
 
+.compliance-page {
+  min-height: 100vh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #f6f8fc 0%, #ffffff 100%);
+  padding: 32px 20px 48px;
+}
+
+.compliance-shell {
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
+}
+
+.compliance-shell-narrow {
+  width: min(840px, 100%);
+}
+
+.compliance-hero {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: var(--shadow-sm);
+  padding: 32px;
+  display: grid;
+  gap: 14px;
+}
+
+.compliance-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+.compliance-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4vw, 42px);
+  line-height: 1.1;
+  color: #0f172a;
+}
+
+.compliance-copy {
+  margin: 0;
+  max-width: 760px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #475569;
+}
+
+.compliance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
+  gap: 24px;
+}
+
+.compliance-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: var(--shadow-sm);
+  padding: 28px;
+}
+
+.compliance-card h2 {
+  margin: 0 0 14px;
+  font-size: 22px;
+  color: #0f172a;
+}
+
+.compliance-card p {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: #475569;
+}
+
+.compliance-card p:last-child {
+  margin-bottom: 0;
+}
+
+.compliance-article a,
+.compliance-checkbox a,
+.compliance-link-pill {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.compliance-article a:hover,
+.compliance-checkbox a:hover,
+.compliance-link-pill:hover {
+  text-decoration: underline;
+}
+
+.compliance-link-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.compliance-link-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid #c7d7fe;
+  background: #eef4ff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.compliance-demo-form {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 20px;
+  border: 1px solid #dbe3f0;
+  background: linear-gradient(180deg, #fcfdff 0%, #f8fafc 100%);
+  display: grid;
+  gap: 16px;
+}
+
+.compliance-field {
+  display: grid;
+  gap: 8px;
+}
+
+.compliance-field span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.compliance-field input {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #0f172a;
+  background: #fff;
+}
+
+.compliance-checkbox {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #334155;
+}
+
+.compliance-checkbox input {
+  margin-top: 3px;
+}
+
+.compliance-primary-button {
+  width: fit-content;
+  min-height: 44px;
+  border: none;
+  border-radius: 14px;
+  padding: 11px 16px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.compliance-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 10px;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.compliance-list li::marker {
+  color: #2563eb;
+}
+
 @media (max-width: 1024px) {
   .messages-shell {
     gap: 16px;
@@ -1374,6 +1561,10 @@
     flex-basis: 320px;
     min-width: 280px;
     max-width: 328px;
+  }
+
+  .compliance-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1516,6 +1707,32 @@
   .messages-shell.is-chat-open .chat-messages-container .message-list {
     min-height: 100%;
     padding-bottom: 24px;
+  }
+
+  .compliance-page {
+    padding: 20px 14px 32px;
+  }
+
+  .compliance-hero,
+  .compliance-card {
+    padding: 22px 18px;
+    border-radius: 20px;
+  }
+
+  .compliance-title {
+    font-size: 28px;
+  }
+
+  .compliance-copy,
+  .compliance-card p,
+  .compliance-list,
+  .compliance-checkbox {
+    font-size: 13px;
+  }
+
+  .compliance-demo-form {
+    padding: 16px;
+    border-radius: 18px;
   }
 }
 

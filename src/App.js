@@ -19,6 +19,9 @@ import {
 } from './services/voice';
 import OptInPage from './pages/OptInPage';
 import LoginPage from './pages/LoginPage';
+import InfoPage from './pages/InfoPage';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
 import {
   clearAuthSession,
   fetchCurrentUser,
@@ -478,6 +481,9 @@ function App() {
             path="/numbers"
             element={renderProtectedLayout(<NumbersPage />, { adminOnly: true })}
           />
+          <Route path="/info" element={<InfoPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="/opt-in" element={<OptInPage />} />
           <Route path="*" element={<Navigate to={isAuthenticated ? '/' : '/login'} replace />} />
         </Routes>
