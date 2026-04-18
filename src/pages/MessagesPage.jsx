@@ -1,12 +1,18 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import ContactsList from '../components/ContactsList';
 import ChatWindow from '../components/ChatWindow';
 import NewMessageModal from '../components/NewMessageModal';
 import socket from '../socket';
 import BASE_URL from '../config/api';
 import { Plus } from 'lucide-react';
-import { AGENTS, getAgentMeta } from '../config/agents';
-import { getEffectiveAgentId, getEffectiveRole } from '../services/auth';
+import { getAgentMeta } from '../config/agents';
+import {
+  fetchUsersRequest,
+  getEffectiveAgentId,
+  getEffectiveRole,
+  getStoredAuthToken,
+  getStoredAuthUser,
+} from '../services/auth';
 
 const normalize = (phone) => {
   if (!phone) return '';
@@ -105,14 +111,34 @@ const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
   };
 };
 
-const normalizeInternalConversation = (conversation, currentUserId) => {
+const getDirectoryAgentMeta = (agentId, userDirectory = {}) => {
+  const matchedUser = agentId ? userDirectory[agentId] : null;
+  const fallbackMeta = getAgentMeta(agentId);
+
+  if (!matchedUser) {
+    return {
+      name: fallbackMeta?.name || agentId,
+      role: fallbackMeta?.role || '',
+    };
+  }
+
+  const department = fallbackMeta?.department || fallbackMeta?.role || '';
+  const roleLabel = department || (matchedUser.role === 'admin' ? 'Admin' : matchedUser.role || 'Agent');
+
+  return {
+    name: matchedUser.name || fallbackMeta?.name || agentId,
+    role: roleLabel,
+  };
+};
+
+const normalizeInternalConversation = (conversation, currentUserId, userDirectory = {}) => {
   const conversationId = conversation?.conversationId || '';
   const conversationType = conversation?.conversationType || 'internal_dm';
   const participants = conversation?.participants || [];
   const otherParticipant = conversationType === 'internal_dm'
     ? participants.find((participant) => participant && participant !== currentUserId)
     : null;
-  const otherAgent = otherParticipant ? getAgentMeta(otherParticipant) : null;
+  const otherAgent = otherParticipant ? getDirectoryAgentMeta(otherParticipant, userDirectory) : null;
   const title = conversationType === 'internal_dm'
     ? (otherAgent?.name || conversation?.name || conversation?.teamName || conversationId)
     : (conversation?.name || conversation?.teamName || conversationId);
@@ -149,7 +175,7 @@ const normalizeInternalConversation = (conversation, currentUserId) => {
   };
 };
 
-const buildConversationList = ({ contacts, chats, internalChats, currentUserId }) => {
+const buildConversationList = ({ contacts, chats, internalChats, currentUserId, userDirectory }) => {
   const normalizedCustomers = [];
   const matchedPhones = new Set();
 
@@ -182,7 +208,7 @@ const buildConversationList = ({ contacts, chats, internalChats, currentUserId }
   });
 
   const normalizedInternal = internalChats.map((conversation) =>
-    normalizeInternalConversation(conversation, currentUserId)
+    normalizeInternalConversation(conversation, currentUserId, userDirectory)
   );
 
   return [...normalizedCustomers, ...normalizedInternal].sort((a, b) => {
@@ -200,6 +226,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   const [internalChats, setInternalChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [workspaceUsers, setWorkspaceUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showTeammatePicker, setShowTeammatePicker] = useState(false);
   const [startingDirectChat, setStartingDirectChat] = useState(false);
@@ -207,6 +234,8 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
 
   const currentRole = providedRole || getEffectiveRole();
   const currentUserId = providedUserId || getEffectiveAgentId() || 'agent_1';
+  const storedAuthUser = getStoredAuthUser();
+  const currentAuthUserDbId = storedAuthUser?.id || storedAuthUser?._id || '';
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -252,6 +281,22 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
       console.error('Fetch contacts error:', err);
     }
   }, [currentRole, currentUserId]);
+
+  const fetchWorkspaceUsers = useCallback(async () => {
+    try {
+      const token = getStoredAuthToken();
+      if (!token) {
+        setWorkspaceUsers([]);
+        return;
+      }
+
+      const payload = await fetchUsersRequest(token);
+      setWorkspaceUsers(Array.isArray(payload?.users) ? payload.users : []);
+    } catch (err) {
+      console.error('Fetch workspace users error:', err);
+      setWorkspaceUsers([]);
+    }
+  }, []);
 
   const fetchCustomerMessages = useCallback(async (phone) => {
     try {
@@ -334,15 +379,48 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     fetchConversations();
     fetchContacts();
     fetchInternalConversations();
-  }, [fetchContacts, fetchConversations, fetchInternalConversations]);
+    fetchWorkspaceUsers();
+  }, [fetchContacts, fetchConversations, fetchInternalConversations, fetchWorkspaceUsers]);
 
-  const teammateOptions = Object.entries(AGENTS)
-    .filter(([agentId]) => ['agent_1', 'agent_2', 'agent_3'].includes(agentId) && agentId !== currentUserId)
-    .map(([agentId, agent]) => ({
-      agentId,
-      name: agent.name,
-      role: agent.role,
-    }));
+  const workspaceUserDirectory = useMemo(
+    () => workspaceUsers.reduce((acc, user) => {
+      if (user?.agentId) {
+        acc[user.agentId] = user;
+      }
+      return acc;
+    }, {}),
+    [workspaceUsers]
+  );
+
+  const teammateOptions = useMemo(
+    () => workspaceUsers
+      .filter((user) => user?.isActive !== false)
+      .filter((user) => Boolean(user?.agentId))
+      .filter((user) => user.agentId !== currentUserId)
+      .filter((user) => !currentAuthUserDbId || user.id !== currentAuthUserDbId)
+      .map((user) => {
+        const agentMeta = getAgentMeta(user.agentId);
+        const secondaryParts = [];
+
+        if (agentMeta?.department || agentMeta?.role) {
+          secondaryParts.push(agentMeta.department || agentMeta.role);
+        } else if (user.role) {
+          secondaryParts.push(user.role);
+        }
+
+        if (agentMeta?.slot) {
+          secondaryParts.push(`Slot ${agentMeta.slot}`);
+        }
+
+        return {
+          agentId: user.agentId,
+          name: user.name || user.agentId,
+          role: secondaryParts.join(' - ') || 'Teammate',
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [currentAuthUserDbId, currentUserId, workspaceUsers]
+  );
 
   const upsertInternalConversation = useCallback((conversation) => {
     if (!conversation?.conversationId) return;
@@ -384,7 +462,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
       const conversation = await res.json();
       const participants = conversation.participants || [currentUserId, targetUserId].sort();
       const otherParticipant = participants.find((participant) => participant !== currentUserId) || targetUserId;
-      const otherAgent = getAgentMeta(otherParticipant);
+      const otherAgent = getDirectoryAgentMeta(otherParticipant, workspaceUserDirectory);
 
       upsertInternalConversation({
         conversationType: 'internal_dm',
@@ -411,13 +489,14 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     } finally {
       setStartingDirectChat(false);
     }
-  }, [currentUserId, fetchInternalConversations, startingDirectChat, upsertInternalConversation]);
+  }, [currentUserId, fetchInternalConversations, startingDirectChat, upsertInternalConversation, workspaceUserDirectory]);
 
   const conversationList = buildConversationList({
     contacts,
     chats,
     internalChats,
     currentUserId,
+    userDirectory: workspaceUserDirectory,
   });
 
   const unreadCount = conversationList.filter(hasUnreadConversation).length;
@@ -793,18 +872,22 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
             </div>
 
             <div className="messages-picker-list">
-              {teammateOptions.map((agent) => (
-                <button
-                  key={agent.agentId}
-                  type="button"
-                  className="messages-picker-option"
-                  onClick={() => handleStartDirectChat(agent.agentId)}
-                  disabled={startingDirectChat}
-                >
-                  <span className="messages-picker-option-name">{agent.name}</span>
-                  <span className="messages-picker-option-role">{agent.role}</span>
-                </button>
-              ))}
+              {teammateOptions.length === 0 ? (
+                <div className="messages-picker-empty">No teammates available.</div>
+              ) : (
+                teammateOptions.map((agent) => (
+                  <button
+                    key={agent.agentId}
+                    type="button"
+                    className="messages-picker-option"
+                    onClick={() => handleStartDirectChat(agent.agentId)}
+                    disabled={startingDirectChat}
+                  >
+                    <span className="messages-picker-option-name">{agent.name}</span>
+                    <span className="messages-picker-option-role">{agent.role}</span>
+                  </button>
+                ))
+              )}
             </div>
 
             <div className="messages-picker-footer">
