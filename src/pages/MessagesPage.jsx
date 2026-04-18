@@ -31,8 +31,6 @@ const normalizeUnreadCount = (value) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 };
 
-const SUPPORTED_DIRECT_CHAT_AGENT_IDS = new Set(['agent_1', 'agent_2', 'agent_3']);
-
 const getCustomerMessagePhone = (message) => normalize(
   message?.conversationId || message?.from || message?.to || ''
 );
@@ -398,7 +396,6 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     () => teammates
       .filter((user) => user?.isActive !== false)
       .filter((user) => Boolean(user?.agentId))
-      .filter((user) => SUPPORTED_DIRECT_CHAT_AGENT_IDS.has(user.agentId))
       .filter((user) => user.agentId !== currentUserId)
       .filter((user) => !currentAuthUserDbId || user.id !== currentAuthUserDbId)
       .map((user) => {
@@ -448,14 +445,6 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   const handleStartDirectChat = useCallback(async (targetUserId) => {
     if (!targetUserId || startingDirectChat) return;
 
-    if (!SUPPORTED_DIRECT_CHAT_AGENT_IDS.has(currentUserId) || !SUPPORTED_DIRECT_CHAT_AGENT_IDS.has(targetUserId)) {
-      console.error('Start direct chat error: Unsupported internal chat participant', {
-        currentUserId,
-        targetUserId,
-      });
-      return;
-    }
-
     try {
       setStartingDirectChat(true);
 
@@ -468,9 +457,13 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to start direct chat');
+      const payload = await res.json().catch(() => null);
 
-      const conversation = await res.json();
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to start direct chat');
+      }
+
+      const conversation = payload;
       const participants = conversation.participants || [currentUserId, targetUserId].sort();
       const otherParticipant = participants.find((participant) => participant !== currentUserId) || targetUserId;
       const otherAgent = getDirectoryAgentMeta(otherParticipant, workspaceUserDirectory);
