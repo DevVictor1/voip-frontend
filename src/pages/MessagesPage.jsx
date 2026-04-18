@@ -31,6 +31,10 @@ const normalizeUnreadCount = (value) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 };
 
+const isTeamConversation = (conversation) => (
+  conversation?.conversationType === 'team' || conversation?.type === 'team'
+);
+
 const getCustomerMessagePhone = (message) => normalize(
   message?.conversationId || message?.from || message?.to || ''
 );
@@ -133,7 +137,7 @@ const getDirectoryAgentMeta = (agentId, userDirectory = {}) => {
 
 const normalizeInternalConversation = (conversation, currentUserId, userDirectory = {}) => {
   const conversationId = conversation?.conversationId || '';
-  const conversationType = conversation?.conversationType || 'internal_dm';
+  const conversationType = conversation?.conversationType || conversation?.type || 'internal_dm';
   const participants = conversation?.participants || [];
   const otherParticipant = conversationType === 'internal_dm'
     ? participants.find((participant) => participant && participant !== currentUserId)
@@ -154,6 +158,7 @@ const normalizeInternalConversation = (conversation, currentUserId, userDirector
     key: buildConversationKey(conversationType, conversationId),
     conversationId,
     conversationType,
+    type: conversationType,
     title,
     subtitle,
     name: title,
@@ -505,7 +510,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
 
   const unreadCount = conversationList.filter(hasUnreadConversation).length;
   const allCount = conversationList.length;
-  const teamCount = conversationList.filter((item) => item.conversationType === 'team').length;
+  const teamCount = conversationList.filter((item) => isTeamConversation(item)).length;
 
   let filteredList = conversationList;
 
@@ -514,7 +519,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
       (item) => !isDirectoryOnlyCustomer(item) && hasUnreadConversation(item)
     );
   } else if (activeTab === 'team') {
-    filteredList = conversationList.filter((item) => item.conversationType === 'team');
+    filteredList = conversationList.filter((item) => isTeamConversation(item));
   }
 
   const activeChat = conversationList.find((item) => item.key === activeChatId)
