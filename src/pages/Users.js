@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { AGENT_SLOT_GROUPS } from '../config/agents';
+import {
+  AGENT_SLOT_GROUPS,
+  DEPARTMENT_OPTIONS,
+  getDepartmentLabel,
+} from '../config/agents';
 import {
   createUserRequest,
   deleteUserRequest,
@@ -15,6 +19,7 @@ const emptyCreateForm = {
   email: '',
   password: '',
   role: 'agent',
+  department: '',
   agentId: '',
   isActive: true,
 };
@@ -354,6 +359,24 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
             </div>
 
             <div style={fieldGroupStyle}>
+              <label style={fieldLabelStyle}>Department</label>
+              <select
+                className="numbers-input"
+                style={compactFieldStyle}
+                value={form.department}
+                onChange={handleCreateChange('department')}
+              >
+                <option value="">No department assigned</option>
+                {DEPARTMENT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <div className="text-muted" style={helperTextStyle}>
+                Department is the business team the user belongs to. Agent slot stays separate for current IVR, call routing, and communication identity.
+              </div>
+            </div>
+
+            <div style={fieldGroupStyle}>
               <label style={fieldLabelStyle}>Agent Slot</label>
               <select
                 className="numbers-input"
@@ -431,6 +454,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                     </div>
                   </div>
                   <div className="text-muted">{user.email}</div>
+                  <div className="text-muted">Department: {getDepartmentLabel(user.department) || 'None'}</div>
                   <div className="text-muted">Agent ID: {user.agentId || 'None'}</div>
                   <span className="tag">{user.isActive ? 'Active' : 'Inactive'}</span>
 
@@ -477,6 +501,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                           <span className="tag">{detailUser.isActive ? 'Active' : 'Inactive'}</span>
                           <div style={detailMetaStyle}>
                             <span className="text-muted">Role: {detailUser.role}</span>
+                            <span className="text-muted">Department: {getDepartmentLabel(detailUser.department) || 'None'}</span>
                             <span className="text-muted">Agent ID: {detailUser.agentId || 'None'}</span>
                             <span className="text-muted">Created: {formatDate(detailUser.createdAt)}</span>
                             <span className="text-muted">Updated: {formatDate(detailUser.updatedAt)}</span>
@@ -500,6 +525,22 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                           <option value="agent">Agent</option>
                           <option value="admin">Admin</option>
                         </select>
+                        <div style={fieldGroupStyle}>
+                          <label style={fieldLabelStyle}>Department</label>
+                          <select
+                            className="numbers-input"
+                            value={editForm.department}
+                            onChange={handleEditChange('department')}
+                          >
+                            <option value="">No department assigned</option>
+                            {DEPARTMENT_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                          </select>
+                          <div className="text-muted" style={helperTextStyle}>
+                            Department represents the business team. Agent slot remains the current IVR/call-routing identity for compatibility.
+                          </div>
+                        </div>
                         <div style={fieldGroupStyle}>
                           <label style={fieldLabelStyle}>Agent Slot</label>
                           <select
@@ -588,6 +629,7 @@ function toEditForm(user) {
     name: user.name || '',
     email: user.email || '',
     role: user.role || 'agent',
+    department: user.department || '',
     agentId: user.agentId || '',
     isActive: user.isActive !== false,
   };

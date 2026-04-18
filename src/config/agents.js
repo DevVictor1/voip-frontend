@@ -7,6 +7,17 @@ export const AGENTS = {
   web_user: { name: 'Web User', role: 'General' }
 };
 
+export const DEPARTMENT_LABELS = {
+  tech: 'Tech Support',
+  support: 'Customer Support',
+  sales: 'Sales',
+};
+
+export const DEPARTMENT_OPTIONS = Object.entries(DEPARTMENT_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}));
+
 export const AGENT_SLOT_GROUPS = Object.entries(AGENTS).reduce((groups, [agentId, meta]) => {
   if (agentId === 'web_user' || !meta.department || !meta.slot) {
     return groups;
@@ -34,4 +45,8 @@ export const getAgentMeta = (agentId) => {
   const entry = AGENTS[agentId];
   if (!entry) return { name: agentId, role: '' };
   return entry;
+};
+
+export const getDepartmentLabel = (department) => {
+  return DEPARTMENT_LABELS[department] || '';
 };

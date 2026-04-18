@@ -5,7 +5,7 @@ import NewMessageModal from '../components/NewMessageModal';
 import socket from '../socket';
 import BASE_URL from '../config/api';
 import { Plus } from 'lucide-react';
-import { getAgentMeta } from '../config/agents';
+import { getAgentMeta, getDepartmentLabel } from '../config/agents';
 import {
   fetchTeammatesRequest,
   getEffectiveAgentId,
@@ -126,7 +126,7 @@ const getDirectoryAgentMeta = (agentId, userDirectory = {}) => {
     };
   }
 
-  const department = fallbackMeta?.department || fallbackMeta?.role || '';
+  const department = getDepartmentLabel(matchedUser.department) || fallbackMeta?.department || fallbackMeta?.role || '';
   const roleLabel = department || (matchedUser.role === 'admin' ? 'Admin' : matchedUser.role || 'Agent');
 
   return {
@@ -406,8 +406,11 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
       .map((user) => {
         const agentMeta = getAgentMeta(user.agentId);
         const secondaryParts = [];
+        const departmentLabel = getDepartmentLabel(user.department);
 
-        if (agentMeta?.department || agentMeta?.role) {
+        if (departmentLabel) {
+          secondaryParts.push(departmentLabel);
+        } else if (agentMeta?.department || agentMeta?.role) {
           secondaryParts.push(agentMeta.department || agentMeta.role);
         } else if (user.role) {
           secondaryParts.push(user.role);
