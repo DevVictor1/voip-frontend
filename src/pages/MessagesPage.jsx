@@ -7,7 +7,7 @@ import BASE_URL from '../config/api';
 import { Plus } from 'lucide-react';
 import { getAgentMeta } from '../config/agents';
 import {
-  fetchUsersRequest,
+  fetchTeammatesRequest,
   getEffectiveAgentId,
   getEffectiveRole,
   getStoredAuthToken,
@@ -226,7 +226,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   const [internalChats, setInternalChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [workspaceUsers, setWorkspaceUsers] = useState([]);
+  const [teammates, setTeammates] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showTeammatePicker, setShowTeammatePicker] = useState(false);
   const [startingDirectChat, setStartingDirectChat] = useState(false);
@@ -282,19 +282,19 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     }
   }, [currentRole, currentUserId]);
 
-  const fetchWorkspaceUsers = useCallback(async () => {
+  const fetchTeammates = useCallback(async () => {
     try {
       const token = getStoredAuthToken();
       if (!token) {
-        setWorkspaceUsers([]);
+        setTeammates([]);
         return;
       }
 
-      const payload = await fetchUsersRequest(token);
-      setWorkspaceUsers(Array.isArray(payload?.users) ? payload.users : []);
+      const payload = await fetchTeammatesRequest(token);
+      setTeammates(Array.isArray(payload?.teammates) ? payload.teammates : []);
     } catch (err) {
-      console.error('Fetch workspace users error:', err);
-      setWorkspaceUsers([]);
+      console.error('Fetch teammates error:', err);
+      setTeammates([]);
     }
   }, []);
 
@@ -379,21 +379,21 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     fetchConversations();
     fetchContacts();
     fetchInternalConversations();
-    fetchWorkspaceUsers();
-  }, [fetchContacts, fetchConversations, fetchInternalConversations, fetchWorkspaceUsers]);
+    fetchTeammates();
+  }, [fetchContacts, fetchConversations, fetchInternalConversations, fetchTeammates]);
 
   const workspaceUserDirectory = useMemo(
-    () => workspaceUsers.reduce((acc, user) => {
+    () => teammates.reduce((acc, user) => {
       if (user?.agentId) {
         acc[user.agentId] = user;
       }
       return acc;
     }, {}),
-    [workspaceUsers]
+    [teammates]
   );
 
   const teammateOptions = useMemo(
-    () => workspaceUsers
+    () => teammates
       .filter((user) => user?.isActive !== false)
       .filter((user) => Boolean(user?.agentId))
       .filter((user) => user.agentId !== currentUserId)
@@ -419,7 +419,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name)),
-    [currentAuthUserDbId, currentUserId, workspaceUsers]
+    [currentAuthUserDbId, currentUserId, teammates]
   );
 
   const upsertInternalConversation = useCallback((conversation) => {

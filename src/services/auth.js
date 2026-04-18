@@ -152,6 +152,23 @@ export const fetchUsersRequest = async (token) => {
   return payload;
 };
 
+export const fetchTeammatesRequest = async (token) => {
+  const response = await fetch(`${BASE_URL}/api/auth/teammates`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const payload = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to fetch teammates');
+  }
+
+  return payload;
+};
+
 export const createUserRequest = async (token, userData) => {
   const response = await fetch(`${BASE_URL}/api/auth/users`, {
     method: 'POST',
