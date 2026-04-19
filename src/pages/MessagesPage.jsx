@@ -87,9 +87,25 @@ const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
   const subtitle = [primaryPhone, contact?.dba].filter(Boolean).join(' / ');
   const unreadCount = normalizeUnreadCount(chat?.unread);
   const lastMessageAt = chat?.updatedAt || contact?.updatedAt || 0;
+  const persistedContactId = contact?._id || chat?._id || null;
+  const resolvedAssignedTo = contact?.assignedTo ?? chat?.assignedTo ?? null;
+  const resolvedIsUnassigned = typeof contact?.isUnassigned === 'boolean'
+    ? contact.isUnassigned
+    : typeof chat?.isUnassigned === 'boolean'
+      ? chat.isUnassigned
+      : !resolvedAssignedTo;
+  const resolvedAssignmentStatus = contact?.assignmentStatus || chat?.assignmentStatus || 'open';
 
   return {
     ...contact,
+    ...(chat?._id || chat?.assignedTo || typeof chat?.isUnassigned === 'boolean' || chat?.assignmentStatus
+      ? {
+          _id: persistedContactId,
+          assignedTo: resolvedAssignedTo,
+          isUnassigned: resolvedIsUnassigned,
+          assignmentStatus: resolvedAssignmentStatus,
+        }
+      : {}),
     id: buildConversationKey('customer', conversationId),
     key: buildConversationKey('customer', conversationId),
     conversationId,
@@ -104,9 +120,10 @@ const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
     updatedAt: lastMessageAt,
     unreadCount,
     unread: unreadCount,
-    assignedTo: contact?.assignedTo || null,
-    isUnassigned: contact?.isUnassigned ?? !contact?.assignedTo,
-    assignmentStatus: contact?.assignmentStatus || 'open',
+    _id: persistedContactId,
+    assignedTo: resolvedAssignedTo,
+    isUnassigned: resolvedIsUnassigned,
+    assignmentStatus: resolvedAssignmentStatus,
     isInternal: false,
     isTeam: false,
     previewFallback: 'No messages yet',
