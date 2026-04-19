@@ -10,8 +10,12 @@ function AgentSelector({ value, onChange, disabled = false }) {
       <select
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
-        style={select}
+        style={{
+          ...select,
+          ...(disabled ? selectDisabled : null),
+        }}
         disabled={disabled}
+        title={disabled ? 'Agent selection is locked' : 'Select agent'}
       >
         {agents.map((agentId) => (
           <option key={agentId} value={agentId}>
@@ -47,6 +51,11 @@ const select = {
   fontWeight: 600,
   cursor: 'pointer',
   outline: 'none'
+};
+
+const selectDisabled = {
+  opacity: 0.55,
+  cursor: 'not-allowed',
 };
 
 export default AgentSelector;

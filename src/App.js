@@ -458,7 +458,7 @@ function App() {
                   <Dashboard
                     agentId={workspaceAgentId}
                     onAgentChange={handleAgentChange}
-                    agentSelectionLocked={isAuthenticated}
+                    agentSelectionLocked={authUser?.role !== 'admin'}
                   />
                 ) : (
                   <Navigate to="/messages" replace />
