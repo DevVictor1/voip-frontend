@@ -960,6 +960,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
         <ContactsList
           list={filteredList}
           activeId={activeChatId}
+          activeContactId={activeChat?.conversationType === 'customer' ? (activeChat?._id || activeCustomerContactId) : null}
           onSelect={handleSelectChat}
         />
       </div>

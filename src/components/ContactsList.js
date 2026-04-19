@@ -4,7 +4,7 @@ import BASE_URL from '../config/api';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
-function ContactsList({ list, activeId, onSelect }) {
+function ContactsList({ list, activeId, activeContactId = null, onSelect }) {
   const conversationItems = list.filter((item) => item.conversationType !== 'team');
   const teamItems = list.filter((item) => item.conversationType === 'team');
 
@@ -75,7 +75,9 @@ function ContactsList({ list, activeId, onSelect }) {
     return items.map((item, index) => {
       const activePhone = getActivePhone(item);
       const conversationKey = item.key || `${item.conversationType || 'customer'}:${item.conversationId || item.phone}`;
-      const isActive = activeId === conversationKey;
+      const isActive = item.conversationType === 'customer' && activeContactId && item._id
+        ? activeContactId === item._id
+        : activeId === conversationKey;
       const hasUnread = item.unread > 0;
       const displayName = getDisplayName(item);
       const secondaryLine = getSecondaryLine(item, activePhone);
