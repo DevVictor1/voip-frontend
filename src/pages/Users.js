@@ -44,6 +44,9 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
   const [success, setSuccess] = useState('');
   const toastType = error ? 'error' : success ? 'success' : '';
   const toastMessage = error || success;
+  const generatedCreateAgentId = buildAgentIdPreview(form);
+  const isEditingExistingAgentId = Boolean(detailUser?.agentId);
+
   useEffect(() => {
     if (currentUserRole !== 'admin') {
       setLoading(false);
@@ -105,7 +108,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
       const token = getStoredAuthToken();
       const payload = await createUserRequest(token, {
         ...form,
-        agentId: form.agentId ? form.agentId.trim() : null,
+        agentId: null,
       });
 
       if (payload?.user) {
@@ -371,14 +374,16 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
               <label style={fieldLabelStyle}>Agent ID</label>
               <input
                 className="numbers-input"
-                style={compactFieldStyle}
-                value={form.agentId}
-                onChange={handleCreateChange('agentId')}
-                placeholder="Stable communication identity"
-                required={form.role === 'agent'}
+                style={{
+                  ...compactFieldStyle,
+                  ...readOnlyFieldStyle,
+                }}
+                value={generatedCreateAgentId}
+                readOnly
+                placeholder="Generated from name and department"
               />
               <div className="text-muted" style={helperTextStyle}>
-                Set the stable communication identity used for calls, messages, and presence. Admin users keep admin access, and uniqueness is still enforced by the backend.
+                Generated automatically for calls, messaging, routing, and presence. The backend keeps it unique and may append a suffix like <code>_2</code> if needed.
               </div>
             </div>
 
@@ -521,13 +526,17 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                           <label style={fieldLabelStyle}>Agent ID</label>
                           <input
                             className="numbers-input"
+                            style={isEditingExistingAgentId ? readOnlyFieldStyle : undefined}
                             value={editForm.agentId}
-                            onChange={handleEditChange('agentId')}
-                            placeholder="Stable communication identity"
+                            onChange={isEditingExistingAgentId ? undefined : handleEditChange('agentId')}
+                            placeholder={isEditingExistingAgentId ? 'Stable communication identity' : 'Communication identity'}
                             required={editForm.role === 'agent'}
+                            readOnly={isEditingExistingAgentId}
                           />
                           <div className="text-muted" style={helperTextStyle}>
-                            This identity is used for call routing, voice registration, and internal chat presence. Admins can use it too.
+                            {isEditingExistingAgentId
+                              ? 'Locked after creation to protect Twilio voice identity, call routing, messaging, and socket presence continuity.'
+                              : 'Set this carefully once if the user does not already have a communication identity.'}
                           </div>
                         </div>
                         <label style={checkboxStyle}>
@@ -592,6 +601,24 @@ function toEditForm(user) {
   };
 }
 
+function buildAgentIdPreview({ name, role, department }) {
+  const normalizedName = normalizeAgentIdPart(name) || 'user';
+  const prefix = role === 'admin'
+    ? 'admin'
+    : (normalizeAgentIdPart(department) || 'agent');
+
+  return `${prefix}_${normalizedName}`;
+}
+
+function normalizeAgentIdPart(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
 function formatDate(value) {
   if (!value) return 'Unknown';
   const date = new Date(value);
@@ -620,6 +647,12 @@ const compactFieldStyle = {
   minHeight: '38px',
   padding: '8px 12px',
   borderRadius: '10px',
+};
+
+const readOnlyFieldStyle = {
+  background: '#f8fafc',
+  color: '#475569',
+  cursor: 'default',
 };
 
 const detailShellStyle = {
