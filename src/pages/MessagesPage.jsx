@@ -106,6 +106,7 @@ const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
     unread: unreadCount,
     assignedTo: contact?.assignedTo || null,
     isUnassigned: contact?.isUnassigned ?? !contact?.assignedTo,
+    assignmentStatus: contact?.assignmentStatus || 'open',
     isInternal: false,
     isTeam: false,
     previewFallback: 'No messages yet',
@@ -362,21 +363,57 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     if (!contactId || !userId) return;
 
     try {
-      await fetch(`${BASE_URL}/api/contacts/${contactId}/assign`, {
+      const res = await fetch(`${BASE_URL}/api/contacts/${contactId}/assign`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
       });
 
+      const updatedContact = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(updatedContact?.error || 'Failed to assign contact');
+      }
+
       setContacts((prev) =>
         prev.map((contact) =>
           contact._id === contactId
-            ? { ...contact, assignedTo: userId, isUnassigned: false }
+            ? { ...contact, ...(updatedContact || {}), assignedTo: userId, isUnassigned: false }
             : contact
         )
       );
     } catch (err) {
       console.error('Assign error:', err);
+      throw err;
+    }
+  };
+
+  const handleUpdateAssignmentStatus = async (contactId, assignmentStatus) => {
+    if (!contactId || !assignmentStatus) return;
+
+    try {
+      const res = await fetch(`${BASE_URL}/api/contacts/${contactId}/assignment-status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignmentStatus }),
+      });
+
+      const updatedContact = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(updatedContact?.error || 'Failed to update assignment status');
+      }
+
+      setContacts((prev) =>
+        prev.map((contact) =>
+          contact._id === contactId
+            ? { ...contact, ...(updatedContact || {}), assignmentStatus }
+            : contact
+        )
+      );
+    } catch (err) {
+      console.error('Assignment status error:', err);
+      throw err;
     }
   };
 
@@ -891,6 +928,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
           currentUserId={currentUserId}
           onSwitchNumber={(num) => setActiveChatId(buildConversationKey('customer', normalize(num)))}
           onAssignContact={handleAssignContact}
+          onUpdateAssignmentStatus={handleUpdateAssignmentStatus}
           assignableAgents={assignableAgents}
           onBack={() => setActiveChatId(null)}
           showBack={isChatOpen}

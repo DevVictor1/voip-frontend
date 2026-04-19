@@ -3,6 +3,15 @@ import { Phone } from 'lucide-react';
 import { formatAgentLabel } from '../config/agents';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
+const ASSIGNMENT_STATUS_OPTIONS = [
+  { value: 'open', label: 'Open' },
+  { value: 'resolved', label: 'Resolved' },
+  { value: 'closed', label: 'Closed' },
+];
+const formatAssignmentStatus = (value) => {
+  const matched = ASSIGNMENT_STATUS_OPTIONS.find((option) => option.value === value);
+  return matched?.label || 'Open';
+};
 
 function Header({
   title,
@@ -15,11 +24,14 @@ function Header({
   onCall,
   callLabel,
   onAssignContact,
+  onUpdateAssignmentStatus,
   assignableAgents = [],
 }) {
   const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
   const [assignMenuOpen, setAssignMenuOpen] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [assignmentStatus, setAssignmentStatus] = useState(chat?.assignmentStatus || 'open');
+  const [updatingAssignmentStatus, setUpdatingAssignmentStatus] = useState(false);
   const phoneDropdownRef = useRef(null);
   const assignMenuRef = useRef(null);
 
@@ -27,6 +39,7 @@ function Header({
   const activeNumber = chat?.phone;
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
   const assignedAgentId = chat?.assignedTo;
+  const hasPersistedContact = Boolean(chat?._id);
   const assignedAgentName = chat?.isUnassigned
     ? 'Unassigned'
     : assignedAgentId
@@ -63,7 +76,9 @@ function Header({
     setAssignMenuOpen(false);
     setPhoneDropdownOpen(false);
     setAssigning(false);
-  }, [chat?._id, activeNumber, chat?.conversationId]);
+    setAssignmentStatus(chat?.assignmentStatus || 'open');
+    setUpdatingAssignmentStatus(false);
+  }, [chat?._id, activeNumber, chat?.conversationId, chat?.assignmentStatus]);
 
   const handleAssign = async (agentId) => {
     if (!chat?._id || assigning || !agentId) return;
@@ -77,6 +92,27 @@ function Header({
       alert('Failed to assign');
     } finally {
       setAssigning(false);
+    }
+  };
+
+  const handleAssignmentStatusChange = async (e) => {
+    const nextStatus = e.target.value;
+    const previousStatus = assignmentStatus || 'open';
+
+    if (!hasPersistedContact || updatingAssignmentStatus || !nextStatus || nextStatus === previousStatus) {
+      return;
+    }
+
+    try {
+      setUpdatingAssignmentStatus(true);
+      setAssignmentStatus(nextStatus);
+      await onUpdateAssignmentStatus?.(chat._id, nextStatus);
+    } catch (err) {
+      console.error('Assignment status update failed', err);
+      setAssignmentStatus(previousStatus);
+      alert('Failed to update status');
+    } finally {
+      setUpdatingAssignmentStatus(false);
     }
   };
 
@@ -115,7 +151,44 @@ function Header({
 
           <div className="header-assignment-row">
             {contextPill}
+            {isCustomerChat && (
+              <span
+                className={`header-assignment-pill is-status status-${assignmentStatus || 'open'}`}
+                title="Contact assignment status"
+              >
+                {formatAssignmentStatus(assignmentStatus)}
+              </span>
+            )}
           </div>
+
+          {isCustomerChat && (
+            <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted, #6b7280)' }}>Status</span>
+              <select
+                value={assignmentStatus}
+                onChange={handleAssignmentStatusChange}
+                disabled={!hasPersistedContact || updatingAssignmentStatus}
+                title={hasPersistedContact ? 'Update contact status' : 'Status is available after the contact exists in the inbox'}
+                style={{
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-subtle, #d8dde7)',
+                  background: !hasPersistedContact || updatingAssignmentStatus ? '#f3f5f9' : '#fff',
+                  color: '#1f2937',
+                  padding: '6px 10px',
+                  fontSize: '12px',
+                  minWidth: '120px',
+                  cursor: !hasPersistedContact || updatingAssignmentStatus ? 'not-allowed' : 'pointer',
+                  opacity: !hasPersistedContact || updatingAssignmentStatus ? 0.7 : 1,
+                }}
+              >
+                {ASSIGNMENT_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {updatingAssignmentStatus && option.value === assignmentStatus ? 'Saving...' : option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {isCustomerChat && phones.length > 1 && (
             <div ref={phoneDropdownRef} style={{ position: 'relative', marginTop: '6px', display: 'inline-block' }}>

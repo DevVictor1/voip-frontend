@@ -17,6 +17,7 @@ function ChatWindow({
   currentUserId,
   onSwitchNumber,
   onAssignContact,
+  onUpdateAssignmentStatus,
   assignableAgents,
   onBack,
   showBack
@@ -291,6 +292,7 @@ function ChatWindow({
         onCall={handleCall}
         onSwitchNumber={onSwitchNumber}
         onAssignContact={onAssignContact}
+        onUpdateAssignmentStatus={onUpdateAssignmentStatus}
         assignableAgents={assignableAgents}
         onBack={onBack}
         showBack={showBack}
