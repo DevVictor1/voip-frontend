@@ -90,7 +90,6 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
     setForm((prev) => ({
       ...prev,
       [field]: value,
-      ...(field === 'role' && event.target.value === 'admin' ? { agentId: '' } : {}),
     }));
   };
 
@@ -100,7 +99,6 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
     setEditForm((prev) => ({
       ...prev,
       [field]: value,
-      ...(field === 'role' && event.target.value === 'admin' ? { agentId: '' } : {}),
     }));
   };
 
@@ -114,7 +112,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
       const token = getStoredAuthToken();
       const payload = await createUserRequest(token, {
         ...form,
-        agentId: form.role === 'agent' ? form.agentId.trim() : null,
+        agentId: form.agentId ? form.agentId.trim() : null,
       });
 
       if (payload?.user) {
@@ -169,7 +167,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
       const token = getStoredAuthToken();
       const payload = await updateUserRequest(token, selectedUserId, {
         ...editForm,
-        agentId: editForm.role === 'agent' ? editForm.agentId.trim() : null,
+        agentId: editForm.agentId ? editForm.agentId.trim() : null,
       });
 
       if (payload?.user) {
@@ -372,7 +370,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                 ))}
               </select>
               <div className="text-muted" style={helperTextStyle}>
-                Department is the business team the user belongs to. Agent slot stays separate for current IVR, call routing, and communication identity.
+                Department is the business team the user belongs to. Admins and agents can both be assigned here while keeping their existing permissions.
               </div>
             </div>
 
@@ -383,10 +381,9 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                 style={compactFieldStyle}
                 value={form.agentId}
                 onChange={handleCreateChange('agentId')}
-                disabled={form.role !== 'agent'}
                 required={form.role === 'agent'}
               >
-                <option value="">{form.role === 'agent' ? 'Select IVR / routing slot' : 'No agent slot needed'}</option>
+                <option value="">Select IVR / routing slot</option>
                 {Object.entries(AGENT_SLOT_GROUPS).map(([department, options]) => (
                   <optgroup key={department} label={department}>
                     {options.map((option) => (
@@ -402,7 +399,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                 ))}
               </select>
               <div className="text-muted" style={helperTextStyle}>
-                Assign the user to an internal IVR/call-routing slot. The saved value still maps to the same backend `agentId`.
+                Assign a communication identity for calls and internal messaging. Admin users keep admin access, and a selected slot still maps to the same backend `agentId`.
               </div>
             </div>
 
@@ -538,7 +535,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                             ))}
                           </select>
                           <div className="text-muted" style={helperTextStyle}>
-                            Department represents the business team. Agent slot remains the current IVR/call-routing identity for compatibility.
+                            Department represents the business team. Admin users can also be assigned here without losing admin permissions.
                           </div>
                         </div>
                         <div style={fieldGroupStyle}>
@@ -547,10 +544,9 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                             className="numbers-input"
                             value={editForm.agentId}
                             onChange={handleEditChange('agentId')}
-                            disabled={editForm.role !== 'agent'}
                             required={editForm.role === 'agent'}
                           >
-                            <option value="">{editForm.role === 'agent' ? 'Select IVR / routing slot' : 'No agent slot needed'}</option>
+                            <option value="">Select IVR / routing slot</option>
                             {Object.entries(AGENT_SLOT_GROUPS).map(([department, options]) => (
                               <optgroup key={department} label={department}>
                                 {options.map((option) => {
@@ -570,7 +566,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                             ))}
                           </select>
                           <div className="text-muted" style={helperTextStyle}>
-                            Choose the internal department slot tied to IVR, call routing, voice identity, and agent presence.
+                            Choose the internal slot tied to IVR, call routing, voice identity, and internal chat presence. Admins can use it too.
                           </div>
                         </div>
                         <label style={checkboxStyle}>

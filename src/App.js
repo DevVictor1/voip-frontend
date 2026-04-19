@@ -56,7 +56,7 @@ function App() {
   const isAuthenticated = Boolean(authToken && authUser);
   const authenticatedAgentId = authUser?.agentId || '';
   const workspaceAgentId = isAuthenticated
-    ? (authenticatedAgentId || 'web_user')
+    ? (authenticatedAgentId || agentId || 'web_user')
     : (agentId || 'web_user');
   const isVoiceReady = deviceStatus === 'ready';
 
@@ -108,7 +108,7 @@ function App() {
     if (!authUser) return;
 
     setUserRole(authUser.role === 'agent' ? 'agent' : 'admin');
-    setAgentId(authUser.agentId || 'web_user');
+    setAgentId(authUser.agentId || '');
   }, [authUser]);
 
   useEffect(() => {
@@ -337,7 +337,7 @@ function App() {
       setAuthToken(token);
       setAuthUser(user);
       setUserRole(user?.role === 'agent' ? 'agent' : 'admin');
-      setAgentId(user?.agentId || 'web_user');
+      setAgentId(user?.agentId || '');
     } catch (error) {
       setAuthError(error.message || 'Login failed');
     } finally {
