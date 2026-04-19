@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import socket from '../socket';
-import { formatAgentLabel, getAgentMeta } from '../config/agents';
+import { formatAgentLabel, getAgentMeta, getDepartmentLabel } from '../config/agents';
 
-function AgentStatusList() {
+function AgentStatusList({ agents = [] }) {
   const [statuses, setStatuses] = useState({});
 
   useEffect(() => {
@@ -29,9 +29,41 @@ function AgentStatusList() {
     };
   }, []);
 
+  const agentDirectory = useMemo(
+    () => (Array.isArray(agents) ? agents : []).reduce((acc, agent) => {
+      if (agent?.agentId) {
+        acc[agent.agentId] = agent;
+      }
+      return acc;
+    }, {}),
+    [agents]
+  );
+
   const items = useMemo(
-    () => Object.entries(statuses).sort(([a], [b]) => a.localeCompare(b)),
-    [statuses]
+    () => {
+      const knownIds = new Set([
+        ...Object.keys(statuses || {}),
+        ...Object.keys(agentDirectory),
+      ]);
+
+      return Array.from(knownIds)
+        .sort((a, b) => a.localeCompare(b))
+        .map((agentId) => {
+          const liveAgent = agentDirectory[agentId];
+          const fallbackMeta = getAgentMeta(agentId);
+
+          return {
+            agentId,
+            status: statuses?.[agentId] || 'offline',
+            label: liveAgent?.name || formatAgentLabel(agentId),
+            role: getDepartmentLabel(liveAgent?.department)
+              || (liveAgent?.role === 'admin' ? 'Admin' : liveAgent?.role)
+              || fallbackMeta?.role
+              || '',
+          };
+        });
+    },
+    [agentDirectory, statuses]
   );
 
   return (
@@ -41,15 +73,15 @@ function AgentStatusList() {
         <div style={empty}>No agents found</div>
       ) : (
         <div style={list}>
-          {items.map(([userId, status]) => (
-            <div key={userId} style={row}>
-              <span style={status === 'online' ? dotOnline : dotOffline} />
-              <span style={name}>{formatAgentLabel(userId)}</span>
-              {getAgentMeta(userId).role ? (
-                <span className="agent-badge">{getAgentMeta(userId).role}</span>
+          {items.map((item) => (
+            <div key={item.agentId} style={row}>
+              <span style={item.status === 'online' ? dotOnline : dotOffline} />
+              <span style={name}>{item.label}</span>
+              {item.role ? (
+                <span className="agent-badge">{item.role}</span>
               ) : null}
-              <span style={status === 'online' ? badgeOnline : badgeOffline}>
-                {status === 'online' ? 'Online' : 'Offline'}
+              <span style={item.status === 'online' ? badgeOnline : badgeOffline}>
+                {item.status === 'online' ? 'Online' : 'Offline'}
               </span>
             </div>
           ))}

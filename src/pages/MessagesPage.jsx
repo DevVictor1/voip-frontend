@@ -416,10 +416,6 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
           secondaryParts.push(user.role);
         }
 
-        if (agentMeta?.slot) {
-          secondaryParts.push(`Slot ${agentMeta.slot}`);
-        }
-
         return {
           agentId: user.agentId,
           name: user.name || user.agentId,
@@ -429,6 +425,43 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
       .sort((a, b) => a.name.localeCompare(b.name)),
     [currentAuthUserDbId, currentUserId, teammates]
   );
+
+  const assignableAgents = useMemo(() => {
+    const currentUser = storedAuthUser?.agentId
+      ? {
+          id: storedAuthUser.id || storedAuthUser._id || '',
+          name: storedAuthUser.name || storedAuthUser.agentId,
+          role: storedAuthUser.role || currentRole,
+          agentId: storedAuthUser.agentId,
+          department: storedAuthUser.department || '',
+          isActive: storedAuthUser.isActive !== false,
+        }
+      : null;
+
+    const directory = [currentUser, ...teammates]
+      .filter((user) => user?.isActive !== false)
+      .filter((user) => Boolean(user?.agentId))
+      .reduce((acc, user) => {
+        if (!acc[user.agentId]) {
+          const agentMeta = getAgentMeta(user.agentId);
+          const secondary = getDepartmentLabel(user.department)
+            || agentMeta.department
+            || agentMeta.role
+            || (user.role === 'admin' ? 'Admin' : user.role)
+            || 'Workspace user';
+
+          acc[user.agentId] = {
+            agentId: user.agentId,
+            name: user.name || agentMeta.name || user.agentId,
+            role: secondary,
+          };
+        }
+
+        return acc;
+      }, {});
+
+    return Object.values(directory).sort((a, b) => a.name.localeCompare(b.name));
+  }, [currentRole, teammates, storedAuthUser]);
 
   const upsertInternalConversation = useCallback((conversation) => {
     if (!conversation?.conversationId) return;
@@ -858,6 +891,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
           currentUserId={currentUserId}
           onSwitchNumber={(num) => setActiveChatId(buildConversationKey('customer', normalize(num)))}
           onAssignContact={handleAssignContact}
+          assignableAgents={assignableAgents}
           onBack={() => setActiveChatId(null)}
           showBack={isChatOpen}
         />

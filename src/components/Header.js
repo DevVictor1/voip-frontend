@@ -1,11 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Phone } from 'lucide-react';
-import { AGENTS, formatAgentLabel } from '../config/agents';
+import { formatAgentLabel } from '../config/agents';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
-const ASSIGNABLE_AGENTS = Object.entries(AGENTS).filter(([agentId]) =>
-  ['agent_1', 'agent_2', 'agent_3'].includes(agentId)
-);
 
 function Header({
   title,
@@ -17,7 +14,8 @@ function Header({
   showBack,
   onCall,
   callLabel,
-  onAssignContact
+  onAssignContact,
+  assignableAgents = [],
 }) {
   const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
   const [assignMenuOpen, setAssignMenuOpen] = useState(false);
@@ -225,7 +223,8 @@ function Header({
 
             {assignMenuOpen && (
               <div className="header-assign-dropdown">
-                {ASSIGNABLE_AGENTS.map(([agentId, agent]) => {
+                {assignableAgents.map((agent) => {
+                  const agentId = agent.agentId;
                   const isCurrentAgent = assignedAgentId === agentId && !chat?.isUnassigned;
 
                   return (
@@ -236,11 +235,16 @@ function Header({
                       onClick={() => handleAssign(agentId)}
                       disabled={assigning}
                     >
-                      <span className="header-assign-option-name">{agent.name}</span>
-                      <span className="header-assign-option-role">{agent.role}</span>
+                      <span className="header-assign-option-name">{agent.name || formatAgentLabel(agentId)}</span>
+                      <span className="header-assign-option-role">{agent.role || agentId}</span>
                     </button>
                   );
                 })}
+                {assignableAgents.length === 0 ? (
+                  <div className="header-assign-option-role" style={{ padding: '12px 14px' }}>
+                    No active assignable users
+                  </div>
+                ) : null}
               </div>
             )}
           </div>

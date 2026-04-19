@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  AGENT_SLOT_GROUPS,
   DEPARTMENT_OPTIONS,
   getDepartmentLabel,
 } from '../config/agents';
@@ -45,12 +44,6 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
   const [success, setSuccess] = useState('');
   const toastType = error ? 'error' : success ? 'success' : '';
   const toastMessage = error || success;
-  const assignedAgentIds = new Set(
-    users
-      .map((user) => user.agentId)
-      .filter(Boolean)
-  );
-
   useEffect(() => {
     if (currentUserRole !== 'admin') {
       setLoading(false);
@@ -375,31 +368,17 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
             </div>
 
             <div style={fieldGroupStyle}>
-              <label style={fieldLabelStyle}>Agent Slot</label>
-              <select
+              <label style={fieldLabelStyle}>Agent ID</label>
+              <input
                 className="numbers-input"
                 style={compactFieldStyle}
                 value={form.agentId}
                 onChange={handleCreateChange('agentId')}
+                placeholder="Stable communication identity"
                 required={form.role === 'agent'}
-              >
-                <option value="">Select IVR / routing slot</option>
-                {Object.entries(AGENT_SLOT_GROUPS).map(([department, options]) => (
-                  <optgroup key={department} label={department}>
-                    {options.map((option) => (
-                      <option
-                        key={option.agentId}
-                        value={option.agentId}
-                        disabled={assignedAgentIds.has(option.agentId)}
-                      >
-                        {assignedAgentIds.has(option.agentId) ? `${option.label} (Assigned)` : option.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+              />
               <div className="text-muted" style={helperTextStyle}>
-                Assign a communication identity for calls and internal messaging. Admin users keep admin access, and a selected slot still maps to the same backend `agentId`.
+                Set the stable communication identity used for calls, messages, and presence. Admin users keep admin access, and uniqueness is still enforced by the backend.
               </div>
             </div>
 
@@ -539,34 +518,16 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                           </div>
                         </div>
                         <div style={fieldGroupStyle}>
-                          <label style={fieldLabelStyle}>Agent Slot</label>
-                          <select
+                          <label style={fieldLabelStyle}>Agent ID</label>
+                          <input
                             className="numbers-input"
                             value={editForm.agentId}
                             onChange={handleEditChange('agentId')}
+                            placeholder="Stable communication identity"
                             required={editForm.role === 'agent'}
-                          >
-                            <option value="">Select IVR / routing slot</option>
-                            {Object.entries(AGENT_SLOT_GROUPS).map(([department, options]) => (
-                              <optgroup key={department} label={department}>
-                                {options.map((option) => {
-                                  const isAssignedElsewhere = assignedAgentIds.has(option.agentId) && option.agentId !== detailUser.agentId;
-
-                                  return (
-                                    <option
-                                      key={option.agentId}
-                                      value={option.agentId}
-                                      disabled={isAssignedElsewhere}
-                                    >
-                                      {isAssignedElsewhere ? `${option.label} (Assigned)` : option.label}
-                                    </option>
-                                  );
-                                })}
-                              </optgroup>
-                            ))}
-                          </select>
+                          />
                           <div className="text-muted" style={helperTextStyle}>
-                            Choose the internal slot tied to IVR, call routing, voice identity, and internal chat presence. Admins can use it too.
+                            This identity is used for call routing, voice registration, and internal chat presence. Admins can use it too.
                           </div>
                         </div>
                         <label style={checkboxStyle}>

@@ -3,6 +3,7 @@ import { stats, calls } from '../data/mockData';
 import AgentStatusList from '../components/AgentStatusList';
 import AgentSelector from '../components/AgentSelector';
 import BASE_URL from '../config/api';
+import { fetchUsersRequest, getStoredAuthToken } from '../services/auth';
 
 function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
   const [statValues, setStatValues] = useState({
@@ -12,6 +13,28 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
     missedCalls: 0
   });
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [agents, setAgents] = useState([]);
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const token = getStoredAuthToken();
+        if (!token) {
+          setAgents([]);
+          return;
+        }
+
+        const payload = await fetchUsersRequest(token);
+        const users = Array.isArray(payload?.users) ? payload.users : [];
+        setAgents(users.filter((user) => user?.isActive !== false && user?.agentId));
+      } catch (error) {
+        console.error('Dashboard users error:', error);
+        setAgents([]);
+      }
+    };
+
+    fetchAgents();
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -90,7 +113,7 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
         </div>
 
         <div className="dashboard-controls">
-          <AgentSelector value={agentId} onChange={onAgentChange} disabled={agentSelectionLocked} />
+          <AgentSelector value={agentId} onChange={onAgentChange} disabled={agentSelectionLocked} agents={agents} />
         </div>
       </div>
 
@@ -105,7 +128,7 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '24px' }}>
-        <AgentStatusList />
+        <AgentStatusList agents={agents} />
       </div>
 
       <div className="section-card">

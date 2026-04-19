@@ -1,8 +1,27 @@
-import { AGENTS, formatAgentLabel, getAgentMeta } from '../config/agents';
+import { AGENTS, formatAgentLabel, getAgentMeta, getDepartmentLabel } from '../config/agents';
 
-function AgentSelector({ value, onChange, disabled = false }) {
-  const agents = Object.keys(AGENTS);
-  const current = getAgentMeta(value);
+const getAgentOptionLabel = (agent) => {
+  const fallbackMeta = getAgentMeta(agent?.agentId);
+  const name = agent?.name || fallbackMeta?.name || agent?.agentId || '';
+  const secondary = getDepartmentLabel(agent?.department)
+    || (agent?.role === 'admin' ? 'Admin' : '')
+    || fallbackMeta?.role
+    || '';
+
+  return secondary ? `${name} [${secondary}]` : name;
+};
+
+function AgentSelector({ value, onChange, disabled = false, agents = [] }) {
+  const dynamicAgents = Array.isArray(agents)
+    ? agents.filter((agent) => Boolean(agent?.agentId))
+    : [];
+  const fallbackAgents = Object.keys(AGENTS).map((agentId) => ({ agentId }));
+  const options = dynamicAgents.length > 0 ? dynamicAgents : fallbackAgents;
+  const selectedAgent = options.find((agent) => agent.agentId === value) || null;
+  const current = selectedAgent || getAgentMeta(value);
+  const currentRole = getDepartmentLabel(selectedAgent?.department)
+    || (selectedAgent?.role === 'admin' ? 'Admin' : selectedAgent?.role)
+    || current.role;
 
   return (
     <label style={wrapper}>
@@ -17,13 +36,15 @@ function AgentSelector({ value, onChange, disabled = false }) {
         disabled={disabled}
         title={disabled ? 'Agent selection is locked' : 'Select agent'}
       >
-        {agents.map((agentId) => (
-          <option key={agentId} value={agentId}>
-            {formatAgentLabel(agentId)} {AGENTS[agentId]?.role ? `[${AGENTS[agentId].role}]` : ''}
+        {options.map((agent) => (
+          <option key={agent.agentId} value={agent.agentId}>
+            {dynamicAgents.length > 0
+              ? getAgentOptionLabel(agent)
+              : `${formatAgentLabel(agent.agentId)} ${AGENTS[agent.agentId]?.role ? `[${AGENTS[agent.agentId].role}]` : ''}`}
           </option>
         ))}
       </select>
-      {current.role ? <span className="agent-badge">{current.role}</span> : null}
+      {currentRole ? <span className="agent-badge">{currentRole}</span> : null}
     </label>
   );
 }
