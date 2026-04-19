@@ -248,6 +248,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   const [contacts, setContacts] = useState([]);
   const [internalChats, setInternalChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
+  const [activeCustomerContactId, setActiveCustomerContactId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [teammates, setTeammates] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -612,20 +613,39 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     filteredList = conversationList.filter((item) => isTeamConversation(item));
   }
 
-  const activeChat = conversationList.find((item) => item.key === activeChatId)
+  const matchedActiveChat = conversationList.find((item) => item.key === activeChatId) || null;
+  const activeChat = matchedActiveChat
     || (activeChatId?.startsWith('customer:')
-      ? {
-          id: activeChatId,
-          conversationType: 'customer',
-          conversationId: activeChatId.replace('customer:', ''),
-          key: activeChatId,
-          title: activeChatId.replace('customer:', ''),
-          name: activeChatId.replace('customer:', ''),
-          phone: activeChatId.replace('customer:', ''),
-          phones: [],
-          isInternal: false,
-          isTeam: false,
-        }
+      ? (() => {
+          const activePhone = activeChatId.replace('customer:', '');
+          const persistedContact = activeCustomerContactId
+            ? contacts.find((contact) => contact?._id === activeCustomerContactId) || null
+            : null;
+          const matchingChat = chats.find((item) => normalize(item.phone) === normalize(activePhone)) || null;
+
+          if (persistedContact) {
+            return normalizeCustomerConversation({
+              contact: persistedContact,
+              chat: {
+                ...(matchingChat || {}),
+                phone: activePhone,
+              },
+            });
+          }
+
+          return {
+            id: activeChatId,
+            conversationType: 'customer',
+            conversationId: activePhone,
+            key: activeChatId,
+            title: activePhone,
+            name: activePhone,
+            phone: activePhone,
+            phones: [],
+            isInternal: false,
+            isTeam: false,
+          };
+        })()
       : null);
   const activeConversationType = activeChat?.conversationType || null;
   const activeConversationId = activeChat?.conversationId || null;
@@ -691,12 +711,13 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
       };
 
       setActiveChatId(buildConversationKey('customer', normalized));
+      setActiveCustomerContactId(activeChat?._id || null);
       markChatRead(nextChat);
     };
 
     window.addEventListener('switchChatNumber', handler);
     return () => window.removeEventListener('switchChatNumber', handler);
-  }, [markChatRead]);
+  }, [activeChat?._id, markChatRead]);
 
   useEffect(() => {
     const handleMessage = (msg) => {
@@ -860,6 +881,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   const handleStartChat = (phone) => {
     const normalized = normalize(phone);
     setActiveChatId(buildConversationKey('customer', normalized));
+    setActiveCustomerContactId(null);
     setMessages([]);
     markChatRead({
       conversationType: 'customer',
@@ -877,6 +899,11 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     );
 
     setActiveChatId(nextKey);
+    setActiveCustomerContactId(
+      (conversation.conversationType || 'customer') === 'customer'
+        ? (conversation._id || null)
+        : null
+    );
     markChatRead(conversation);
   };
 
@@ -943,7 +970,10 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
           messages={messages}
           setMessages={setMessages}
           currentUserId={currentUserId}
-          onSwitchNumber={(num) => setActiveChatId(buildConversationKey('customer', normalize(num)))}
+          onSwitchNumber={(num) => {
+            setActiveChatId(buildConversationKey('customer', normalize(num)));
+            setActiveCustomerContactId(activeChat?._id || null);
+          }}
           onAssignContact={handleAssignContact}
           onUpdateAssignmentStatus={handleUpdateAssignmentStatus}
           assignableAgents={assignableAgents}
