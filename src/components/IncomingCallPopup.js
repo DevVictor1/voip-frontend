@@ -8,6 +8,13 @@ function IncomingCallPopup() {
   const [callState, setCallState] = useState('incoming');
   const [notice, setNotice] = useState(null);
 
+  const closePopup = (nextState = 'ended') => {
+    setCall(null);
+    setContact(null);
+    setCallState(nextState);
+    setNotice(null);
+  };
+
   useEffect(() => {
     const handleIncoming = (data) => {
       console.log('Incoming:', data);
@@ -34,14 +41,15 @@ function IncomingCallPopup() {
   useEffect(() => {
     const handleEnded = () => {
       console.log('Call ended (popup close)');
-      setCall(null);
-      setContact(null);
-      setCallState('ended');
-      setNotice('Call ended');
+      closePopup('ended');
     };
 
     socket.on('callEnded', handleEnded);
-    return () => socket.off('callEnded', handleEnded);
+    window.addEventListener('callEnded', handleEnded);
+    return () => {
+      socket.off('callEnded', handleEnded);
+      window.removeEventListener('callEnded', handleEnded);
+    };
   }, []);
 
   useEffect(() => {
@@ -50,11 +58,17 @@ function IncomingCallPopup() {
       setCallState(nextState);
 
       if (nextState === 'failed') {
-        setNotice('Call failed');
+        closePopup('failed');
+        return;
       }
 
       if (nextState === 'missed') {
-        setNotice('Missed call');
+        closePopup('missed');
+        return;
+      }
+
+      if (nextState === 'ended') {
+        closePopup('ended');
       }
     };
 
