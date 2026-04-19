@@ -58,6 +58,7 @@ function App() {
   const workspaceAgentId = isAuthenticated
     ? (authenticatedAgentId || 'web_user')
     : (agentId || 'web_user');
+  const isVoiceReady = deviceStatus === 'ready';
 
   useEffect(() => {
     let isMounted = true;
@@ -118,10 +119,23 @@ function App() {
     if (!socket || !userId) return;
 
     const registerIdentity = () => {
-      socket.emit('registerUser', userId);
+      socket.emit('registerUser', {
+        userId,
+        status: agentStatus,
+        voiceReady: isVoiceReady,
+      });
       socket.emit('agentStatus', { userId, status: agentStatus });
+      socket.emit('voiceReady', {
+        userId,
+        voiceReady: isVoiceReady,
+        deviceStatus,
+      });
       lastRegisteredSocketIdentityRef.current = userId;
-      console.log('Registered socket user:', userId);
+      console.log('Registered socket user:', userId, {
+        agentStatus,
+        deviceStatus,
+        voiceReady: isVoiceReady,
+      });
     };
 
     const needsReconnect = Boolean(
@@ -133,20 +147,18 @@ function App() {
       socket.disconnect();
     }
 
-    if (!socket.connected) {
-      socket.connect();
-    }
+    socket.on('connect', registerIdentity);
 
     if (socket.connected) {
       registerIdentity();
     } else {
-      socket.once('connect', registerIdentity);
+      socket.connect();
     }
 
     return () => {
       socket.off('connect', registerIdentity);
     };
-  }, [agentStatus, isAuthenticated, workspaceAgentId]);
+  }, [agentStatus, deviceStatus, isAuthenticated, isVoiceReady, workspaceAgentId]);
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;
