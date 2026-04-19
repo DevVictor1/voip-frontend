@@ -3,7 +3,7 @@ import { stats, calls } from '../data/mockData';
 import AgentStatusList from '../components/AgentStatusList';
 import AgentSelector from '../components/AgentSelector';
 import BASE_URL from '../config/api';
-import { fetchUsersRequest, getStoredAuthToken } from '../services/auth';
+import { fetchAgentStatusRequest, fetchUsersRequest, getStoredAuthToken } from '../services/auth';
 
 function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
   const [statValues, setStatValues] = useState({
@@ -14,6 +14,7 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
   });
   const [lastUpdated, setLastUpdated] = useState(null);
   const [agents, setAgents] = useState([]);
+  const [liveAgentState, setLiveAgentState] = useState([]);
 
   useEffect(() => {
     const fetchAgents = async () => {
@@ -34,6 +35,40 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
     };
 
     fetchAgents();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLiveAgentState = async () => {
+      try {
+        const token = getStoredAuthToken();
+        if (!token) {
+          if (isMounted) {
+            setLiveAgentState([]);
+          }
+          return;
+        }
+
+        const payload = await fetchAgentStatusRequest(token);
+        if (isMounted) {
+          setLiveAgentState(Array.isArray(payload?.agentStatus) ? payload.agentStatus : []);
+        }
+      } catch (error) {
+        console.error('Dashboard live agent state error:', error);
+        if (isMounted) {
+          setLiveAgentState([]);
+        }
+      }
+    };
+
+    fetchLiveAgentState();
+    const intervalId = window.setInterval(fetchLiveAgentState, 15000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   useEffect(() => {
@@ -133,6 +168,49 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
 
       <div className="section-card">
         <div className="section-header">
+          <h3 style={{ margin: 0 }}>Live Agent State</h3>
+          <span className="tag">{liveAgentState.length} users</span>
+        </div>
+        {liveAgentState.length === 0 ? (
+          <div className="text-muted">No live communication users found.</div>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Department</th>
+                <th>Agent ID</th>
+                <th>Active</th>
+                <th>Presence</th>
+                <th>Voice</th>
+                <th>Stored Status</th>
+                <th>Calls</th>
+                <th>Assignable</th>
+              </tr>
+            </thead>
+            <tbody>
+              {liveAgentState.map((user) => (
+                <tr key={user.id}>
+                  <td>{user.name || 'Unknown'}</td>
+                  <td>{user.role || 'user'}</td>
+                  <td>{user.department || 'None'}</td>
+                  <td>{user.agentId || 'None'}</td>
+                  <td>{user.isActive ? 'Yes' : 'No'}</td>
+                  <td>{user.connected ? `${formatPresenceStatus(user.presenceStatus)} online` : 'Offline'}</td>
+                  <td>{user.voiceReady ? 'Ready' : 'Not Ready'}</td>
+                  <td>{formatPresenceStatus(user.status)}</td>
+                  <td>{`${user.activeCallCount || 0} / ${user.maxConcurrentCalls || 1}`}</td>
+                  <td>{user.isAssignable ? 'Yes' : 'No'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="section-card">
+        <div className="section-header">
           <h3 style={{ margin: 0 }}>Recent Calls</h3>
           <span className="tag">Realtime</span>
         </div>
@@ -161,6 +239,15 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
       </div>
     </div>
   );
+}
+
+function formatPresenceStatus(status) {
+  if (!status) return 'Offline';
+
+  return String(status)
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 export default Dashboard;

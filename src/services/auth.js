@@ -169,6 +169,23 @@ export const fetchTeammatesRequest = async (token) => {
   return payload;
 };
 
+export const fetchAgentStatusRequest = async (token) => {
+  const response = await fetch(`${BASE_URL}/api/auth/agent-status`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const payload = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to fetch agent status');
+  }
+
+  return payload;
+};
+
 export const createUserRequest = async (token, userData) => {
   const response = await fetch(`${BASE_URL}/api/auth/users`, {
     method: 'POST',
