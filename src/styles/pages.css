@@ -99,6 +99,72 @@
   margin: 0;
 }
 
+.users-directory-header {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.directory-group {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.88), rgba(255, 255, 255, 0.98));
+}
+
+.directory-group-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.directory-group-title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.directory-group-subtitle {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.directory-user-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.directory-user-card {
+  gap: 14px;
+}
+
+.directory-user-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.directory-user-meta {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.directory-user-meta strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.directory-meta-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .user-role {
   color: var(--text-muted);
   font-size: 13px;
@@ -431,6 +497,10 @@
 
   .user-grid {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .directory-user-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   }
 
   .table {

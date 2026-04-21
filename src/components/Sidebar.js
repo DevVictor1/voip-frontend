@@ -6,7 +6,7 @@ const navItems = [
   { label: 'Messages', to: '/messages', icon: MessageSquare, roles: ['admin', 'agent'] },
   { label: 'Calls', to: '/calls', icon: Phone, roles: ['admin', 'agent'] },
   { label: 'Numbers', to: '/numbers', icon: PhoneForwarded, roles: ['admin'] },
-  { label: 'Users', to: '/users', icon: Users, roles: ['admin'] }
+  { label: 'Directory', to: '/users', icon: Users, roles: ['admin'] }
 ];
 
 function Sidebar({ userRole = 'admin', onRoleChange, roleLocked = false }) {
