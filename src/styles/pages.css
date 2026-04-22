@@ -15,29 +15,29 @@
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .stat-card {
   background: var(--surface);
   border-radius: var(--radius-md);
   border: 1px solid rgba(226, 232, 240, 0.88);
-  padding: 16px 18px;
+  padding: 15px 17px;
   display: grid;
-  gap: 6px;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+  gap: 5px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.035);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 .stat-label {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 
 .stat-value {
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 600;
 }
 
@@ -143,19 +143,20 @@
 }
 
 .directory-user-card {
-  gap: 12px;
+  gap: 10px;
   border-radius: 18px;
+  padding: 13px;
 }
 
 .directory-user-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .directory-user-meta {
   display: grid;
-  gap: 10px 12px;
+  gap: 8px 12px;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
@@ -193,7 +194,7 @@
 }
 
 .directory-shell {
-  gap: 18px;
+  gap: 16px;
 }
 
 .directory-shell .tag,
@@ -239,19 +240,73 @@
 }
 
 .directory-card-actions {
-  padding-top: 2px;
+  padding-top: 0;
 }
 
 .directory-create-section {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
+  gap: 12px;
+}
+
+.directory-create-section:not(.is-expanded) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.82));
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.03);
 }
 
 .directory-create-header {
-  margin-bottom: 4px;
+  margin-bottom: 0;
+  gap: 12px;
+}
+
+.directory-create-header-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.directory-create-summary {
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.directory-create-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.directory-collapse-btn {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(255, 255, 255, 0.88);
+  color: #334155;
+  border-radius: 999px;
+  padding: 6px 11px;
+  min-height: 30px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.directory-collapse-btn:hover {
+  border-color: rgba(148, 163, 184, 0.9);
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .directory-create-form {
   gap: 14px;
+}
+
+.directory-create-collapsed {
+  padding-top: 2px;
+}
+
+.directory-create-collapsed-copy {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  max-width: 620px;
 }
 
 .directory-field-group .numbers-input {

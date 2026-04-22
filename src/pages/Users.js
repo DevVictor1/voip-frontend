@@ -42,6 +42,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
   const [deletingId, setDeletingId] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isCreateExpanded, setIsCreateExpanded] = useState(false);
   const toastType = error ? 'error' : success ? 'success' : '';
   const toastMessage = error || success;
   const generatedCreateAgentId = buildAgentIdPreview(form);
@@ -546,110 +547,133 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
         ) : null}
       </div>
 
-      <div className="section-card directory-create-section" style={{ display: 'grid', gap: '16px' }}>
+      <div className={`section-card directory-create-section${isCreateExpanded ? ' is-expanded' : ''}`} style={{ display: 'grid', gap: '16px' }}>
         <div className="section-header directory-create-header">
-          <h3 style={{ margin: 0 }}>Create User</h3>
-          <span className="tag">Admin only</span>
+          <div className="directory-create-header-copy">
+            <h3 style={{ margin: 0 }}>Create User</h3>
+            <div className="text-muted directory-create-summary">
+              Add a new admin or agent without leaving the directory.
+            </div>
+          </div>
+          <div className="directory-create-header-actions">
+            <span className="tag">Admin only</span>
+            <button
+              type="button"
+              className="directory-collapse-btn"
+              onClick={() => setIsCreateExpanded((prev) => !prev)}
+              aria-expanded={isCreateExpanded}
+            >
+              {isCreateExpanded ? 'Hide form' : 'Open form'}
+            </button>
+          </div>
         </div>
 
-        <form className="directory-create-form" onSubmit={handleCreateSubmit} style={createFormStyle}>
-          <div className="directory-create-primary-row" style={createPrimaryRowStyle}>
-            <div className="directory-field-group" style={fieldGroupStyle}>
-              <label style={fieldLabelStyle}>Full Name</label>
-              <input
-                className="numbers-input"
-                style={compactFieldStyle}
-                placeholder="Full name"
-                value={form.name}
-                onChange={handleCreateChange('name')}
-                required
-              />
-            </div>
-            <div className="directory-field-group" style={fieldGroupStyle}>
-              <label style={fieldLabelStyle}>Email</label>
-              <input
-                className="numbers-input"
-                style={compactFieldStyle}
-                type="email"
-                placeholder="Email"
-                value={form.email}
-                onChange={handleCreateChange('email')}
-                required
-              />
-            </div>
-            <div className="directory-field-group" style={fieldGroupStyle}>
-              <label style={fieldLabelStyle}>Password</label>
-              <input
-                className="numbers-input"
-                style={compactFieldStyle}
-                type="password"
-                placeholder="Password"
-                value={form.password}
-                onChange={handleCreateChange('password')}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="directory-create-secondary-row" style={createSecondaryRowStyle}>
-            <div className="directory-field-group" style={fieldGroupStyle}>
-              <label style={fieldLabelStyle}>Role</label>
-              <select className="numbers-input" style={compactFieldStyle} value={form.role} onChange={handleCreateChange('role')}>
-                <option value="agent">Agent</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-
-            <div className="directory-field-group" style={fieldGroupStyle}>
-              <label style={fieldLabelStyle}>Department</label>
-              <select
-                className="numbers-input"
-                style={compactFieldStyle}
-                value={form.department}
-                onChange={handleCreateChange('department')}
-              >
-                <option value="">No department assigned</option>
-                {DEPARTMENT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-              <div className="text-muted" style={helperTextStyle}>
-                Department is the business team the user belongs to. Admins and agents can both be assigned here while keeping their existing permissions.
+        {isCreateExpanded ? (
+          <form className="directory-create-form" onSubmit={handleCreateSubmit} style={createFormStyle}>
+            <div className="directory-create-primary-row" style={createPrimaryRowStyle}>
+              <div className="directory-field-group" style={fieldGroupStyle}>
+                <label style={fieldLabelStyle}>Full Name</label>
+                <input
+                  className="numbers-input"
+                  style={compactFieldStyle}
+                  placeholder="Full name"
+                  value={form.name}
+                  onChange={handleCreateChange('name')}
+                  required
+                />
+              </div>
+              <div className="directory-field-group" style={fieldGroupStyle}>
+                <label style={fieldLabelStyle}>Email</label>
+                <input
+                  className="numbers-input"
+                  style={compactFieldStyle}
+                  type="email"
+                  placeholder="Email"
+                  value={form.email}
+                  onChange={handleCreateChange('email')}
+                  required
+                />
+              </div>
+              <div className="directory-field-group" style={fieldGroupStyle}>
+                <label style={fieldLabelStyle}>Password</label>
+                <input
+                  className="numbers-input"
+                  style={compactFieldStyle}
+                  type="password"
+                  placeholder="Password"
+                  value={form.password}
+                  onChange={handleCreateChange('password')}
+                  required
+                />
               </div>
             </div>
 
-            <div className="directory-field-group" style={fieldGroupStyle}>
-              <label style={fieldLabelStyle}>Agent ID</label>
-              <input
-                className="numbers-input"
-                style={{
-                  ...compactFieldStyle,
-                  ...readOnlyFieldStyle,
-                }}
-                value={generatedCreateAgentId}
-                readOnly
-                placeholder="Generated from name and department"
-              />
-              <div className="text-muted" style={helperTextStyle}>
-                Generated automatically for calls, messaging, routing, and presence. The backend keeps it unique and may append a suffix like <code>_2</code> if needed.
+            <div className="directory-create-secondary-row" style={createSecondaryRowStyle}>
+              <div className="directory-field-group" style={fieldGroupStyle}>
+                <label style={fieldLabelStyle}>Role</label>
+                <select className="numbers-input" style={compactFieldStyle} value={form.role} onChange={handleCreateChange('role')}>
+                  <option value="agent">Agent</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div className="directory-field-group" style={fieldGroupStyle}>
+                <label style={fieldLabelStyle}>Department</label>
+                <select
+                  className="numbers-input"
+                  style={compactFieldStyle}
+                  value={form.department}
+                  onChange={handleCreateChange('department')}
+                >
+                  <option value="">No department assigned</option>
+                  {DEPARTMENT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <div className="text-muted" style={helperTextStyle}>
+                  Department is the business team the user belongs to. Admins and agents can both be assigned here while keeping their existing permissions.
+                </div>
+              </div>
+
+              <div className="directory-field-group" style={fieldGroupStyle}>
+                <label style={fieldLabelStyle}>Agent ID</label>
+                <input
+                  className="numbers-input"
+                  style={{
+                    ...compactFieldStyle,
+                    ...readOnlyFieldStyle,
+                  }}
+                  value={generatedCreateAgentId}
+                  readOnly
+                  placeholder="Generated from name and department"
+                />
+                <div className="text-muted" style={helperTextStyle}>
+                  Generated automatically for calls, messaging, routing, and presence. The backend keeps it unique and may append a suffix like <code>_2</code> if needed.
+                </div>
+              </div>
+
+              <div className="directory-checkbox-field" style={checkboxFieldStyle}>
+                <label style={fieldLabelStyle}>Status</label>
+                <label style={createCheckboxStyle}>
+                  <input type="checkbox" checked={form.isActive} onChange={handleCreateChange('isActive')} />
+                  <span>Active user</span>
+                </label>
+              </div>
+
+              <div className="directory-create-button-wrap" style={createButtonWrapStyle}>
+                <button className="numbers-primary-btn" style={createButtonStyle} type="submit" disabled={saving}>
+                  {saving ? 'Creating...' : 'Create User'}
+                </button>
               </div>
             </div>
-
-            <div className="directory-checkbox-field" style={checkboxFieldStyle}>
-              <label style={fieldLabelStyle}>Status</label>
-              <label style={createCheckboxStyle}>
-                <input type="checkbox" checked={form.isActive} onChange={handleCreateChange('isActive')} />
-                <span>Active user</span>
-              </label>
-            </div>
-
-            <div className="directory-create-button-wrap" style={createButtonWrapStyle}>
-              <button className="numbers-primary-btn" style={createButtonStyle} type="submit" disabled={saving}>
-                {saving ? 'Creating...' : 'Create User'}
-              </button>
+          </form>
+        ) : (
+          <div className="directory-create-collapsed">
+            <div className="directory-create-collapsed-copy">
+              Keep user creation available on this page while letting the team directory stay visually primary.
             </div>
           </div>
-        </form>
+        )}
 
       </div>
     </div>
