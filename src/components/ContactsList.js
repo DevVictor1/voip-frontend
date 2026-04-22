@@ -85,6 +85,12 @@ function ContactsList({
     return `assignment-badge${item.isUnassigned ? ' is-unassigned' : ''}`;
   };
 
+  const getIdentityClassName = (item) => {
+    if (item.conversationType === 'team') return 'conversation-dot is-team';
+    if (item.conversationType === 'internal_dm') return 'conversation-dot is-internal';
+    return 'conversation-dot is-customer';
+  };
+
   const handleDelete = async (id, e) => {
     e.stopPropagation();
 
@@ -129,8 +135,11 @@ function ContactsList({
             <div className="contact-row contact-row-top">
               <div className="contact-main">
                 <div className="contact-name-row">
-                  <div className="contact-name">
-                    {displayName}
+                  <div className="contact-name-wrap">
+                    <span className={getIdentityClassName(item)} aria-hidden="true" />
+                    <div className="contact-name">
+                      {displayName}
+                    </div>
                   </div>
                   {timestamp ? (
                     <div className={`contact-time${hasUnread ? ' is-unread' : ''}`}>
