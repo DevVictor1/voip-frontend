@@ -4,7 +4,7 @@ import ChatWindow from '../components/ChatWindow';
 import NewMessageModal from '../components/NewMessageModal';
 import socket from '../socket';
 import BASE_URL from '../config/api';
-import { Plus } from 'lucide-react';
+import { MoreHorizontal, Plus, Search } from 'lucide-react';
 import { getAgentMeta, getDepartmentLabel } from '../config/agents';
 import {
   fetchTeammatesRequest,
@@ -69,6 +69,30 @@ const isDirectoryOnlyCustomer = (conversation) => (
   && !conversation?.lastMessage
   && !hasUnreadConversation(conversation)
 );
+
+const matchesConversationSearch = (conversation, query) => {
+  const normalizedQuery = String(query || '').trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  const haystack = [
+    conversation?.name,
+    conversation?.title,
+    conversation?.teamName,
+    conversation?.phone,
+    conversation?.agentId,
+    conversation?.lastMessage,
+    conversation?.previewFallback,
+    conversation?.dba,
+    conversation?.role,
+    conversation?.subtitle,
+    conversation?.conversationId,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  return haystack.includes(normalizedQuery);
+};
 
 const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
   const phones = contact?.phones || [];
@@ -253,6 +277,9 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   const [startingDirectChat, setStartingDirectChat] = useState(false);
   const [activeSection, setActiveSection] = useState('customers');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
+  const [showImportTools, setShowImportTools] = useState(false);
 
   const currentRole = providedRole || getEffectiveRole();
   const currentUserId = providedUserId || getEffectiveAgentId() || 'agent_1';
@@ -618,6 +645,10 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     );
   }
 
+  if (searchQuery.trim()) {
+    filteredList = filteredList.filter((item) => matchesConversationSearch(item, searchQuery));
+  }
+
   const matchedActiveChat = conversationList.find((item) => item.key === activeChatId) || null;
   const activeChat = matchedActiveChat
     || (activeChatId?.startsWith('customer:')
@@ -963,33 +994,72 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
           </button>
         </div>
 
-        <div className="messages-filters">
-          <button
-            onClick={() => setShowUnreadOnly((prev) => !prev)}
-            className={`messages-filter-btn${showUnreadOnly ? ' is-active' : ''}`}
-            type="button"
-          >
-            Unread only {unreadCount > 0 ? `(${unreadCount})` : ''}
-          </button>
-        </div>
+        <div className="messages-toolbar">
+          <label className="messages-search" htmlFor="messages-search">
+            <Search size={15} />
+            <input
+              id="messages-search"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search conversations"
+            />
+          </label>
 
-        <div className="messages-actions">
-          <button
-            onClick={() => setShowModal(true)}
-            className="messages-new-button"
-            type="button"
-          >
-            <Plus size={16} />
-            New Message
-          </button>
+          <div className="messages-toolbar-actions">
+            <button
+              onClick={() => setShowModal(true)}
+              className="messages-new-button"
+              type="button"
+            >
+              <Plus size={16} />
+              New Message
+            </button>
 
-          <button
-            onClick={() => setShowTeammatePicker(true)}
-            className="messages-secondary-button"
-            type="button"
-          >
-            Message Teammate
-          </button>
+            <div className="messages-tools-menu">
+              <button
+                type="button"
+                className={`messages-tools-trigger${showToolsMenu ? ' is-open' : ''}`}
+                onClick={() => setShowToolsMenu((prev) => !prev)}
+                aria-expanded={showToolsMenu}
+              >
+                <MoreHorizontal size={16} />
+                More
+              </button>
+
+              {showToolsMenu ? (
+                <div className="messages-tools-dropdown">
+                  <button
+                    onClick={() => {
+                      setShowUnreadOnly((prev) => !prev);
+                      setShowToolsMenu(false);
+                    }}
+                    className={`messages-tools-option${showUnreadOnly ? ' is-active' : ''}`}
+                    type="button"
+                  >
+                    Unread only {unreadCount > 0 ? `(${unreadCount})` : ''}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowTeammatePicker(true);
+                      setShowToolsMenu(false);
+                    }}
+                    className="messages-tools-option"
+                    type="button"
+                  >
+                    Message Teammate
+                  </button>
+                  <button
+                    onClick={() => setShowImportTools((prev) => !prev)}
+                    className={`messages-tools-option${showImportTools ? ' is-active' : ''}`}
+                    type="button"
+                  >
+                    {showImportTools ? 'Hide Import Contacts' : 'Import Contacts'}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
 
         <ContactsList
@@ -999,6 +1069,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
           onSelect={handleSelectChat}
           activeSection={activeSection}
           showUnreadOnly={showUnreadOnly}
+          showImportTools={showImportTools}
         />
       </div>
 

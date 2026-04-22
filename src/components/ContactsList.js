@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import ImportContacts from './ImportContacts';
 import { X } from 'lucide-react';
 import BASE_URL from '../config/api';
@@ -12,8 +11,8 @@ function ContactsList({
   onSelect,
   activeSection = 'customers',
   showUnreadOnly = false,
+  showImportTools = false,
 }) {
-  const [showImportTools, setShowImportTools] = useState(false);
   const getSectionTitle = () => {
     if (activeSection === 'internal') return 'Internal Chat';
     if (activeSection === 'teams') return 'Internal Teams';
@@ -186,20 +185,13 @@ function ContactsList({
         </div>
       </div>
 
-      <div className="contacts-import">
-        <button
-          type="button"
-          className={`contacts-import-toggle${showImportTools ? ' is-open' : ''}`}
-          onClick={() => setShowImportTools((prev) => !prev)}
-        >
-          {showImportTools ? 'Hide import' : 'Import contacts'}
-        </button>
-        {showImportTools ? (
+      {showImportTools ? (
+        <div className="contacts-import">
           <div className="contacts-import-panel">
             <ImportContacts onImportSuccess={() => window.location.reload()} />
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <div className="contacts-scroll">
         {list.length > 0 ? (
