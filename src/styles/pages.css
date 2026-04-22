@@ -1191,18 +1191,20 @@
 }
 
 .messages-toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px 6px;
+  gap: 12px;
+  padding: 6px 8px 8px;
 }
 
 .messages-search {
-  flex: 1 1 auto;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 38px;
+  width: 100%;
+  min-height: 40px;
   padding: 0 12px;
   border-radius: 999px;
   border: 1px solid rgba(226, 232, 240, 0.92);
@@ -1230,16 +1232,20 @@
 .messages-toolbar-actions {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px;
+  gap: 8px;
+  padding: 4px 5px;
   border-radius: 14px;
   border: 1px solid rgba(226, 232, 240, 0.82);
   background: rgba(248, 250, 252, 0.76);
   flex-shrink: 0;
+  flex-wrap: nowrap;
+  justify-self: end;
+  min-width: max-content;
 }
 
 .messages-filter-btn {
-  padding: 6px 10px;
+  min-height: 36px;
+  padding: 6px 11px;
   border-radius: 10px;
   border: 1px solid transparent;
   cursor: pointer;
@@ -1255,7 +1261,8 @@
 }
 
 .messages-new-button {
-  padding: 6px 10px;
+  min-height: 36px;
+  padding: 6px 12px;
   background: rgba(37, 99, 235, 0.92);
   color: #fff;
   border: none;
@@ -1282,7 +1289,8 @@
 }
 
 .messages-tools-trigger {
-  padding: 6px 10px;
+  min-height: 36px;
+  padding: 6px 11px;
   background: rgba(255, 255, 255, 0.82);
   color: #334155;
   border: 1px solid rgba(219, 227, 240, 0.84);
@@ -1301,6 +1309,21 @@
 .messages-tools-trigger:hover {
   background: rgba(255, 255, 255, 0.98);
   border-color: #cbd5e1;
+}
+
+@media (max-width: 1100px) {
+  .messages-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .messages-toolbar-actions {
+    justify-self: stretch;
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }
 
 .messages-tools-dropdown {
