@@ -4,9 +4,33 @@ import BASE_URL from '../config/api';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
-function ContactsList({ list, activeId, activeContactId = null, onSelect }) {
-  const conversationItems = list.filter((item) => item.conversationType !== 'team');
-  const teamItems = list.filter((item) => item.conversationType === 'team');
+function ContactsList({
+  list,
+  activeId,
+  activeContactId = null,
+  onSelect,
+  activeSection = 'customers',
+  showUnreadOnly = false,
+}) {
+  const getSectionTitle = () => {
+    if (activeSection === 'internal') return 'Internal Chat';
+    if (activeSection === 'teams') return 'Internal Teams';
+    return 'Customers / SMS';
+  };
+
+  const formatTimestamp = (value) => {
+    if (!value) return '';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+
+    const now = new Date();
+    const isSameDay = date.toDateString() === now.toDateString();
+
+    return isSameDay
+      ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
 
   const getDisplayName = (item) => {
     if (item.conversationType === 'team') {
@@ -81,6 +105,8 @@ function ContactsList({ list, activeId, activeContactId = null, onSelect }) {
       const hasUnread = item.unread > 0;
       const displayName = getDisplayName(item);
       const secondaryLine = getSecondaryLine(item, activePhone);
+      const preview = item.lastMessage || item.previewFallback || 'No messages yet';
+      const timestamp = formatTimestamp(item.lastMessageAt || item.updatedAt);
 
       return (
         <div
@@ -100,8 +126,15 @@ function ContactsList({ list, activeId, activeContactId = null, onSelect }) {
           <div className="contact-card-body">
             <div className="contact-row contact-row-top">
               <div className="contact-main">
-                <div className="contact-name">
-                  {displayName}
+                <div className="contact-name-row">
+                  <div className="contact-name">
+                    {displayName}
+                  </div>
+                  {timestamp ? (
+                    <div className={`contact-time${hasUnread ? ' is-unread' : ''}`}>
+                      {timestamp}
+                    </div>
+                  ) : null}
                 </div>
                 {secondaryLine && (
                   <div className="contact-meta">
@@ -109,19 +142,20 @@ function ContactsList({ list, activeId, activeContactId = null, onSelect }) {
                   </div>
                 )}
               </div>
+            </div>
 
+            <div className="contact-row contact-row-bottom">
+              <div className={`contact-preview${hasUnread ? ' is-unread' : ''}`}>
+                {preview}
+              </div>
               <div className="contact-indicators">
-                {hasUnread && (
-                  <span className="unread-badge">{item.unread}</span>
-                )}
                 <span className={getBadgeClassName(item)}>
                   {getBadgeLabel(item)}
                 </span>
+                {hasUnread && (
+                  <span className="unread-badge">{item.unread}</span>
+                )}
               </div>
-            </div>
-
-            <div className={`contact-preview${hasUnread ? ' is-unread' : ''}`}>
-              {item.lastMessage || item.previewFallback || 'No messages yet'}
             </div>
           </div>
         </div>
@@ -132,7 +166,12 @@ function ContactsList({ list, activeId, activeContactId = null, onSelect }) {
   return (
     <div className="contacts-wrapper">
       <div className="contacts-header">
-        <h3>Inbox</h3>
+        <div>
+          <h3>{getSectionTitle()}</h3>
+          <div className="contacts-header-subtitle">
+            {showUnreadOnly ? 'Unread threads only' : 'Most recent conversations first'}
+          </div>
+        </div>
         <span>{list.length} total</span>
       </div>
 
@@ -141,17 +180,21 @@ function ContactsList({ list, activeId, activeContactId = null, onSelect }) {
       </div>
 
       <div className="contacts-scroll">
-        {conversationItems.length > 0 && (
+        {list.length > 0 ? (
           <div className="contacts-section">
-            <div className="contacts-section-title">Conversations ({conversationItems.length})</div>
-            {renderItems(conversationItems)}
+            <div className="contacts-section-title">{getSectionTitle()}</div>
+            {renderItems(list)}
           </div>
-        )}
-
-        {teamItems.length > 0 && (
-          <div className="contacts-section">
-            <div className="contacts-section-title">Teams ({teamItems.length})</div>
-            {renderItems(teamItems)}
+        ) : (
+          <div className="empty-state contacts-empty-state">
+            <div className="empty-title">No conversations here yet</div>
+            <div className="empty-subtitle">
+              {activeSection === 'customers'
+                ? 'Imported contacts and SMS threads will appear in this panel.'
+                : activeSection === 'internal'
+                  ? 'Direct teammate chats will appear here once opened.'
+                  : 'Team channels will appear here when available.'}
+            </div>
           </div>
         )}
       </div>

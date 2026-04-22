@@ -254,7 +254,8 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   const [showModal, setShowModal] = useState(false);
   const [showTeammatePicker, setShowTeammatePicker] = useState(false);
   const [startingDirectChat, setStartingDirectChat] = useState(false);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeSection, setActiveSection] = useState('customers');
+  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
   const currentRole = providedRole || getEffectiveRole();
   const currentUserId = providedUserId || getEffectiveAgentId() || 'agent_1';
@@ -579,7 +580,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
         previewFallback: `Message ${otherAgent.name}`,
       });
 
-      setActiveTab('all');
+      setActiveSection('internal');
       setActiveChatId(buildConversationKey('internal_dm', conversation.conversationId));
       setMessages([]);
       setShowTeammatePicker(false);
@@ -600,17 +601,24 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   });
 
   const unreadCount = conversationList.filter(hasUnreadConversation).length;
-  const allCount = conversationList.length;
+  const customerCount = conversationList.filter((item) => item.conversationType === 'customer').length;
+  const internalDmCount = conversationList.filter((item) => item.conversationType === 'internal_dm').length;
   const teamCount = conversationList.filter((item) => isTeamConversation(item)).length;
 
   let filteredList = conversationList;
 
-  if (activeTab === 'unread') {
-    filteredList = conversationList.filter(
+  if (activeSection === 'customers') {
+    filteredList = conversationList.filter((item) => item.conversationType === 'customer');
+  } else if (activeSection === 'internal') {
+    filteredList = conversationList.filter((item) => item.conversationType === 'internal_dm');
+  } else if (activeSection === 'teams') {
+    filteredList = conversationList.filter((item) => isTeamConversation(item));
+  }
+
+  if (showUnreadOnly) {
+    filteredList = filteredList.filter(
       (item) => !isDirectoryOnlyCustomer(item) && hasUnreadConversation(item)
     );
-  } else if (activeTab === 'team') {
-    filteredList = conversationList.filter((item) => isTeamConversation(item));
   }
 
   const matchedActiveChat = conversationList.find((item) => item.key === activeChatId) || null;
@@ -880,6 +888,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
 
   const handleStartChat = (phone) => {
     const normalized = normalize(phone);
+    setActiveSection('customers');
     setActiveChatId(buildConversationKey('customer', normalized));
     setActiveCustomerContactId(null);
     setMessages([]);
@@ -898,6 +907,14 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
       conversation.conversationId || conversation.phone
     );
 
+    if ((conversation.conversationType || 'customer') === 'customer') {
+      setActiveSection('customers');
+    } else if ((conversation.conversationType || '') === 'internal_dm') {
+      setActiveSection('internal');
+    } else if (isTeamConversation(conversation)) {
+      setActiveSection('teams');
+    }
+
     setActiveChatId(nextKey);
     setActiveCustomerContactId(
       (conversation.conversationType || 'customer') === 'customer'
@@ -912,29 +929,55 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   return (
     <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}`}>
       <div className="messages-contacts-pane">
+        <div className="messages-panel-header">
+          <div>
+            <h1 className="page-title">Messages</h1>
+            <div className="page-subtitle">
+              Customer SMS, internal teammate chat, and team channels in one organized workspace.
+            </div>
+          </div>
+          <div className="messages-overview-badges">
+            <span className="tag">{conversationList.length} threads</span>
+            <span className="tag">{unreadCount} unread</span>
+          </div>
+        </div>
+
+        <div className="messages-sections">
+          <button
+            onClick={() => setActiveSection('customers')}
+            className={`messages-section-btn${activeSection === 'customers' ? ' is-active' : ''}`}
+            type="button"
+          >
+            <span className="messages-section-label">Customers / SMS</span>
+            <span className="messages-section-count">{customerCount}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSection('internal')}
+            className={`messages-section-btn${activeSection === 'internal' ? ' is-active' : ''}`}
+            type="button"
+          >
+            <span className="messages-section-label">Internal Chat</span>
+            <span className="messages-section-count">{internalDmCount}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSection('teams')}
+            className={`messages-section-btn${activeSection === 'teams' ? ' is-active' : ''}`}
+            type="button"
+          >
+            <span className="messages-section-label">Internal Teams</span>
+            <span className="messages-section-count">{teamCount}</span>
+          </button>
+        </div>
+
         <div className="messages-filters">
           <button
-            onClick={() => setActiveTab('all')}
-            className={`messages-filter-btn${activeTab === 'all' ? ' is-active' : ''}`}
+            onClick={() => setShowUnreadOnly((prev) => !prev)}
+            className={`messages-filter-btn${showUnreadOnly ? ' is-active' : ''}`}
             type="button"
           >
-            All ({allCount})
-          </button>
-
-          <button
-            onClick={() => setActiveTab('unread')}
-            className={`messages-filter-btn${activeTab === 'unread' ? ' is-active' : ''}`}
-            type="button"
-          >
-            Unread ({unreadCount})
-          </button>
-
-          <button
-            onClick={() => setActiveTab('team')}
-            className={`messages-filter-btn${activeTab === 'team' ? ' is-active' : ''}`}
-            type="button"
-          >
-            Team ({teamCount})
+            Unread only {unreadCount > 0 ? `(${unreadCount})` : ''}
           </button>
         </div>
 
@@ -962,6 +1005,8 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
           activeId={activeChatId}
           activeContactId={activeChat?.conversationType === 'customer' ? (activeChat?._id || activeCustomerContactId) : null}
           onSelect={handleSelectChat}
+          activeSection={activeSection}
+          showUnreadOnly={showUnreadOnly}
         />
       </div>
 

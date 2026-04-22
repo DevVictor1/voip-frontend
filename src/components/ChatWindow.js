@@ -197,9 +197,12 @@ function ChatWindow({
   if (!chat) {
     return (
       <div className="panel chat-window">
-        <div className="message-list">
-          <div className="empty-state">
+        <div className="chat-window-empty">
+          <div className="empty-state chat-window-empty-card">
             <div className="empty-title">Select a conversation</div>
+            <div className="empty-subtitle">
+              Open a customer thread, teammate chat, or team channel to continue messaging.
+            </div>
           </div>
         </div>
       </div>
@@ -282,7 +285,7 @@ function ChatWindow({
   };
 
   return (
-    <div className="panel chat-window">
+    <div className="panel chat-window chat-window-shell">
       <Header
         title={displayName}
         status={isCustomerChat ? 'Active' : (chat.conversationType === 'team' ? 'Team Chat' : 'Internal Chat')}
@@ -299,6 +302,7 @@ function ChatWindow({
       />
 
       <div className="chat-messages-container">
+        <div className="chat-thread-backdrop" />
         <div className="message-list">
           {mergedTimeline.map((item, index) => {
             if (item.type === 'message') {
@@ -310,30 +314,21 @@ function ChatWindow({
             return (
               <div
                 key={item._id || item.sid || index}
-                style={{
-                  display: 'flex',
-                  justifyContent: isOutbound ? 'flex-end' : 'flex-start',
-                  padding: '4px 10px'
-                }}
+                className={`call-event-row ${isOutbound ? 'outbound' : 'inbound'}`}
               >
-                <div
-                  style={{
-                    maxWidth: '65%',
-                    background: isOutbound ? '#1d9bf0' : '#1e1e1e',
-                    color: '#fff',
-                    borderRadius: '12px',
-                    padding: '10px',
-                    fontSize: '13px'
-                  }}
-                >
-                  <div style={{ marginBottom: '6px', opacity: 0.8 }}>
-                    <Phone size={14} style={{ marginRight: '5px' }} />
+                <div className={`call-event-card ${isOutbound ? 'outbound' : 'inbound'}`}>
+                  <div className="call-event-title">
+                    <span className="call-event-icon">
+                      <Phone size={14} />
+                    </span>
+                    <span>
                     Call {item.status}
                     {item.duration ? ` - ${item.duration}s` : ''}
+                    </span>
                   </div>
 
                   {item.recordingSid && (
-                    <audio controls style={{ width: '200px', height: '32px' }}>
+                    <audio controls className="call-event-audio">
                       <source
                         src={`${process.env.REACT_APP_API_URL}/api/recordings/${item.recordingSid}`}
                         type="audio/mpeg"
