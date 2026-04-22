@@ -1030,9 +1030,10 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
                 className={`messages-tools-trigger${showToolsMenu ? ' is-open' : ''}`}
                 onClick={() => setShowToolsMenu((prev) => !prev)}
                 aria-expanded={showToolsMenu}
+                aria-label="More actions"
               >
                 <MoreHorizontal size={16} />
-                More
+                <span className="messages-tools-label">More</span>
               </button>
 
               {showToolsMenu ? (
