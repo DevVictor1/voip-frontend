@@ -31,10 +31,6 @@ const normalizeUnreadCount = (value) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 };
 
-const isTeamConversation = (conversation) => (
-  conversation?.conversationType === 'team' || conversation?.type === 'team'
-);
-
 const getCustomerMessagePhone = (message) => normalize(
   message?.conversationId || message?.from || message?.to || ''
 );
@@ -110,6 +106,7 @@ const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
     key: buildConversationKey('customer', conversationId),
     conversationId,
     conversationType: 'customer',
+    type: 'customer',
     title,
     subtitle,
     name: title,
@@ -603,7 +600,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   const unreadCount = conversationList.filter(hasUnreadConversation).length;
   const customerCount = conversationList.filter((item) => item.conversationType === 'customer').length;
   const internalDmCount = conversationList.filter((item) => item.conversationType === 'internal_dm').length;
-  const teamCount = conversationList.filter((item) => isTeamConversation(item)).length;
+  const teamCount = conversationList.filter((item) => item.conversationType === 'team').length;
 
   let filteredList = conversationList;
 
@@ -612,7 +609,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   } else if (activeSection === 'internal') {
     filteredList = conversationList.filter((item) => item.conversationType === 'internal_dm');
   } else if (activeSection === 'teams') {
-    filteredList = conversationList.filter((item) => isTeamConversation(item));
+    filteredList = conversationList.filter((item) => item.conversationType === 'team');
   }
 
   if (showUnreadOnly) {
@@ -911,7 +908,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
       setActiveSection('customers');
     } else if ((conversation.conversationType || '') === 'internal_dm') {
       setActiveSection('internal');
-    } else if (isTeamConversation(conversation)) {
+    } else if ((conversation.conversationType || '') === 'team') {
       setActiveSection('teams');
     }
 
