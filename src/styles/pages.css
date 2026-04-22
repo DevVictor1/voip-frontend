@@ -657,6 +657,7 @@
 .contacts-wrapper {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   height: 100%;
   min-height: 0;
   padding: 0;
@@ -1170,6 +1171,8 @@
   flex: 0 0 344px;
   min-width: 300px;
   max-width: 356px;
+  height: 100%;
+  overflow: hidden;
 }
 
 .messages-chat-pane {
