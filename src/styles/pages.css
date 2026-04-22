@@ -21,12 +21,12 @@
 .stat-card {
   background: var(--surface);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  padding: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.88);
+  padding: 16px 18px;
   display: grid;
-  gap: 8px;
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  gap: 6px;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 .stat-label {
@@ -37,16 +37,16 @@
 }
 
 .stat-value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
 }
 
 .section-card {
   background: var(--surface);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  padding: 20px;
-  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(226, 232, 240, 0.88);
+  padding: 18px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.045);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -81,18 +81,24 @@
 .user-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .user-card {
   background: var(--surface);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  padding: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.86);
+  padding: 14px;
   display: grid;
-  gap: 10px;
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  gap: 9px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.035);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.user-card:hover {
+  border-color: rgba(203, 213, 225, 0.96);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+  transform: translateY(-1px);
 }
 
 .user-card h4 {
@@ -106,11 +112,11 @@
 
 .directory-group {
   display: grid;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0.88), rgba(255, 255, 255, 0.98));
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(226, 232, 240, 0.82);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.72), rgba(255, 255, 255, 0.98));
 }
 
 .directory-group-header {
@@ -123,6 +129,7 @@
 .directory-group-title {
   margin: 0;
   font-size: 16px;
+  letter-spacing: -0.01em;
 }
 
 .directory-group-subtitle {
@@ -136,38 +143,139 @@
 }
 
 .directory-user-card {
-  gap: 14px;
+  gap: 12px;
+  border-radius: 18px;
 }
 
 .directory-user-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .directory-user-meta {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px 12px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .directory-user-meta strong {
   color: var(--text-primary);
   font-size: 14px;
+  line-height: 1.35;
 }
 
 .directory-meta-label {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
   color: var(--text-muted);
-  font-size: 11px;
-  letter-spacing: 0.06em;
+  font-size: 10px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.directory-meta-item {
+  display: grid;
+  gap: 1px;
 }
 
 .user-role {
   color: var(--text-muted);
   font-size: 13px;
+}
+
+.directory-page .stats-grid {
+  gap: 14px;
+}
+
+.directory-hero .page-subtitle {
+  max-width: 900px;
+}
+
+.directory-shell {
+  gap: 18px;
+}
+
+.directory-shell .tag,
+.directory-create-section .tag,
+.directory-detail-shell .tag {
+  padding: 4px 10px;
+  font-size: 11px;
+  background: rgba(241, 245, 249, 0.8);
+  color: #334155;
+  border: 1px solid rgba(226, 232, 240, 0.86);
+}
+
+.directory-user-identity {
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.directory-avatar-circle {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  font-weight: 700;
+}
+
+.directory-identity-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.directory-identity-copy h4 {
+  font-size: 15px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.directory-user-email {
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.directory-card-actions {
+  padding-top: 2px;
+}
+
+.directory-create-section {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
+}
+
+.directory-create-header {
+  margin-bottom: 4px;
+}
+
+.directory-create-form {
+  gap: 14px;
+}
+
+.directory-field-group .numbers-input {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.directory-create-button-wrap {
+  align-items: end;
+}
+
+.directory-detail-shell {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+}
+
+.directory-detail-header {
+  margin-bottom: 0;
+}
+
+.directory-detail-meta-wrap {
+  gap: 8px;
+}
+
+.directory-detail-meta {
+  color: var(--text-muted);
 }
 
 .call-logs-page {

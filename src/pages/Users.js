@@ -274,7 +274,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
 
   if (currentUserRole !== 'admin') {
     return (
-      <div style={{ display: 'grid', gap: '24px' }}>
+      <div className="directory-page" style={{ display: 'grid', gap: '24px' }}>
         <div>
           <h1 className="page-title">Users</h1>
           <div className="page-subtitle">
@@ -286,14 +286,14 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
   }
 
   return (
-    <div style={{ display: 'grid', gap: '24px' }}>
+    <div className="directory-page" style={{ display: 'grid', gap: '24px' }}>
       {toastMessage ? (
         <div className={`numbers-toast numbers-toast-${toastType}`}>
           {toastMessage}
         </div>
       ) : null}
 
-      <div>
+      <div className="directory-hero">
         <h1 className="page-title">Directory</h1>
         <div className="page-subtitle">
           Review every teammate by department, role, status, and communication identity while keeping user management in place.
@@ -323,7 +323,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
         </div>
       </div>
 
-      <div className="section-card" style={{ display: 'grid', gap: '20px' }}>
+      <div className="section-card directory-shell" style={{ display: 'grid', gap: '20px' }}>
         <div className="section-header users-directory-header">
           <div>
             <h3 style={{ margin: 0 }}>Team Directory</h3>
@@ -355,8 +355,8 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                 <div className="user-grid directory-user-grid">
                   {group.users.map((user) => (
                     <div key={user.id} className="user-card directory-user-card" style={selectedUserId === user.id ? activeCardStyle : undefined}>
-                      <div className="avatar-stack">
-                        <div className="avatar-circle">
+                      <div className="avatar-stack directory-user-identity">
+                        <div className="avatar-circle directory-avatar-circle">
                           {String(user.name || '?')
                             .split(' ')
                             .filter(Boolean)
@@ -364,7 +364,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                             .join('')
                             .slice(0, 2)}
                         </div>
-                        <div>
+                        <div className="directory-identity-copy">
                           <h4>{user.name}</h4>
                           <div className="user-role">{formatRole(user.role)}</div>
                         </div>
@@ -375,28 +375,28 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                         <span className="tag">{getDepartmentLabel(user.department) || group.label}</span>
                       </div>
 
-                      <div className="text-muted">{user.email}</div>
+                      <div className="text-muted directory-user-email">{user.email}</div>
 
                       <div className="directory-user-meta">
-                        <div>
+                        <div className="directory-meta-item">
                           <span className="directory-meta-label">Role</span>
                           <strong>{formatRole(user.role)}</strong>
                         </div>
-                        <div>
+                        <div className="directory-meta-item">
                           <span className="directory-meta-label">Department</span>
                           <strong>{getDepartmentLabel(user.department) || 'Unassigned / Global'}</strong>
                         </div>
-                        <div>
+                        <div className="directory-meta-item">
                           <span className="directory-meta-label">Agent ID</span>
                           <strong>{user.agentId || 'Not assigned'}</strong>
                         </div>
-                        <div>
+                        <div className="directory-meta-item">
                           <span className="directory-meta-label">Status</span>
                           <strong>{user.isActive ? 'Active' : 'Inactive'}</strong>
                         </div>
                       </div>
 
-                      <div style={actionsStyle}>
+                      <div className="directory-card-actions" style={actionsStyle}>
                         <button type="button" style={secondaryButtonStyle} onClick={() => openUserDetails(user.id)}>
                           {selectedUserId === user.id ? 'Hide details' : 'View details'}
                         </button>
@@ -418,15 +418,15 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
         )}
 
         {selectedUserId ? (
-          <div className="section-card" style={detailShellStyle}>
+          <div className="section-card directory-detail-shell" style={detailShellStyle}>
             {detailLoading || !detailUser || !editForm ? (
               <div className="text-muted">Loading details...</div>
             ) : (
               <>
-                <div className="section-header" style={detailHeaderStyle}>
-                  <div style={detailHeaderInfoStyle}>
-                    <div className="avatar-stack">
-                      <div className="avatar-circle">
+                <div className="section-header directory-detail-header" style={detailHeaderStyle}>
+                  <div className="directory-detail-header-info" style={detailHeaderInfoStyle}>
+                    <div className="avatar-stack directory-user-identity">
+                      <div className="avatar-circle directory-avatar-circle">
                         {String(detailUser.name || '?')
                           .split(' ')
                           .filter(Boolean)
@@ -434,14 +434,14 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                           .join('')
                           .slice(0, 2)}
                       </div>
-                      <div>
+                      <div className="directory-identity-copy">
                         <h3 style={detailTitleStyle}>{detailUser.name}</h3>
-                        <div className="user-role">{detailUser.email}</div>
+                        <div className="user-role directory-user-email">{detailUser.email}</div>
                       </div>
                     </div>
-                    <div style={detailMetaWrapStyle}>
+                    <div className="directory-detail-meta-wrap" style={detailMetaWrapStyle}>
                       <span className="tag">{detailUser.isActive ? 'Active' : 'Inactive'}</span>
-                      <div style={detailMetaStyle}>
+                      <div className="directory-detail-meta" style={detailMetaStyle}>
                         <span className="text-muted">Role: {formatRole(detailUser.role)}</span>
                         <span className="text-muted">Department: {getDepartmentLabel(detailUser.department) || 'None'}</span>
                         <span className="text-muted">Agent ID: {detailUser.agentId || 'None'}</span>
@@ -455,8 +455,8 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                   </button>
                 </div>
 
-                <div style={detailContentStyle}>
-                  <form onSubmit={handleUpdateUser} style={detailFormStyle}>
+                <div className="directory-detail-content" style={detailContentStyle}>
+                  <form className="directory-detail-form" onSubmit={handleUpdateUser} style={detailFormStyle}>
                     <div className="section-header">
                       <h3 style={sectionTitleStyle}>Edit User</h3>
                       <span className="tag">Admin only</span>
@@ -519,7 +519,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                     </div>
                   </form>
 
-                  <form onSubmit={handleResetPassword} style={detailFormStyle}>
+                  <form className="directory-detail-form" onSubmit={handleResetPassword} style={detailFormStyle}>
                     <div className="section-header">
                       <h3 style={sectionTitleStyle}>Reset Password</h3>
                       <span className="tag">Set new password</span>
@@ -546,15 +546,15 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
         ) : null}
       </div>
 
-      <div className="section-card" style={{ display: 'grid', gap: '16px' }}>
-        <div className="section-header">
+      <div className="section-card directory-create-section" style={{ display: 'grid', gap: '16px' }}>
+        <div className="section-header directory-create-header">
           <h3 style={{ margin: 0 }}>Create User</h3>
           <span className="tag">Admin only</span>
         </div>
 
-        <form onSubmit={handleCreateSubmit} style={createFormStyle}>
-          <div style={createPrimaryRowStyle}>
-            <div style={fieldGroupStyle}>
+        <form className="directory-create-form" onSubmit={handleCreateSubmit} style={createFormStyle}>
+          <div className="directory-create-primary-row" style={createPrimaryRowStyle}>
+            <div className="directory-field-group" style={fieldGroupStyle}>
               <label style={fieldLabelStyle}>Full Name</label>
               <input
                 className="numbers-input"
@@ -565,7 +565,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                 required
               />
             </div>
-            <div style={fieldGroupStyle}>
+            <div className="directory-field-group" style={fieldGroupStyle}>
               <label style={fieldLabelStyle}>Email</label>
               <input
                 className="numbers-input"
@@ -577,7 +577,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
                 required
               />
             </div>
-            <div style={fieldGroupStyle}>
+            <div className="directory-field-group" style={fieldGroupStyle}>
               <label style={fieldLabelStyle}>Password</label>
               <input
                 className="numbers-input"
@@ -591,8 +591,8 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
             </div>
           </div>
 
-          <div style={createSecondaryRowStyle}>
-            <div style={fieldGroupStyle}>
+          <div className="directory-create-secondary-row" style={createSecondaryRowStyle}>
+            <div className="directory-field-group" style={fieldGroupStyle}>
               <label style={fieldLabelStyle}>Role</label>
               <select className="numbers-input" style={compactFieldStyle} value={form.role} onChange={handleCreateChange('role')}>
                 <option value="agent">Agent</option>
@@ -600,7 +600,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
               </select>
             </div>
 
-            <div style={fieldGroupStyle}>
+            <div className="directory-field-group" style={fieldGroupStyle}>
               <label style={fieldLabelStyle}>Department</label>
               <select
                 className="numbers-input"
@@ -618,7 +618,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
               </div>
             </div>
 
-            <div style={fieldGroupStyle}>
+            <div className="directory-field-group" style={fieldGroupStyle}>
               <label style={fieldLabelStyle}>Agent ID</label>
               <input
                 className="numbers-input"
@@ -635,7 +635,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
               </div>
             </div>
 
-            <div style={checkboxFieldStyle}>
+            <div className="directory-checkbox-field" style={checkboxFieldStyle}>
               <label style={fieldLabelStyle}>Status</label>
               <label style={createCheckboxStyle}>
                 <input type="checkbox" checked={form.isActive} onChange={handleCreateChange('isActive')} />
@@ -643,7 +643,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
               </label>
             </div>
 
-            <div style={createButtonWrapStyle}>
+            <div className="directory-create-button-wrap" style={createButtonWrapStyle}>
               <button className="numbers-primary-btn" style={createButtonStyle} type="submit" disabled={saving}>
                 {saving ? 'Creating...' : 'Create User'}
               </button>
@@ -764,25 +764,25 @@ function resolveDepartmentSortOrder(departmentKey) {
 
 const createFormStyle = {
   display: 'grid',
-  gap: '18px',
+  gap: '16px',
 };
 
 const createPrimaryRowStyle = {
   display: 'grid',
-  gap: '14px',
+  gap: '12px',
   gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
 };
 
 const createSecondaryRowStyle = {
   display: 'grid',
-  gap: '14px',
+  gap: '12px',
   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
 };
 
 const compactFieldStyle = {
-  minHeight: '38px',
+  minHeight: '36px',
   padding: '8px 12px',
-  borderRadius: '10px',
+  borderRadius: '12px',
 };
 
 const readOnlyFieldStyle = {
@@ -793,62 +793,63 @@ const readOnlyFieldStyle = {
 
 const detailShellStyle = {
   display: 'grid',
-  gap: '28px',
+  gap: '24px',
   marginTop: '12px',
 };
 
 const detailHeaderStyle = {
   alignItems: 'flex-start',
-  gap: '16px',
+  gap: '14px',
 };
 
 const detailHeaderInfoStyle = {
   display: 'grid',
-  gap: '16px',
+  gap: '12px',
   flex: '1 1 auto',
 };
 
 const detailMetaWrapStyle = {
   display: 'grid',
-  gap: '10px',
+  gap: '8px',
 };
 
 const detailMetaStyle = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: '10px 18px',
-  fontSize: '13px',
+  gap: '8px 14px',
+  fontSize: '12.5px',
   lineHeight: 1.5,
 };
 
 const detailContentStyle = {
   display: 'grid',
-  gap: '20px',
+  gap: '16px',
   gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
   alignItems: 'stretch',
 };
 
 const detailFormStyle = {
   display: 'grid',
-  gap: '14px',
-  padding: '20px',
-  border: '1px solid rgba(148, 163, 184, 0.18)',
-  borderRadius: '16px',
-  background: 'rgba(248, 250, 252, 0.7)',
+  gap: '12px',
+  padding: '18px',
+  border: '1px solid rgba(148, 163, 184, 0.14)',
+  borderRadius: '18px',
+  background: 'rgba(248, 250, 252, 0.58)',
   alignContent: 'start',
-  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.72)',
 };
 
 const fieldGroupStyle = {
   display: 'grid',
-  gap: '8px',
+  gap: '7px',
 };
 
 const fieldLabelStyle = {
-  fontSize: '13px',
+  fontSize: '12px',
   fontWeight: 700,
   color: '#334155',
-  letterSpacing: '0.02em',
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
 };
 
 const checkboxFieldStyle = {
@@ -863,14 +864,14 @@ const createButtonWrapStyle = {
 };
 
 const createButtonStyle = {
-  minHeight: '38px',
+  minHeight: '36px',
   padding: '8px 14px',
   width: '100%',
 };
 
 const actionsStyle = {
   display: 'flex',
-  gap: '10px',
+  gap: '8px',
   flexWrap: 'wrap',
 };
 
@@ -878,22 +879,22 @@ const checkboxStyle = {
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
-  fontSize: '14px',
+  fontSize: '13px',
   color: '#475569',
 };
 
 const createCheckboxStyle = {
   ...checkboxStyle,
-  minHeight: '38px',
-  padding: '8px 2px',
+  minHeight: '36px',
+  padding: '6px 2px',
 };
 
 const secondaryButtonStyle = {
-  border: '1px solid rgba(15, 23, 42, 0.12)',
-  background: '#fff',
+  border: '1px solid rgba(15, 23, 42, 0.1)',
+  background: 'rgba(255, 255, 255, 0.92)',
   color: '#0f172a',
-  borderRadius: '10px',
-  padding: '10px 14px',
+  borderRadius: '12px',
+  padding: '9px 14px',
   cursor: 'pointer',
   fontWeight: 600,
 };
@@ -901,7 +902,7 @@ const secondaryButtonStyle = {
 const closeButtonStyle = {
   ...secondaryButtonStyle,
   padding: '8px 12px',
-  fontSize: '13px',
+  fontSize: '12px',
   alignSelf: 'flex-start',
 };
 
@@ -926,7 +927,7 @@ const detailTitleStyle = {
 };
 
 const helperTextStyle = {
-  fontSize: '13px',
+  fontSize: '12.5px',
   lineHeight: 1.5,
 };
 
@@ -937,8 +938,8 @@ const dangerButtonStyle = {
 };
 
 const activeCardStyle = {
-  border: '1px solid rgba(37, 99, 235, 0.25)',
-  boxShadow: '0 10px 24px rgba(37, 99, 235, 0.08)',
+  border: '1px solid rgba(37, 99, 235, 0.22)',
+  boxShadow: '0 8px 20px rgba(37, 99, 235, 0.07)',
 };
 
 export default Users;
