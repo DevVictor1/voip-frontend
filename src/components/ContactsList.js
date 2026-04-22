@@ -12,6 +12,7 @@ function ContactsList({
   activeSection = 'customers',
   showUnreadOnly = false,
   showImportTools = false,
+  onImportSuccess,
 }) {
   const getSectionTitle = () => {
     if (activeSection === 'internal') return 'Internal Chat';
@@ -188,7 +189,7 @@ function ContactsList({
       {showImportTools ? (
         <div className="contacts-import">
           <div className="contacts-import-panel">
-            <ImportContacts onImportSuccess={() => window.location.reload()} />
+            <ImportContacts onImportSuccess={onImportSuccess} />
           </div>
         </div>
       ) : null}

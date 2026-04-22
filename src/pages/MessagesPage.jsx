@@ -952,6 +952,16 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     markChatRead(conversation);
   };
 
+  const handleImportContactsSuccess = useCallback(async () => {
+    setShowImportTools(false);
+    setShowToolsMenu(false);
+
+    await Promise.allSettled([
+      fetchContacts(),
+      fetchConversations(),
+    ]);
+  }, [fetchContacts, fetchConversations]);
+
   const isChatOpen = Boolean(activeChatId);
 
   return (
@@ -1049,7 +1059,10 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
                     Message Teammate
                   </button>
                   <button
-                    onClick={() => setShowImportTools((prev) => !prev)}
+                    onClick={() => {
+                      setShowImportTools((prev) => !prev);
+                      setShowToolsMenu(false);
+                    }}
                     className={`messages-tools-option${showImportTools ? ' is-active' : ''}`}
                     type="button"
                   >
@@ -1069,6 +1082,7 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
           activeSection={activeSection}
           showUnreadOnly={showUnreadOnly}
           showImportTools={showImportTools}
+          onImportSuccess={handleImportContactsSuccess}
         />
       </div>
 
