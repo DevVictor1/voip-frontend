@@ -505,16 +505,16 @@
 .import-contacts {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .import-contacts-input {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
   border: 1px dashed #cbd5f5;
   background: #eef2ff;
-  font-size: 13px;
+  font-size: 12px;
   color: #1f2937;
   transition: 0.2s ease;
 }
@@ -529,9 +529,9 @@
   border: none;
   background: white;
   color: #1e3a8a;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 8px;
-  margin-right: 12px;
+  margin-right: 10px;
   font-weight: 600;
   cursor: pointer;
   transition: 0.2s ease;
@@ -545,9 +545,10 @@
   background: var(--accent);
   color: white;
   border: none;
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 9px;
+  padding: 8px 10px;
   font-weight: 600;
+  font-size: 12px;
   cursor: pointer;
   transition: 0.2s ease;
 }

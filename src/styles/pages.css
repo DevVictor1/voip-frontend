@@ -671,9 +671,9 @@
 .contacts-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
-  padding: 14px 16px 10px;
+  padding: 10px 14px 8px;
   margin-bottom: 0;
   border-bottom: 1px solid #eef2f7;
   background: linear-gradient(180deg, #fcfdff 0%, #f8fafc 100%);
@@ -681,14 +681,8 @@
 
 .contacts-header h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-}
-
-.contacts-header-subtitle {
-  margin-top: 4px;
-  color: #64748b;
-  font-size: 12.5px;
 }
 
 .contacts-header span {
@@ -696,12 +690,44 @@
   color: #64748b;
 }
 
+.contacts-header-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .contacts-import {
-  padding: 10px 16px;
-  margin-bottom: 12px;
+  padding: 8px 14px;
+  margin-bottom: 8px;
   border-bottom: 1px solid #eef2f7;
-  padding-bottom: 12px;
+  padding-bottom: 8px;
   background: #fbfcfe;
+}
+
+.contacts-import-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  border: 1px solid #dbe3f0;
+  background: #fff;
+  color: #475569;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.contacts-import-toggle.is-open {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.contacts-import-panel {
+  margin-top: 8px;
 }
 
 .contacts-scroll {
@@ -716,21 +742,12 @@
   margin-bottom: 16px;
 }
 
-.contacts-section-title {
-  margin: 12px 12px 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
 /* CARD */
 .contact-card {
   background: #ffffff;
   border-radius: 10px;
-  padding: 10px 12px;
-  margin: 6px 10px;
+  padding: 9px 11px;
+  margin: 4px 8px;
   position: relative;
   border: 1px solid #e2e8f0;
   border-left: 3px solid transparent;
@@ -928,71 +945,74 @@
 
 .messages-panel-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 4px 12px 0;
+  gap: 10px;
+  padding: 2px 10px 0;
 }
 
-.messages-overview-badges {
+.messages-panel-title-row {
   display: flex;
   gap: 8px;
+  align-items: center;
   flex-wrap: wrap;
 }
 
 .messages-sections {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  padding: 8px 10px 0;
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px 0;
+  flex-wrap: wrap;
 }
 
 .messages-section-btn {
-  display: grid;
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  padding: 14px 14px 12px;
+  padding: 7px 10px;
   border: 1px solid rgba(203, 213, 225, 0.95);
-  border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  border-radius: 999px;
+  background: #fff;
   color: #334155;
   cursor: pointer;
   text-align: left;
-  transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .messages-section-btn:hover {
-  transform: translateY(-1px);
   border-color: rgba(96, 165, 250, 0.55);
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.08);
 }
 
 .messages-section-btn.is-active {
   border-color: rgba(37, 99, 235, 0.4);
-  background: linear-gradient(180deg, rgba(239, 246, 255, 0.98), rgba(219, 234, 254, 0.92));
-  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.12);
+  background: #eff6ff;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.1);
 }
 
 .messages-section-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .messages-section-count {
   color: #64748b;
-  font-size: 22px;
+  font-size: 12px;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.2;
+  min-width: 18px;
+  text-align: center;
 }
 
 .messages-filters {
   display: flex;
   gap: 8px;
-  padding: 12px 10px 0;
+  padding: 6px 10px 0;
   flex-wrap: wrap;
 }
 
 .messages-filter-btn {
-  padding: 7px 12px;
+  padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid #dbe3f0;
   cursor: pointer;
@@ -1010,35 +1030,37 @@
 }
 
 .messages-new-button {
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: #2563eb;
   color: #fff;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 700;
+  font-size: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.18);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.16);
 }
 
 .messages-actions {
   display: flex;
   gap: 8px;
-  padding: 10px;
+  padding: 6px 10px;
   flex-wrap: wrap;
 }
 
 .messages-secondary-button {
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: #fff;
   color: #0f172a;
   border: 1px solid #dbe3f0;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1975,20 +1997,16 @@
     margin-bottom: 12px;
   }
 
-  .contacts-section-title {
-    margin: 10px 10px 4px;
-  }
-
   .messages-panel-header {
     flex-direction: column;
   }
 
   .messages-sections {
-    grid-template-columns: 1fr;
+    display: flex;
   }
 
   .messages-actions {
-    padding: 10px 10px 6px;
+    padding: 6px 10px;
   }
 
   .messages-new-button,

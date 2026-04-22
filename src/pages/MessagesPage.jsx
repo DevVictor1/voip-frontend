@@ -930,13 +930,8 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}`}>
       <div className="messages-contacts-pane">
         <div className="messages-panel-header">
-          <div>
+          <div className="messages-panel-title-row">
             <h1 className="page-title">Messages</h1>
-            <div className="page-subtitle">
-              Customer SMS, internal teammate chat, and team channels in one organized workspace.
-            </div>
-          </div>
-          <div className="messages-overview-badges">
             <span className="tag">{conversationList.length} threads</span>
             <span className="tag">{unreadCount} unread</span>
           </div>
