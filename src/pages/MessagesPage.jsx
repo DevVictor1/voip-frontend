@@ -1008,6 +1008,14 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
 
           <div className="messages-toolbar-actions">
             <button
+              onClick={() => setShowUnreadOnly((prev) => !prev)}
+              className={`messages-filter-btn messages-filter-btn-inline${showUnreadOnly ? ' is-active' : ''}`}
+              type="button"
+            >
+              Unread {unreadCount > 0 ? `(${unreadCount})` : ''}
+            </button>
+
+            <button
               onClick={() => setShowModal(true)}
               className="messages-new-button"
               type="button"
@@ -1029,16 +1037,6 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
 
               {showToolsMenu ? (
                 <div className="messages-tools-dropdown">
-                  <button
-                    onClick={() => {
-                      setShowUnreadOnly((prev) => !prev);
-                      setShowToolsMenu(false);
-                    }}
-                    className={`messages-tools-option${showUnreadOnly ? ' is-active' : ''}`}
-                    type="button"
-                  >
-                    Unread only {unreadCount > 0 ? `(${unreadCount})` : ''}
-                  </button>
                   <button
                     onClick={() => {
                       setShowTeammatePicker(true);
