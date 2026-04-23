@@ -737,16 +737,27 @@
   gap: 18px;
   grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
   min-height: 560px;
+  height: clamp(560px, calc(100vh - 220px), 760px);
+  align-items: stretch;
+  overflow: hidden;
 }
 
 .directory-clients-list,
 .directory-clients-detail {
   min-width: 0;
+  min-height: 0;
+}
+
+.directory-clients-detail {
+  overflow: hidden;
 }
 
 .directory-clients-list {
   display: grid;
   gap: 12px;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .directory-clients-actions {
@@ -787,6 +798,15 @@
 
 .directory-clients-search {
   margin-top: 2px;
+}
+
+.directory-client-list-scroll {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .directory-client-row {
@@ -878,6 +898,9 @@
   display: grid;
   gap: 16px;
   align-content: start;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .directory-client-detail-head {
@@ -1067,6 +1090,8 @@
   .directory-company-shell,
   .directory-clients-shell {
     grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    overflow: visible;
   }
 
   .directory-detail-card,

@@ -1079,7 +1079,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
               </div>
             </div>
 
-            <div className="directory-company-list-scroll">
+            <div className="directory-company-list-scroll directory-client-list-scroll">
               {clientLoading ? (
                 <div className="directory-company-empty">
                   <h3>Loading clients</h3>
