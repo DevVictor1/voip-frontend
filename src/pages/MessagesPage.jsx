@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import ContactsList from '../components/ContactsList';
 import ChatWindow from '../components/ChatWindow';
 import NewMessageModal from '../components/NewMessageModal';
@@ -315,6 +315,7 @@ function MessagesPage({
   const [activeChatId, setActiveChatId] = useState(null);
   const [activeCustomerContactId, setActiveCustomerContactId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [teamThreadLoading, setTeamThreadLoading] = useState(false);
   const [teammates, setTeammates] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showTeammatePicker, setShowTeammatePicker] = useState(false);
@@ -363,12 +364,15 @@ function MessagesPage({
   const [showDeleteTeamConfirm, setShowDeleteTeamConfirm] = useState(false);
   const [deletingTeam, setDeletingTeam] = useState(false);
   const [toast, setToast] = useState(null);
+  const teamMessagesCacheRef = useRef({});
+  const activeTeamRequestRef = useRef('');
 
   useEffect(() => {
     setActiveSection(viewConfig.section);
     setActiveChatId(null);
     setActiveCustomerContactId(null);
     setMessages([]);
+    setTeamThreadLoading(false);
     setShowModal(false);
     setShowTeammatePicker(false);
     setShowUnreadOnly(false);
@@ -511,10 +515,10 @@ function MessagesPage({
       if (!res.ok) throw new Error();
 
       const data = await res.json();
-      setMessages(data || []);
+      return data || [];
     } catch (err) {
       console.error('Fetch internal messages error:', err);
-      setMessages([]);
+      return [];
     }
   }, [currentRole, currentUserId]);
 
@@ -1184,7 +1188,25 @@ function MessagesPage({
         });
         fetchConversations();
       } else {
-        await fetchInternalMessages(activeConversationId);
+        const requestKey = buildConversationKey(activeConversationType, activeConversationId);
+        const isTeamThread = activeConversationType === 'team';
+
+        if (isTeamThread) {
+          activeTeamRequestRef.current = requestKey;
+          setTeamThreadLoading(true);
+        }
+
+        const data = await fetchInternalMessages(activeConversationId);
+
+        if (!isTeamThread || activeTeamRequestRef.current === requestKey) {
+          if (isTeamThread) {
+            teamMessagesCacheRef.current[requestKey] = data || [];
+            setTeamThreadLoading(false);
+          }
+
+          setMessages(data || []);
+        }
+
         await fetch(`${BASE_URL}/api/messages/read/${encodeURIComponent(activeConversationId)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -1432,6 +1454,14 @@ function MessagesPage({
         ? (conversation._id || null)
         : null
     );
+
+    if ((conversation.conversationType || '') === 'team') {
+      const cachedMessages = teamMessagesCacheRef.current[nextKey];
+      activeTeamRequestRef.current = nextKey;
+      setMessages(Array.isArray(cachedMessages) ? cachedMessages : []);
+      setTeamThreadLoading(!Array.isArray(cachedMessages));
+    }
+
     markChatRead(conversation);
 
     if (isInternalChatPage && searchQuery.trim() && (conversation.conversationType || '') === 'internal_dm') {
@@ -1760,11 +1790,12 @@ function MessagesPage({
           <div className="messages-chat-pane is-sms-chat-pane">
             <ChatWindow
               chat={activeChat}
-              messages={messages}
-              setMessages={setMessages}
-              currentUserId={currentUserId}
-              isSmsPage={isSmsPage}
-              showTeamDetailsAction={false}
+            messages={messages}
+            setMessages={setMessages}
+            currentUserId={currentUserId}
+            isSmsPage={isSmsPage}
+            threadLoading={false}
+            showTeamDetailsAction={false}
               onOpenTeamDetails={handleOpenTeamDetails}
               onSwitchNumber={(num) => {
                 setActiveChatId(buildConversationKey('customer', normalize(num)));
@@ -1853,6 +1884,7 @@ function MessagesPage({
             setMessages={setMessages}
             currentUserId={currentUserId}
             isSmsPage={false}
+            threadLoading={isInternalTeamsPage && activeChat?.conversationType === 'team' ? teamThreadLoading : false}
             showTeamDetailsAction={isInternalTeamsPage && activeChat?.conversationType === 'team'}
             onOpenTeamDetails={handleOpenTeamDetails}
             onSwitchNumber={(num) => {

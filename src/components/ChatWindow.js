@@ -16,6 +16,7 @@ function ChatWindow({
   setMessages,
   currentUserId,
   isSmsPage = false,
+  threadLoading = false,
   showTeamDetailsAction = false,
   onOpenTeamDetails,
   onSwitchNumber,
@@ -326,6 +327,15 @@ function ChatWindow({
       <div className="chat-messages-container">
         <div className="chat-thread-backdrop" />
         <div className="message-list">
+          {threadLoading && safeMessages.length === 0 ? (
+            <div className="chat-thread-loading">
+              <div className="chat-thread-loading-title">Loading conversation…</div>
+              <div className="chat-thread-loading-copy">
+                Swapping to the selected team chat.
+              </div>
+            </div>
+          ) : null}
+
           {smsSystemHints.length > 0 ? (
             <div className="sms-system-hints" aria-hidden="true">
               {smsSystemHints.map((hint) => (
