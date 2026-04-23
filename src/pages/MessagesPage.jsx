@@ -294,6 +294,16 @@ const VIEW_MODE_CONFIG = {
 const INTERNAL_CHAT_RECENTS_STORAGE_KEY = 'voip_internal_chat_recent_searches';
 const INTERNAL_CHAT_RECENTS_LIMIT = 5;
 
+const buildDraftTeamConversationId = (groupName = '') => {
+  const normalizedName = String(groupName || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return `custom-team-${normalizedName || 'group'}-${Date.now()}`;
+};
+
 function MessagesPage({
   currentRole: providedRole,
   currentUserId: providedUserId,
@@ -317,6 +327,7 @@ function MessagesPage({
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [showImportTools, setShowImportTools] = useState(false);
   const [internalChatFilter, setInternalChatFilter] = useState('all');
+  const [internalTeamsFilter, setInternalTeamsFilter] = useState('all');
   const [teammatePickerQuery, setTeammatePickerQuery] = useState('');
   const [recentInternalSearches, setRecentInternalSearches] = useState(() => {
     if (typeof window === 'undefined') return [];
@@ -334,6 +345,12 @@ function MessagesPage({
   const storedAuthUser = getStoredAuthUser();
   const currentAuthUserDbId = storedAuthUser?.id || storedAuthUser?._id || '';
   const isInternalChatPage = resolvedViewMode === 'internal';
+  const isInternalTeamsPage = resolvedViewMode === 'teams';
+  const [showTeamCreator, setShowTeamCreator] = useState(false);
+  const [teamCreatorQuery, setTeamCreatorQuery] = useState('');
+  const [teamCreatorName, setTeamCreatorName] = useState('');
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState([]);
+  const [localTeamDrafts, setLocalTeamDrafts] = useState([]);
 
   useEffect(() => {
     setActiveSection(viewConfig.section);
@@ -346,7 +363,12 @@ function MessagesPage({
     setShowToolsMenu(false);
     setShowImportTools(false);
     setInternalChatFilter('all');
+    setInternalTeamsFilter('all');
     setTeammatePickerQuery('');
+    setShowTeamCreator(false);
+    setTeamCreatorQuery('');
+    setTeamCreatorName('');
+    setSelectedTeamMembers([]);
   }, [viewConfig.section]);
 
   useEffect(() => {
@@ -592,6 +614,20 @@ function MessagesPage({
     });
   }, [teammateOptions, teammatePickerQuery]);
 
+  const teamCreatorOptions = useMemo(() => {
+    const normalizedQuery = teamCreatorQuery.trim().toLowerCase();
+    if (!normalizedQuery) return teammateOptions;
+
+    return teammateOptions.filter((agent) => {
+      const haystack = [agent.name, agent.role, agent.agentId]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
+  }, [teammateOptions, teamCreatorQuery]);
+
   const assignableAgents = useMemo(() => {
     const currentUser = storedAuthUser?.agentId
       ? {
@@ -666,6 +702,58 @@ function MessagesPage({
     });
   }, []);
 
+  const toggleTeamMemberSelection = useCallback((agentId) => {
+    if (!agentId) return;
+
+    setSelectedTeamMembers((prev) => (
+      prev.includes(agentId)
+        ? prev.filter((item) => item !== agentId)
+        : [...prev, agentId]
+    ));
+  }, []);
+
+  const handleCreateGroupChat = useCallback(() => {
+    const trimmedName = teamCreatorName.trim();
+    const selectedMembers = teammateOptions.filter((agent) => selectedTeamMembers.includes(agent.agentId));
+
+    if (!trimmedName || selectedMembers.length === 0) {
+      return;
+    }
+
+    const conversationId = buildDraftTeamConversationId(trimmedName);
+    const draftConversation = {
+      conversationType: 'team',
+      type: 'team',
+      id: conversationId,
+      conversationId,
+      teamId: conversationId,
+      teamName: trimmedName,
+      name: trimmedName,
+      role: 'Group chat',
+      participants: [currentUserId, ...selectedMembers.map((member) => member.agentId)],
+      memberNames: selectedMembers.map((member) => member.name),
+      lastMessage: '',
+      updatedAt: new Date().toISOString(),
+      unread: 0,
+      isInternal: true,
+      isTeam: true,
+      isDraftGroup: true,
+      previewFallback: `Group ready with ${selectedMembers.map((member) => member.name).join(', ')}`,
+    };
+
+    setLocalTeamDrafts((prev) => {
+      const withoutSameId = prev.filter((item) => item.conversationId !== conversationId);
+      return [draftConversation, ...withoutSameId];
+    });
+    setActiveSection('teams');
+    setActiveChatId(buildConversationKey('team', conversationId));
+    setMessages([]);
+    setShowTeamCreator(false);
+    setTeamCreatorQuery('');
+    setTeamCreatorName('');
+    setSelectedTeamMembers([]);
+  }, [currentUserId, selectedTeamMembers, teamCreatorName, teammateOptions]);
+
   const handleStartDirectChat = useCallback(async (targetUserId) => {
     if (!targetUserId || startingDirectChat) return;
 
@@ -728,7 +816,7 @@ function MessagesPage({
   const conversationList = buildConversationList({
     contacts,
     chats,
-    internalChats,
+    internalChats: [...internalChats, ...localTeamDrafts],
     currentUserId,
     userDirectory: workspaceUserDirectory,
   });
@@ -745,7 +833,9 @@ function MessagesPage({
 
   const effectiveShowUnreadOnly = isInternalChatPage
     ? internalChatFilter === 'unread'
-    : showUnreadOnly;
+    : isInternalTeamsPage
+      ? internalTeamsFilter === 'unread'
+      : showUnreadOnly;
 
   if (effectiveShowUnreadOnly) {
     filteredList = filteredList.filter(
@@ -1091,10 +1181,17 @@ function MessagesPage({
     { id: 'unread', label: 'Unread' },
     { id: 'favorites', label: 'Favorites' },
   ];
+  const internalTeamsFilterTabs = [
+    { id: 'all', label: 'All' },
+    { id: 'unread', label: 'Unread' },
+    { id: 'favorites', label: 'Favorites' },
+  ];
+  const selectedTeamMemberRecords = teammateOptions.filter((agent) => selectedTeamMembers.includes(agent.agentId));
+  const canCreateGroupDraft = teamCreatorName.trim() && selectedTeamMemberRecords.length > 0;
 
   return (
-    <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}${isInternalChatPage ? ' is-internal-chat-page' : ''}`}>
-      <div className={`messages-contacts-pane${isInternalChatPage ? ' is-internal-chat-pane' : ''}`}>
+    <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}${isInternalChatPage ? ' is-internal-chat-page' : ''}${isInternalTeamsPage ? ' is-internal-teams-page' : ''}`}>
+      <div className={`messages-contacts-pane${isInternalChatPage ? ' is-internal-chat-pane' : ''}${isInternalTeamsPage ? ' is-internal-teams-pane' : ''}`}>
         <div className="messages-panel-header">
           <div className="messages-panel-title-row">
             <h1 className="page-title">{viewConfig.pageTitle}</h1>
@@ -1177,6 +1274,48 @@ function MessagesPage({
                   <span>{tab.label}</span>
                   {tab.id === 'unread' && unreadThreadCount > 0 ? (
                     <span className="internal-chat-filter-count">{unreadThreadCount}</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : isInternalTeamsPage ? (
+          <div className="internal-teams-toolbar">
+            <div className="internal-teams-search-row">
+              <label className="messages-search internal-teams-search" htmlFor="messages-search">
+                <Search size={16} />
+                <input
+                  id="messages-search"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search group chats"
+                />
+              </label>
+
+              <button
+                onClick={() => setShowTeamCreator(true)}
+                className="internal-teams-new-group"
+                type="button"
+                aria-label="Create a new group chat"
+              >
+                <Plus size={16} />
+                <span>New Group Chat</span>
+              </button>
+            </div>
+
+            <div className="internal-teams-filters" role="tablist" aria-label="Internal team filters">
+              {internalTeamsFilterTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`internal-teams-filter-tab${internalTeamsFilter === tab.id ? ' is-active' : ''}`}
+                  onClick={() => setInternalTeamsFilter(tab.id)}
+                  aria-pressed={internalTeamsFilter === tab.id}
+                >
+                  <span>{tab.label}</span>
+                  {tab.id === 'unread' && unreadThreadCount > 0 ? (
+                    <span className="internal-teams-filter-count">{unreadThreadCount}</span>
                   ) : null}
                 </button>
               ))}
@@ -1283,8 +1422,8 @@ function MessagesPage({
           onImportSuccess={handleImportContactsSuccess}
           emptyTitle={viewConfig.emptyLabel}
           emptySubtitle={viewConfig.emptySubtitle}
-          hideHeader={isInternalChatPage}
-          listVariant={isInternalChatPage ? 'internal-chat' : 'default'}
+          hideHeader={isInternalChatPage || isInternalTeamsPage}
+          listVariant={isInternalChatPage ? 'internal-chat' : isInternalTeamsPage ? 'internal-teams' : 'default'}
         />
       </div>
 
@@ -1311,6 +1450,119 @@ function MessagesPage({
         onClose={() => setShowModal(false)}
         onStart={handleStartChat}
       />
+
+      {showTeamCreator && (
+        <div
+          className="messages-picker-overlay"
+          onClick={() => setShowTeamCreator(false)}
+        >
+          <div
+            className="messages-picker-modal internal-teams-creator-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="messages-picker-header">
+              <h3>New Group Chat</h3>
+              <p>Create a new internal group chat with your teammates.</p>
+            </div>
+
+            <div className="internal-teams-creator-body">
+              <div className="internal-teams-creator-field">
+                <label htmlFor="team-group-name">Group name</label>
+                <input
+                  id="team-group-name"
+                  type="text"
+                  value={teamCreatorName}
+                  onChange={(event) => setTeamCreatorName(event.target.value)}
+                  placeholder="Enter a group name"
+                />
+              </div>
+
+              <div className="internal-teams-creator-field">
+                <label htmlFor="team-member-search">Add teammates</label>
+                <div className="messages-picker-search">
+                  <label className="messages-picker-search-field" htmlFor="team-member-search">
+                    <Search size={15} />
+                    <input
+                      id="team-member-search"
+                      type="search"
+                      value={teamCreatorQuery}
+                      onChange={(event) => setTeamCreatorQuery(event.target.value)}
+                      placeholder="Search teammates"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {selectedTeamMemberRecords.length > 0 ? (
+                <div className="internal-teams-selected-members">
+                  {selectedTeamMemberRecords.map((member) => (
+                    <button
+                      key={member.agentId}
+                      type="button"
+                      className="internal-teams-selected-pill"
+                      onClick={() => toggleTeamMemberSelection(member.agentId)}
+                    >
+                      <span>{member.name}</span>
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="internal-teams-selected-empty">
+                  Select one or more teammates to start the group.
+                </div>
+              )}
+
+              <div className="internal-teams-member-list">
+                {teamCreatorOptions.length === 0 ? (
+                  <div className="messages-picker-empty">
+                    {teammateOptions.length === 0 ? 'No teammates available.' : 'No teammates match your search.'}
+                  </div>
+                ) : (
+                  teamCreatorOptions.map((agent) => {
+                    const isSelected = selectedTeamMembers.includes(agent.agentId);
+
+                    return (
+                      <button
+                        key={agent.agentId}
+                        type="button"
+                        className={`internal-teams-member-option${isSelected ? ' is-selected' : ''}`}
+                        onClick={() => toggleTeamMemberSelection(agent.agentId)}
+                      >
+                        <span className="internal-teams-member-copy">
+                          <span className="internal-teams-member-name">{agent.name}</span>
+                          <span className="internal-teams-member-role">{agent.role}</span>
+                        </span>
+                        <span className="internal-teams-member-check" aria-hidden="true">
+                          {isSelected ? 'Selected' : 'Select'}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="messages-picker-footer internal-teams-creator-footer">
+              <button
+                type="button"
+                className="messages-picker-cancel"
+                onClick={() => setShowTeamCreator(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="internal-teams-create-btn"
+                onClick={handleCreateGroupChat}
+                disabled={!canCreateGroupDraft}
+              >
+                Start Group Chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showTeammatePicker && (
         <div

@@ -1503,6 +1503,104 @@
   font-weight: 700;
 }
 
+.is-internal-teams-page .messages-panel-header {
+  align-items: flex-start;
+}
+
+.internal-teams-toolbar {
+  display: grid;
+  gap: 12px;
+  padding: 8px 8px 10px;
+}
+
+.internal-teams-search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.internal-teams-search {
+  min-height: 46px;
+  padding: 0 14px;
+  border-color: rgba(203, 213, 225, 0.9);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+}
+
+.internal-teams-search input {
+  font-size: 14px;
+}
+
+.internal-teams-new-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(219, 227, 240, 0.92);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+}
+
+.internal-teams-new-group:hover {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(148, 163, 184, 0.9);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.internal-teams-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.internal-teams-filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.internal-teams-filter-tab:hover {
+  background: rgba(248, 250, 252, 0.92);
+  color: #334155;
+}
+
+.internal-teams-filter-tab.is-active {
+  background: rgba(245, 243, 255, 0.96);
+  border-color: rgba(216, 180, 254, 0.9);
+  color: #7c3aed;
+}
+
+.internal-teams-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.12);
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .messages-tools-menu {
   position: relative;
 }
@@ -1711,6 +1809,147 @@
   cursor: pointer;
 }
 
+.internal-teams-creator-modal {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.internal-teams-creator-body {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.internal-teams-creator-field {
+  display: grid;
+  gap: 8px;
+}
+
+.internal-teams-creator-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.internal-teams-creator-field input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #dbe3f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #0f172a;
+  background: #fff;
+}
+
+.internal-teams-creator-field input:focus {
+  outline: none;
+  border-color: #c4b5fd;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.internal-teams-selected-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.internal-teams-selected-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(216, 180, 254, 0.86);
+  border-radius: 999px;
+  background: rgba(245, 243, 255, 0.96);
+  color: #6d28d9;
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.internal-teams-selected-empty {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.internal-teams-member-list {
+  display: grid;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.internal-teams-member-option {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.internal-teams-member-option:hover {
+  background: #faf8ff;
+  border-color: #d8b4fe;
+}
+
+.internal-teams-member-option.is-selected {
+  background: rgba(245, 243, 255, 0.96);
+  border-color: rgba(196, 181, 253, 0.92);
+  box-shadow: 0 8px 18px rgba(124, 58, 237, 0.08);
+}
+
+.internal-teams-member-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.internal-teams-member-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.internal-teams-member-role {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.internal-teams-member-check {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #7c3aed;
+}
+
+.internal-teams-creator-footer {
+  gap: 10px;
+}
+
+.internal-teams-create-btn {
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  color: #fff;
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.internal-teams-create-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .contacts-wrapper.is-internal-chat-list {
   background: rgba(255, 255, 255, 0.92);
   border-radius: 24px;
@@ -1736,6 +1975,11 @@
 .contact-avatar-internal {
   background: linear-gradient(135deg, rgba(14, 165, 233, 0.14), rgba(37, 99, 235, 0.14));
   color: #0284c7;
+}
+
+.contact-avatar-team {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.14), rgba(99, 102, 241, 0.16));
+  color: #6d28d9;
 }
 
 .contact-card.is-internal-chat-card {
@@ -1768,6 +2012,49 @@
 }
 
 .contact-card.is-internal-chat-card .contact-indicators {
+  padding-right: 4px;
+}
+
+.contacts-wrapper.is-internal-teams-list {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 24px;
+  box-shadow: none;
+}
+
+.contacts-wrapper.is-internal-teams-list .contacts-scroll {
+  padding-top: 6px;
+}
+
+.contact-card.is-internal-teams-card {
+  padding: 12px 12px 12px 14px;
+  margin: 0 8px;
+  border-bottom-color: rgba(241, 245, 249, 0.92);
+}
+
+.contact-card.is-internal-teams-card .contact-card-body {
+  padding-right: 6px;
+}
+
+.contact-card.is-internal-teams-card .contact-name-wrap {
+  gap: 10px;
+}
+
+.contact-card.is-internal-teams-card .contact-name {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.contact-card.is-internal-teams-card .contact-preview {
+  font-size: 13px;
+  color: #64748b;
+  padding-right: 6px;
+}
+
+.contact-card.is-internal-teams-card.has-unread .contact-preview {
+  color: #334155;
+}
+
+.contact-card.is-internal-teams-card .contact-indicators {
   padding-right: 4px;
 }
 
@@ -2641,6 +2928,19 @@
     justify-content: center;
   }
 
+  .internal-teams-search-row {
+    flex-wrap: wrap;
+  }
+
+  .internal-teams-search {
+    width: 100%;
+  }
+
+  .internal-teams-new-group {
+    width: 100%;
+    justify-content: center;
+  }
+
   .messages-sections {
     display: flex;
   }
@@ -2751,6 +3051,10 @@
   }
 
   .contact-card.is-internal-chat-card {
+    margin: 0 6px;
+  }
+
+  .contact-card.is-internal-teams-card {
     margin: 0 6px;
   }
 

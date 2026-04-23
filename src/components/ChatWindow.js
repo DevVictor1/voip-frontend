@@ -347,6 +347,7 @@ function ChatWindow({
         chatId={isCustomerChat ? chat.phone : chat.conversationId}
         conversationType={chat.conversationType || 'customer'}
         userId={currentUserId}
+        teamName={chat.conversationType === 'team' ? (chat.teamName || chat.name || '') : ''}
         allowAttachments={isCustomerChat}
         setMessages={setMessages}
         onFocusInput={() => {

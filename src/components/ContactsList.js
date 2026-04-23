@@ -19,6 +19,7 @@ function ContactsList({
   listVariant = 'default',
 }) {
   const isInternalChatList = listVariant === 'internal-chat';
+  const isInternalTeamsList = listVariant === 'internal-teams';
 
   const getSectionTitle = () => {
     if (activeSection === 'internal') return 'Internal Chat';
@@ -66,6 +67,8 @@ function ContactsList({
 
   const getSecondaryLine = (item, phone) => {
     if (item.conversationType === 'team') {
+      if (isInternalTeamsList) return '';
+
       const memberCount = item.participants?.length || 0;
       return memberCount > 0
         ? `${memberCount} member${memberCount === 1 ? '' : 's'}`
@@ -129,7 +132,7 @@ function ContactsList({
       return (
         <div
           key={conversationKey || index}
-          className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}${isInternalChatList && item.conversationType === 'internal_dm' ? ' is-internal-chat-card' : ''}`}
+          className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}${isInternalChatList && item.conversationType === 'internal_dm' ? ' is-internal-chat-card' : ''}${isInternalTeamsList && item.conversationType === 'team' ? ' is-internal-teams-card' : ''}`}
           onClick={() => onSelect(item)}
         >
           {item._id && item.conversationType === 'customer' && (
@@ -150,6 +153,10 @@ function ContactsList({
                       <span className="contact-avatar contact-avatar-internal" aria-hidden="true">
                         {getAvatarLabel(displayName)}
                       </span>
+                    ) : isInternalTeamsList && item.conversationType === 'team' ? (
+                      <span className="contact-avatar contact-avatar-team" aria-hidden="true">
+                        #
+                      </span>
                     ) : (
                       <span className={getIdentityClassName(item)} aria-hidden="true" />
                     )}
@@ -163,7 +170,7 @@ function ContactsList({
                     </div>
                   ) : null}
                 </div>
-                {secondaryLine && !isInternalChatList && (
+                {secondaryLine && !isInternalChatList && !isInternalTeamsList && (
                   <div className="contact-meta">
                     {secondaryLine}
                   </div>
@@ -176,7 +183,7 @@ function ContactsList({
                 {preview}
               </div>
               <div className="contact-indicators">
-                {!isInternalChatList ? (
+                {!isInternalChatList && !isInternalTeamsList ? (
                   <span className={getBadgeClassName(item)}>
                     {getBadgeLabel(item)}
                   </span>
@@ -193,7 +200,7 @@ function ContactsList({
   };
 
   return (
-    <div className={`contacts-wrapper${isInternalChatList ? ' is-internal-chat-list' : ''}`}>
+    <div className={`contacts-wrapper${isInternalChatList ? ' is-internal-chat-list' : ''}${isInternalTeamsList ? ' is-internal-teams-list' : ''}`}>
       {!hideHeader ? (
         <div className="contacts-header">
           <div>

@@ -12,6 +12,7 @@ export const sendMessageRequest = async (to, message, mediaUrl) => {
         conversationId: to.chatId,
         userId: to.userId,
         body: message,
+        ...(to.teamName ? { teamName: to.teamName } : {}),
       };
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
@@ -28,6 +29,7 @@ function MessageInput({
   chatId,
   conversationType = 'customer',
   userId,
+  teamName = '',
   allowAttachments = true,
   onMessageSent,
   setMessages,
@@ -119,6 +121,7 @@ function MessageInput({
           chatId,
           conversationType,
           userId,
+          teamName,
         },
         text,
         mediaUrl || undefined
