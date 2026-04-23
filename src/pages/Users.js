@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MessageSquare, MoreHorizontal, Phone, Video } from 'lucide-react';
 import { DEPARTMENT_OPTIONS, getDepartmentLabel } from '../config/agents';
 import ImportContacts from '../components/ImportContacts';
 import {
@@ -808,6 +809,44 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                     {formatRole(selectedDirectoryUser.role)}
                     {selectedDirectoryUser.department ? ` · ${getDepartmentLabel(selectedDirectoryUser.department) || selectedDirectoryUser.department}` : ''}
                   </div>
+                </div>
+                <div className="directory-quick-actions" aria-label="Contact quick actions">
+                  <button
+                    type="button"
+                    className="directory-quick-action"
+                    title="Internal messaging shortcut will connect here in a later directory phase"
+                    aria-label="Message teammate"
+                    disabled
+                  >
+                    <MessageSquare size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    className="directory-quick-action"
+                    title="Meeting shortcuts are not connected from Directory yet"
+                    aria-label="Start meeting"
+                    disabled
+                  >
+                    <Video size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    className="directory-quick-action"
+                    title="Direct calling from Directory is not connected yet"
+                    aria-label="Call teammate"
+                    disabled
+                  >
+                    <Phone size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    className="directory-quick-action"
+                    title="More teammate tools will appear here later"
+                    aria-label="More teammate options"
+                    disabled
+                  >
+                    <MoreHorizontal size={16} />
+                  </button>
                 </div>
                 <span className={`directory-status-pill${selectedDirectoryUser.isActive ? ' is-active' : ''}`}>
                   {selectedDirectoryUser.isActive ? 'Active' : 'Inactive'}
