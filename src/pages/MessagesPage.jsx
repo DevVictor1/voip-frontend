@@ -1419,6 +1419,56 @@ function MessagesPage({
     return () => socket.off('messageStatus', handleStatus);
   }, []);
 
+  useEffect(() => {
+    const handleInternalMessageStatus = (payload) => {
+      if (!payload?.conversationId || !payload?.conversationType || !Array.isArray(payload?.messageIds)) {
+        return;
+      }
+
+      const messageIdSet = new Set(
+        payload.messageIds
+          .map((id) => String(id || '').trim())
+          .filter(Boolean)
+      );
+
+      if (messageIdSet.size === 0) {
+        return;
+      }
+
+      const applyStatus = (items = []) => items.map((item) => {
+        const itemId = String(item?._id || '').trim();
+        if (!itemId || !messageIdSet.has(itemId)) {
+          return item;
+        }
+
+        const nextReadBy = payload.userId
+          ? [...new Set([...(item.readBy || []), payload.userId].filter(Boolean))]
+          : (item.readBy || []);
+
+        return {
+          ...item,
+          status: payload.status || item.status,
+          read: payload.status === 'read' ? true : item.read,
+          readBy: nextReadBy,
+        };
+      });
+
+      setMessages((prev) => applyStatus(prev));
+
+      if (payload.conversationType === 'team') {
+        const cacheKey = buildConversationKey(payload.conversationType, payload.conversationId);
+        const cachedThread = teamMessagesCacheRef.current[cacheKey];
+
+        if (Array.isArray(cachedThread)) {
+          teamMessagesCacheRef.current[cacheKey] = applyStatus(cachedThread);
+        }
+      }
+    };
+
+    socket.on('internalMessageStatus', handleInternalMessageStatus);
+    return () => socket.off('internalMessageStatus', handleInternalMessageStatus);
+  }, []);
+
   const handleStartChat = (phone) => {
     const normalized = normalize(phone);
     setActiveSection('customers');

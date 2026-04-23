@@ -1,27 +1,36 @@
 function MessageBubble({ message, onRetry }) {
-  const getStatusIcon = () => {
+  const isInternalMessage = message.conversationType === 'internal_dm' || message.conversationType === 'team';
+
+  const getStatusMeta = () => {
     if (message.direction !== 'outbound') return null;
 
     switch (message.status) {
       case 'sending':
-        return '…';
+        return { icon: '…', className: 'is-pending' };
 
       case 'queued':
       case 'sent':
-        return '✓'; // single tick
+        return { icon: '✓', className: 'is-sent' };
 
       case 'delivered':
-        return '✓✓'; // double tick
+        return { icon: '✓✓', className: 'is-delivered' };
+
+      case 'read':
+        return {
+          icon: '✓✓',
+          className: isInternalMessage ? 'is-read' : 'is-delivered',
+        };
 
       case 'undelivered':
       case 'failed':
-        return '✖'; // failed
+        return { icon: '✖', className: 'is-failed' };
 
       default:
-        return '✓';
+        return { icon: '✓', className: 'is-sent' };
     }
   };
 
+  const statusMeta = getStatusMeta();
   const isSending = message.status === 'sending';
   const isFailed =
     message.status === 'failed' ||
@@ -57,11 +66,11 @@ function MessageBubble({ message, onRetry }) {
           <span style={{ marginLeft: '6px', fontSize: '12px' }}>
             Failed
           </span>
-        ) : message.direction === 'outbound' && (
-          <span style={{ marginLeft: '6px', fontSize: '12px' }}>
-            {getStatusIcon()}
+        ) : message.direction === 'outbound' && statusMeta ? (
+          <span className={`message-status-indicator ${statusMeta.className}`}>
+            {statusMeta.icon}
           </span>
-        )}
+        ) : null}
 
         {isFailed && (
           <span

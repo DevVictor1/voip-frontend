@@ -820,6 +820,31 @@
   color: var(--text-muted);
 }
 
+.message-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  font-size: 12px;
+  letter-spacing: -0.08em;
+}
+
+.message-status-indicator.is-pending,
+.message-status-indicator.is-sent {
+  color: #64748b;
+}
+
+.message-status-indicator.is-delivered {
+  color: #475569;
+}
+
+.message-status-indicator.is-read {
+  color: #2563eb;
+}
+
+.message-status-indicator.is-failed {
+  color: #dc2626;
+}
+
 .message-author {
   margin-bottom: 4px;
   font-size: 11px;
