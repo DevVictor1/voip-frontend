@@ -23,6 +23,8 @@ function Header({
   showBack,
   onCall,
   callLabel,
+  showTeamDetailsAction = false,
+  onOpenTeamDetails,
   onAssignContact,
   onUpdateAssignmentStatus,
   assignableAgents = [],
@@ -323,8 +325,20 @@ function Header({
           </div>
         )}
 
-        <button className="button-icon" type="button">Notes</button>
-        <button className="button-icon" type="button">Options</button>
+        {showTeamDetailsAction ? (
+          <button
+            className="button-icon"
+            type="button"
+            onClick={onOpenTeamDetails}
+          >
+            Group Details
+          </button>
+        ) : (
+          <>
+            <button className="button-icon" type="button">Notes</button>
+            <button className="button-icon" type="button">Options</button>
+          </>
+        )}
 
         {isCustomerChat && (
           <button

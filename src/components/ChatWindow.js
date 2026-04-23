@@ -15,6 +15,8 @@ function ChatWindow({
   messages,
   setMessages,
   currentUserId,
+  showTeamDetailsAction = false,
+  onOpenTeamDetails,
   onSwitchNumber,
   onAssignContact,
   onUpdateAssignmentStatus,
@@ -293,6 +295,8 @@ function ChatWindow({
         callStatus={callStatus}
         callLabel={getCallLabel()}
         onCall={handleCall}
+        showTeamDetailsAction={showTeamDetailsAction}
+        onOpenTeamDetails={onOpenTeamDetails}
         onSwitchNumber={onSwitchNumber}
         onAssignContact={onAssignContact}
         onUpdateAssignmentStatus={onUpdateAssignmentStatus}

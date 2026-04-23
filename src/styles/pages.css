@@ -1950,6 +1950,190 @@
   cursor: not-allowed;
 }
 
+.internal-teams-details-modal {
+  width: min(520px, calc(100vw - 32px));
+}
+
+.internal-teams-details-body {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.internal-teams-details-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.internal-teams-details-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.14), rgba(168, 85, 247, 0.18));
+  color: #7c3aed;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.internal-teams-details-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.internal-teams-details-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.internal-teams-details-meta {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.internal-teams-details-note,
+.internal-teams-details-error {
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.internal-teams-details-note {
+  background: rgba(248, 250, 252, 0.96);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  color: #64748b;
+}
+
+.internal-teams-details-error {
+  background: rgba(254, 242, 242, 0.96);
+  border: 1px solid rgba(252, 165, 165, 0.7);
+  color: #b91c1c;
+}
+
+.internal-teams-details-field,
+.internal-teams-details-section {
+  display: grid;
+  gap: 10px;
+}
+
+.internal-teams-details-field label,
+.internal-teams-details-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.internal-teams-details-field input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #dbe3f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #0f172a;
+  background: #fff;
+}
+
+.internal-teams-details-field input:focus {
+  outline: none;
+  border-color: #c4b5fd;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.internal-teams-details-search {
+  margin-top: 0;
+}
+
+.internal-teams-details-member-list {
+  display: grid;
+  gap: 8px;
+}
+
+.internal-teams-details-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 12px 14px;
+}
+
+.internal-teams-details-member-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.internal-teams-details-member-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.internal-teams-member-self {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(237, 233, 254, 0.92);
+  color: #7c3aed;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.internal-teams-details-member-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.internal-teams-member-remove,
+.internal-teams-leave-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.internal-teams-member-remove {
+  border: 1px solid rgba(252, 165, 165, 0.85);
+  background: rgba(255, 255, 255, 0.96);
+  color: #dc2626;
+}
+
+.internal-teams-member-remove:hover {
+  background: rgba(254, 242, 242, 0.92);
+}
+
+.internal-teams-leave-btn {
+  border: 1px solid rgba(252, 165, 165, 0.85);
+  background: rgba(254, 242, 242, 0.96);
+  color: #b91c1c;
+}
+
+.internal-teams-details-footer {
+  justify-content: space-between;
+}
+
 .contacts-wrapper.is-internal-chat-list {
   background: rgba(255, 255, 255, 0.92);
   border-radius: 24px;

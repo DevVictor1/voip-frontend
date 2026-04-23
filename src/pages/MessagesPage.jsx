@@ -294,16 +294,6 @@ const VIEW_MODE_CONFIG = {
 const INTERNAL_CHAT_RECENTS_STORAGE_KEY = 'voip_internal_chat_recent_searches';
 const INTERNAL_CHAT_RECENTS_LIMIT = 5;
 
-const buildDraftTeamConversationId = (groupName = '') => {
-  const normalizedName = String(groupName || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-  return `custom-team-${normalizedName || 'group'}-${Date.now()}`;
-};
-
 function MessagesPage({
   currentRole: providedRole,
   currentUserId: providedUserId,
@@ -350,7 +340,15 @@ function MessagesPage({
   const [teamCreatorQuery, setTeamCreatorQuery] = useState('');
   const [teamCreatorName, setTeamCreatorName] = useState('');
   const [selectedTeamMembers, setSelectedTeamMembers] = useState([]);
-  const [localTeamDrafts, setLocalTeamDrafts] = useState([]);
+  const [creatingTeam, setCreatingTeam] = useState(false);
+  const [showTeamDetails, setShowTeamDetails] = useState(false);
+  const [teamDetailsLoading, setTeamDetailsLoading] = useState(false);
+  const [teamDetailsSaving, setTeamDetailsSaving] = useState(false);
+  const [teamDetailsError, setTeamDetailsError] = useState('');
+  const [teamDetailsData, setTeamDetailsData] = useState(null);
+  const [teamDetailsName, setTeamDetailsName] = useState('');
+  const [teamDetailsMembers, setTeamDetailsMembers] = useState([]);
+  const [teamDetailsSearch, setTeamDetailsSearch] = useState('');
 
   useEffect(() => {
     setActiveSection(viewConfig.section);
@@ -369,6 +367,15 @@ function MessagesPage({
     setTeamCreatorQuery('');
     setTeamCreatorName('');
     setSelectedTeamMembers([]);
+    setCreatingTeam(false);
+    setShowTeamDetails(false);
+    setTeamDetailsLoading(false);
+    setTeamDetailsSaving(false);
+    setTeamDetailsError('');
+    setTeamDetailsData(null);
+    setTeamDetailsName('');
+    setTeamDetailsMembers([]);
+    setTeamDetailsSearch('');
   }, [viewConfig.section]);
 
   useEffect(() => {
@@ -712,47 +719,69 @@ function MessagesPage({
     ));
   }, []);
 
-  const handleCreateGroupChat = useCallback(() => {
+  const handleCreateGroupChat = useCallback(async () => {
     const trimmedName = teamCreatorName.trim();
-    const selectedMembers = teammateOptions.filter((agent) => selectedTeamMembers.includes(agent.agentId));
+    const participantIds = teammateOptions
+      .filter((agent) => selectedTeamMembers.includes(agent.agentId))
+      .map((agent) => agent.agentId);
 
-    if (!trimmedName || selectedMembers.length === 0) {
+    if (!trimmedName || participantIds.length === 0 || creatingTeam) {
       return;
     }
 
-    const conversationId = buildDraftTeamConversationId(trimmedName);
-    const draftConversation = {
-      conversationType: 'team',
-      type: 'team',
-      id: conversationId,
-      conversationId,
-      teamId: conversationId,
-      teamName: trimmedName,
-      name: trimmedName,
-      role: 'Group chat',
-      participants: [currentUserId, ...selectedMembers.map((member) => member.agentId)],
-      memberNames: selectedMembers.map((member) => member.name),
-      lastMessage: '',
-      updatedAt: new Date().toISOString(),
-      unread: 0,
-      isInternal: true,
-      isTeam: true,
-      isDraftGroup: true,
-      previewFallback: `Group ready with ${selectedMembers.map((member) => member.name).join(', ')}`,
-    };
+    try {
+      setCreatingTeam(true);
 
-    setLocalTeamDrafts((prev) => {
-      const withoutSameId = prev.filter((item) => item.conversationId !== conversationId);
-      return [draftConversation, ...withoutSameId];
-    });
-    setActiveSection('teams');
-    setActiveChatId(buildConversationKey('team', conversationId));
-    setMessages([]);
-    setShowTeamCreator(false);
-    setTeamCreatorQuery('');
-    setTeamCreatorName('');
-    setSelectedTeamMembers([]);
-  }, [currentUserId, selectedTeamMembers, teamCreatorName, teammateOptions]);
+      const res = await fetch(`${BASE_URL}/api/messages/team`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          role: currentRole,
+          teamName: trimmedName,
+          participantIds,
+        }),
+      });
+
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to create group chat');
+      }
+
+      upsertInternalConversation({
+        conversationType: 'team',
+        type: 'team',
+        id: payload.conversationId,
+        conversationId: payload.conversationId,
+        teamId: payload.teamId,
+        teamName: payload.teamName,
+        name: payload.teamName,
+        role: 'Group chat',
+        participants: payload.members?.map((member) => member.agentId) || [],
+        lastMessage: '',
+        updatedAt: payload.updatedAt || new Date().toISOString(),
+        unread: 0,
+        isInternal: true,
+        isTeam: true,
+        previewFallback: `Start the conversation in ${payload.teamName}`,
+      });
+
+      setActiveSection('teams');
+      setActiveChatId(buildConversationKey('team', payload.conversationId));
+      setMessages([]);
+      setShowTeamCreator(false);
+      setTeamCreatorQuery('');
+      setTeamCreatorName('');
+      setSelectedTeamMembers([]);
+      fetchInternalConversations();
+    } catch (error) {
+      console.error('Create group chat error:', error);
+      window.alert(error.message || 'Failed to create group chat');
+    } finally {
+      setCreatingTeam(false);
+    }
+  }, [creatingTeam, currentRole, currentUserId, fetchInternalConversations, selectedTeamMembers, teamCreatorName, teammateOptions, upsertInternalConversation]);
 
   const handleStartDirectChat = useCallback(async (targetUserId) => {
     if (!targetUserId || startingDirectChat) return;
@@ -816,10 +845,141 @@ function MessagesPage({
   const conversationList = buildConversationList({
     contacts,
     chats,
-    internalChats: [...internalChats, ...localTeamDrafts],
+    internalChats,
     currentUserId,
     userDirectory: workspaceUserDirectory,
   });
+
+  const fetchTeamDetails = useCallback(async (conversationId) => {
+    if (!conversationId) return null;
+
+    setTeamDetailsLoading(true);
+    setTeamDetailsError('');
+
+    try {
+      const params = new URLSearchParams({
+        userId: currentUserId,
+        role: currentRole,
+      });
+      const res = await fetch(
+        `${BASE_URL}/api/messages/team/${encodeURIComponent(conversationId)}/details?${params.toString()}`
+      );
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to load group details');
+      }
+
+      setTeamDetailsData(payload);
+      setTeamDetailsName(payload.teamName || '');
+      setTeamDetailsMembers((payload.members || []).map((member) => member.agentId));
+      return payload;
+    } catch (error) {
+      console.error('Fetch team details error:', error);
+      setTeamDetailsError(error.message || 'Failed to load group details');
+      return null;
+    } finally {
+      setTeamDetailsLoading(false);
+    }
+  }, [currentRole, currentUserId]);
+
+  const toggleTeamDetailsMember = useCallback((agentId) => {
+    if (!agentId) return;
+
+    setTeamDetailsMembers((prev) => (
+      prev.includes(agentId)
+        ? prev.filter((item) => item !== agentId)
+        : [...prev, agentId]
+    ));
+  }, []);
+
+  const handleSaveTeamDetails = useCallback(async () => {
+    if (!teamDetailsData?.conversationId || teamDetailsSaving) return;
+
+    try {
+      setTeamDetailsSaving(true);
+      setTeamDetailsError('');
+
+      const res = await fetch(`${BASE_URL}/api/messages/team/${encodeURIComponent(teamDetailsData.conversationId)}/details`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          role: currentRole,
+          teamName: teamDetailsName.trim(),
+          memberIds: teamDetailsMembers,
+        }),
+      });
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to save group details');
+      }
+
+      setTeamDetailsData(payload);
+      setTeamDetailsName(payload.teamName || '');
+      setTeamDetailsMembers((payload.members || []).map((member) => member.agentId));
+      upsertInternalConversation({
+        conversationType: 'team',
+        conversationId: payload.conversationId,
+        teamId: payload.teamId,
+        teamName: payload.teamName,
+        name: payload.teamName,
+        participants: (payload.members || []).map((member) => member.agentId),
+        role: 'Group chat',
+        isInternal: true,
+        isTeam: true,
+      });
+      fetchInternalConversations();
+    } catch (error) {
+      console.error('Save team details error:', error);
+      setTeamDetailsError(error.message || 'Failed to save group details');
+    } finally {
+      setTeamDetailsSaving(false);
+    }
+  }, [currentRole, currentUserId, fetchInternalConversations, teamDetailsData?.conversationId, teamDetailsMembers, teamDetailsName, teamDetailsSaving, upsertInternalConversation]);
+
+  const handleLeaveTeam = useCallback(async () => {
+    if (!teamDetailsData?.conversationId || teamDetailsSaving) return;
+    if (!window.confirm(`Leave ${teamDetailsData.teamName}?`)) return;
+
+    try {
+      setTeamDetailsSaving(true);
+      setTeamDetailsError('');
+
+      const res = await fetch(`${BASE_URL}/api/messages/team/${encodeURIComponent(teamDetailsData.conversationId)}/leave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          role: currentRole,
+        }),
+      });
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to leave group');
+      }
+
+      setShowTeamDetails(false);
+      setTeamDetailsData(null);
+      setTeamDetailsName('');
+      setTeamDetailsMembers([]);
+      setTeamDetailsSearch('');
+      setActiveChatId((prev) => (
+        prev === buildConversationKey('team', teamDetailsData.conversationId)
+          ? null
+          : prev
+      ));
+      setMessages([]);
+      fetchInternalConversations();
+    } catch (error) {
+      console.error('Leave team error:', error);
+      setTeamDetailsError(error.message || 'Failed to leave group');
+    } finally {
+      setTeamDetailsSaving(false);
+    }
+  }, [currentRole, currentUserId, fetchInternalConversations, teamDetailsData, teamDetailsSaving]);
 
   let filteredList = conversationList;
 
@@ -886,6 +1046,14 @@ function MessagesPage({
   const activeCustomerPhone = activeConversationType === 'customer'
     ? normalize(activeChat?.phone || activeConversationId)
     : '';
+
+  const handleOpenTeamDetails = useCallback(async () => {
+    if (!isInternalTeamsPage || activeChat?.conversationType !== 'team') return;
+
+    setShowTeamDetails(true);
+    setTeamDetailsSearch('');
+    await fetchTeamDetails(activeChat.conversationId);
+  }, [activeChat, fetchTeamDetails, isInternalTeamsPage]);
 
   useEffect(() => {
     if (!activeConversationType) return;
@@ -1188,6 +1356,32 @@ function MessagesPage({
   ];
   const selectedTeamMemberRecords = teammateOptions.filter((agent) => selectedTeamMembers.includes(agent.agentId));
   const canCreateGroupDraft = teamCreatorName.trim() && selectedTeamMemberRecords.length > 0;
+  const teamDetailsMemberMap = new Set(teamDetailsMembers);
+  const teamDetailsMemberDirectory = teamDetailsMembers.map((agentId) => {
+    const existingMember = (teamDetailsData?.members || []).find((member) => member.agentId === agentId);
+    const teammate = teammateOptions.find((member) => member.agentId === agentId);
+
+    return {
+      agentId,
+      name: existingMember?.name || teammate?.name || agentId,
+      role: existingMember?.role || teammate?.role || 'Teammate',
+      department: existingMember?.department || '',
+      isCurrentUser: existingMember?.isCurrentUser || agentId === currentUserId,
+    };
+  });
+  const filteredAvailableTeamMembers = teammateOptions.filter((agent) => {
+    if (teamDetailsMemberMap.has(agent.agentId)) return false;
+
+    const normalizedQuery = teamDetailsSearch.trim().toLowerCase();
+    if (!normalizedQuery) return true;
+
+    const haystack = [agent.name, agent.role, agent.agentId]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return haystack.includes(normalizedQuery);
+  });
 
   return (
     <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}${isInternalChatPage ? ' is-internal-chat-page' : ''}${isInternalTeamsPage ? ' is-internal-teams-page' : ''}`}>
@@ -1433,6 +1627,8 @@ function MessagesPage({
           messages={messages}
           setMessages={setMessages}
           currentUserId={currentUserId}
+          showTeamDetailsAction={isInternalTeamsPage && activeChat?.conversationType === 'team'}
+          onOpenTeamDetails={handleOpenTeamDetails}
           onSwitchNumber={(num) => {
             setActiveChatId(buildConversationKey('customer', normalize(num)));
             setActiveCustomerContactId(activeChat?._id || null);
@@ -1555,10 +1751,183 @@ function MessagesPage({
                 type="button"
                 className="internal-teams-create-btn"
                 onClick={handleCreateGroupChat}
-                disabled={!canCreateGroupDraft}
+                disabled={!canCreateGroupDraft || creatingTeam}
               >
-                Start Group Chat
+                {creatingTeam ? 'Creating...' : 'Start Group Chat'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTeamDetails && (
+        <div
+          className="messages-picker-overlay"
+          onClick={() => !teamDetailsSaving && setShowTeamDetails(false)}
+        >
+          <div
+            className="messages-picker-modal internal-teams-details-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="messages-picker-header">
+              <h3>Group Details</h3>
+              <p>View and manage this internal team chat.</p>
+            </div>
+
+            <div className="internal-teams-details-body">
+              {teamDetailsLoading ? (
+                <div className="messages-picker-empty">Loading group details…</div>
+              ) : teamDetailsData ? (
+                <>
+                  <div className="internal-teams-details-hero">
+                    <div className="internal-teams-details-avatar" aria-hidden="true">
+                      #
+                    </div>
+                    <div className="internal-teams-details-copy">
+                      <div className="internal-teams-details-name">{teamDetailsName || teamDetailsData.teamName}</div>
+                      <div className="internal-teams-details-meta">
+                        {teamDetailsMemberDirectory.length} member{teamDetailsMemberDirectory.length === 1 ? '' : 's'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {teamDetailsData.managementNote ? (
+                    <div className="internal-teams-details-note">
+                      {teamDetailsData.managementNote}
+                    </div>
+                  ) : null}
+
+                  <div className="internal-teams-details-field">
+                    <label htmlFor="team-details-name">Group name</label>
+                    <input
+                      id="team-details-name"
+                      type="text"
+                      value={teamDetailsName}
+                      onChange={(event) => setTeamDetailsName(event.target.value)}
+                      disabled={!teamDetailsData.canManage || teamDetailsSaving}
+                      placeholder="Enter a group name"
+                    />
+                  </div>
+
+                  <div className="internal-teams-details-section">
+                    <div className="internal-teams-details-section-head">
+                      <span>Members</span>
+                      <span>{teamDetailsMemberDirectory.length}</span>
+                    </div>
+                    <div className="internal-teams-details-member-list">
+                      {teamDetailsMemberDirectory.map((member) => {
+                        const canRemove = teamDetailsData.canManage && !member.isCurrentUser;
+
+                        return (
+                          <div key={member.agentId} className="internal-teams-details-member-row">
+                            <div className="internal-teams-details-member-copy">
+                              <div className="internal-teams-details-member-name">
+                                {member.name}
+                                {member.isCurrentUser ? <span className="internal-teams-member-self">You</span> : null}
+                              </div>
+                              <div className="internal-teams-details-member-meta">
+                                {member.department || member.role || member.agentId}
+                              </div>
+                            </div>
+                            {canRemove ? (
+                              <button
+                                type="button"
+                                className="internal-teams-member-remove"
+                                onClick={() => toggleTeamDetailsMember(member.agentId)}
+                                disabled={teamDetailsSaving}
+                              >
+                                Remove
+                              </button>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="internal-teams-details-section">
+                    <div className="internal-teams-details-section-head">
+                      <span>Add members</span>
+                    </div>
+                    <label className="messages-picker-search-field internal-teams-details-search" htmlFor="team-details-search">
+                      <Search size={15} />
+                      <input
+                        id="team-details-search"
+                        type="search"
+                        value={teamDetailsSearch}
+                        onChange={(event) => setTeamDetailsSearch(event.target.value)}
+                        placeholder="Search teammates"
+                        disabled={!teamDetailsData.canManage || teamDetailsSaving}
+                      />
+                    </label>
+
+                    <div className="internal-teams-member-list is-details">
+                      {filteredAvailableTeamMembers.length === 0 ? (
+                        <div className="messages-picker-empty">
+                          {teamDetailsSearch.trim() ? 'No teammates match your search.' : 'No more teammates available to add.'}
+                        </div>
+                      ) : (
+                        filteredAvailableTeamMembers.map((agent) => (
+                          <button
+                            key={agent.agentId}
+                            type="button"
+                            className="internal-teams-member-option"
+                            onClick={() => toggleTeamDetailsMember(agent.agentId)}
+                            disabled={!teamDetailsData.canManage || teamDetailsSaving}
+                          >
+                            <span className="internal-teams-member-copy">
+                              <span className="internal-teams-member-name">{agent.name}</span>
+                              <span className="internal-teams-member-role">{agent.role}</span>
+                            </span>
+                            <span className="internal-teams-member-check" aria-hidden="true">
+                              Add
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="messages-picker-empty">
+                  {teamDetailsError || 'Group details are unavailable right now.'}
+                </div>
+              )}
+
+              {teamDetailsError && teamDetailsData ? (
+                <div className="internal-teams-details-error">{teamDetailsError}</div>
+              ) : null}
+            </div>
+
+            <div className="messages-picker-footer internal-teams-details-footer">
+              <button
+                type="button"
+                className="messages-picker-cancel"
+                onClick={() => setShowTeamDetails(false)}
+                disabled={teamDetailsSaving}
+              >
+                Close
+              </button>
+              {teamDetailsData?.canLeave ? (
+                <button
+                  type="button"
+                  className="internal-teams-leave-btn"
+                  onClick={handleLeaveTeam}
+                  disabled={teamDetailsSaving}
+                >
+                  {teamDetailsSaving ? 'Working…' : 'Leave Group'}
+                </button>
+              ) : null}
+              {teamDetailsData?.canManage ? (
+                <button
+                  type="button"
+                  className="internal-teams-create-btn"
+                  onClick={handleSaveTeamDetails}
+                  disabled={teamDetailsSaving || !teamDetailsName.trim() || teamDetailsMembers.length === 0}
+                >
+                  {teamDetailsSaving ? 'Saving…' : 'Save Changes'}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
