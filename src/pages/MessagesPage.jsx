@@ -1059,7 +1059,7 @@ function MessagesPage({
     );
     markChatRead(conversation);
 
-    if ((conversation.conversationType || '') === 'internal_dm') {
+    if (isInternalChatPage && searchQuery.trim() && (conversation.conversationType || '') === 'internal_dm') {
       rememberInternalSearch({
         agentId: conversation.agentId,
         name: conversation.name || conversation.title || conversation.agentId,
