@@ -1,5 +1,5 @@
 import ImportContacts from './ImportContacts';
-import { X } from 'lucide-react';
+import { Users, X } from 'lucide-react';
 import BASE_URL from '../config/api';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
@@ -43,8 +43,7 @@ function ContactsList({
 
   const getDisplayName = (item) => {
     if (item.conversationType === 'team') {
-      const teamName = item.name || item.teamName || 'Team Chat';
-      return teamName.startsWith('#') ? teamName : `# ${teamName}`;
+      return item.name || item.teamName || 'Team Chat';
     }
 
     if (item.conversationType === 'internal_dm') {
@@ -157,12 +156,12 @@ function ContactsList({
                       </span>
                     ) : isInternalTeamsList && item.conversationType === 'team' ? (
                       <span className="contact-avatar contact-avatar-team" aria-hidden="true">
-                        #
+                        <Users size={16} strokeWidth={2.1} />
                       </span>
                     ) : (
                       <span className={getIdentityClassName(item)} aria-hidden="true" />
                     )}
-                    <div className="contact-name">
+                    <div className={`contact-name${isInternalTeamsList && hasUnread ? ' is-unread' : ''}`}>
                       {displayName}
                     </div>
                   </div>

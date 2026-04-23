@@ -2316,6 +2316,10 @@
   letter-spacing: -0.01em;
 }
 
+.contact-card.is-internal-teams-card .contact-name.is-unread {
+  font-weight: 800;
+}
+
 .contact-card.is-internal-teams-card .contact-preview {
   font-size: 13px;
   color: #64748b;
@@ -2324,6 +2328,7 @@
 
 .contact-card.is-internal-teams-card.has-unread .contact-preview {
   color: #334155;
+  font-weight: 700;
 }
 
 .contact-card.is-internal-teams-card .contact-indicators {
