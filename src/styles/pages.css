@@ -1995,11 +1995,19 @@
 }
 
 .internal-teams-details-note,
+.internal-teams-details-success,
 .internal-teams-details-error {
   border-radius: 12px;
   padding: 10px 12px;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.internal-teams-details-success {
+  background: rgba(236, 253, 245, 0.96);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  color: #047857;
+  font-weight: 600;
 }
 
 .internal-teams-details-note {

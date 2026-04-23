@@ -345,6 +345,7 @@ function MessagesPage({
   const [teamDetailsLoading, setTeamDetailsLoading] = useState(false);
   const [teamDetailsSaving, setTeamDetailsSaving] = useState(false);
   const [teamDetailsError, setTeamDetailsError] = useState('');
+  const [teamDetailsSuccess, setTeamDetailsSuccess] = useState('');
   const [teamDetailsData, setTeamDetailsData] = useState(null);
   const [teamDetailsName, setTeamDetailsName] = useState('');
   const [teamDetailsMembers, setTeamDetailsMembers] = useState([]);
@@ -375,6 +376,7 @@ function MessagesPage({
     setTeamDetailsLoading(false);
     setTeamDetailsSaving(false);
     setTeamDetailsError('');
+    setTeamDetailsSuccess('');
     setTeamDetailsData(null);
     setTeamDetailsName('');
     setTeamDetailsMembers([]);
@@ -393,6 +395,16 @@ function MessagesPage({
 
     return () => window.clearTimeout(timeoutId);
   }, [toast]);
+
+  useEffect(() => {
+    if (!teamDetailsSuccess) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setTeamDetailsSuccess('');
+    }, 2500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [teamDetailsSuccess]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -878,6 +890,7 @@ function MessagesPage({
 
     setTeamDetailsLoading(true);
     setTeamDetailsError('');
+    setTeamDetailsSuccess('');
 
     try {
       const params = new URLSearchParams({
@@ -922,6 +935,7 @@ function MessagesPage({
     try {
       setTeamDetailsSaving(true);
       setTeamDetailsError('');
+      setTeamDetailsSuccess('');
       const previousName = teamDetailsData.teamName || '';
       const previousMembers = (teamDetailsData.members || []).map((member) => member.agentId);
 
@@ -960,13 +974,13 @@ function MessagesPage({
         isTeam: true,
       });
       if (addedCount > 0 && removedCount === 0 && !nameChanged) {
-        setToast({ type: 'success', message: addedCount === 1 ? 'Member added' : 'Members added' });
+        setTeamDetailsSuccess(addedCount === 1 ? 'Member added' : 'Members added');
       } else if (removedCount > 0 && addedCount === 0 && !nameChanged) {
-        setToast({ type: 'success', message: removedCount === 1 ? 'Member removed' : 'Members removed' });
+        setTeamDetailsSuccess(removedCount === 1 ? 'Member removed' : 'Members removed');
       } else if (nameChanged && addedCount === 0 && removedCount === 0) {
-        setToast({ type: 'success', message: 'Group renamed successfully' });
+        setTeamDetailsSuccess('Group renamed successfully');
       } else {
-        setToast({ type: 'success', message: 'Group updated successfully' });
+        setTeamDetailsSuccess('Group updated successfully');
       }
       fetchInternalConversations();
     } catch (error) {
@@ -1135,9 +1149,10 @@ function MessagesPage({
   const handleOpenTeamDetails = useCallback(async () => {
     if (!isInternalTeamsPage || activeChat?.conversationType !== 'team') return;
 
-    setShowTeamDetails(true);
-    setTeamDetailsSearch('');
-    await fetchTeamDetails(activeChat.conversationId);
+      setShowTeamDetails(true);
+      setTeamDetailsSearch('');
+      setTeamDetailsSuccess('');
+      await fetchTeamDetails(activeChat.conversationId);
   }, [activeChat, fetchTeamDetails, isInternalTeamsPage]);
 
   useEffect(() => {
@@ -1870,6 +1885,12 @@ function MessagesPage({
                 <div className="messages-picker-empty">Loading group details…</div>
               ) : teamDetailsData ? (
                 <>
+                  {teamDetailsSuccess ? (
+                    <div className="internal-teams-details-success">
+                      {teamDetailsSuccess}
+                    </div>
+                  ) : null}
+
                   <div className="internal-teams-details-hero">
                     <div className="internal-teams-details-avatar" aria-hidden="true">
                       #
