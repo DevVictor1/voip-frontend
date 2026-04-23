@@ -2135,10 +2135,12 @@
 }
 
 .messages-toast {
-  position: sticky;
-  top: 12px;
-  margin-left: auto;
-  z-index: 12;
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  margin-left: 0;
+  max-width: min(320px, calc(100vw - 32px));
+  z-index: 80;
 }
 
 .internal-teams-danger-zone {
