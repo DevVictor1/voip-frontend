@@ -319,7 +319,6 @@ function MessagesPage({
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showToolsMenu, setShowToolsMenu] = useState(false);
-  const [showImportTools, setShowImportTools] = useState(false);
   const [internalChatFilter, setInternalChatFilter] = useState('all');
   const [internalTeamsFilter, setInternalTeamsFilter] = useState('all');
   const [teammatePickerQuery, setTeammatePickerQuery] = useState('');
@@ -368,7 +367,6 @@ function MessagesPage({
     setShowTeammatePicker(false);
     setShowUnreadOnly(false);
     setShowToolsMenu(false);
-    setShowImportTools(false);
     setInternalChatFilter('all');
     setInternalTeamsFilter('all');
     setTeammatePickerQuery('');
@@ -1431,23 +1429,12 @@ function MessagesPage({
     }
   };
 
-  const handleImportContactsSuccess = useCallback(async () => {
-    setShowImportTools(false);
-    setShowToolsMenu(false);
-
-    await Promise.allSettled([
-      fetchContacts(),
-      fetchConversations(),
-    ]);
-  }, [fetchContacts, fetchConversations]);
-
   const isChatOpen = Boolean(activeChatId);
   const threadCount = filteredList.length;
   const unreadThreadCount = filteredList.filter(hasUnreadConversation).length;
   const canCreateCustomerMessage = activeSection === 'customers';
   const canStartDirectMessage = activeSection === 'internal';
-  const canImportContacts = activeSection === 'customers';
-  const hasMoreActions = canStartDirectMessage || canImportContacts;
+  const hasMoreActions = canStartDirectMessage;
   const internalRecentSearches = recentInternalSearches.filter((entry) => Boolean(entry?.agentId));
   const internalChatFilterTabs = [
     { id: 'all', label: 'All' },
@@ -1732,18 +1719,6 @@ function MessagesPage({
                           Message Teammate
                         </button>
                       ) : null}
-                      {canImportContacts ? (
-                        <button
-                          onClick={() => {
-                            setShowImportTools((prev) => !prev);
-                            setShowToolsMenu(false);
-                          }}
-                          className={`messages-tools-option${showImportTools ? ' is-active' : ''}`}
-                          type="button"
-                        >
-                          {showImportTools ? 'Hide Import Contacts' : 'Import Contacts'}
-                        </button>
-                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -1759,8 +1734,6 @@ function MessagesPage({
           onSelect={handleSelectChat}
           activeSection={activeSection}
           showUnreadOnly={effectiveShowUnreadOnly}
-          showImportTools={isSmsPage ? false : canImportContacts && showImportTools}
-          onImportSuccess={handleImportContactsSuccess}
           emptyTitle={viewConfig.emptyLabel}
           emptySubtitle={viewConfig.emptySubtitle}
           hideHeader={isSmsPage || isInternalChatPage || isInternalTeamsPage}

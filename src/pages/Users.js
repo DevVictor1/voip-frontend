@@ -3,6 +3,7 @@ import {
   DEPARTMENT_OPTIONS,
   getDepartmentLabel,
 } from '../config/agents';
+import ImportContacts from '../components/ImportContacts';
 import {
   createUserRequest,
   deleteUserRequest,
@@ -43,6 +44,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isCreateExpanded, setIsCreateExpanded] = useState(false);
+  const [isImportExpanded, setIsImportExpanded] = useState(false);
   const toastType = error ? 'error' : success ? 'success' : '';
   const toastMessage = error || success;
   const generatedCreateAgentId = buildAgentIdPreview(form);
@@ -273,6 +275,17 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
     }
   };
 
+  const handleImportContactsSuccess = (payload) => {
+    setError('');
+    setSuccess(`Imported ${payload?.count || 0} contacts successfully`);
+    setIsImportExpanded(false);
+  };
+
+  const handleImportContactsError = (message) => {
+    setSuccess('');
+    setError(message || 'Failed to import contacts');
+  };
+
   if (currentUserRole !== 'admin') {
     return (
       <div className="directory-page" style={{ display: 'grid', gap: '24px' }}>
@@ -299,6 +312,44 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
         <div className="page-subtitle">
           Review every teammate by department, role, status, and communication identity while keeping user management in place.
         </div>
+      </div>
+
+      <div className={`section-card directory-import-section${isImportExpanded ? ' is-expanded' : ''}`}>
+        <div className="section-header directory-import-header">
+          <div className="directory-import-copy">
+            <h3 style={{ margin: 0 }}>Import Contacts</h3>
+            <div className="text-muted directory-import-summary">
+              Upload customer contacts from Directory so contact management stays separate from the SMS inbox.
+            </div>
+          </div>
+          <div className="directory-import-actions">
+            <span className="tag">Contacts</span>
+            <button
+              type="button"
+              className="directory-collapse-btn"
+              onClick={() => setIsImportExpanded((prev) => !prev)}
+              aria-expanded={isImportExpanded}
+            >
+              {isImportExpanded ? 'Hide import' : 'Open import'}
+            </button>
+          </div>
+        </div>
+
+        {isImportExpanded ? (
+          <div className="directory-import-panel">
+            <ImportContacts
+              onImportSuccess={handleImportContactsSuccess}
+              onImportError={handleImportContactsError}
+            />
+            <div className="text-muted directory-import-help">
+              Upload a CSV of customer contacts. The existing import flow and backend processing stay unchanged.
+            </div>
+          </div>
+        ) : (
+          <div className="directory-import-collapsed-copy">
+            Keep contact imports here as a directory-management action while SMS / MMS stays focused on active conversations.
+          </div>
+        )}
       </div>
 
       <div className="stats-grid">

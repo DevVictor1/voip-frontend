@@ -1,4 +1,3 @@
-import ImportContacts from './ImportContacts';
 import { Users, X } from 'lucide-react';
 import BASE_URL from '../config/api';
 
@@ -11,8 +10,6 @@ function ContactsList({
   onSelect,
   activeSection = 'customers',
   showUnreadOnly = false,
-  showImportTools = false,
-  onImportSuccess,
   emptyTitle = 'No conversations here yet',
   emptySubtitle = '',
   hideHeader = false,
@@ -215,14 +212,6 @@ function ContactsList({
           <div className="contacts-header-meta">
             {showUnreadOnly ? <span className="tag">Unread</span> : null}
             <span>{list.length} total</span>
-          </div>
-        </div>
-      ) : null}
-
-      {showImportTools ? (
-        <div className="contacts-import">
-          <div className="contacts-import-panel">
-            <ImportContacts onImportSuccess={onImportSuccess} />
           </div>
         </div>
       ) : null}

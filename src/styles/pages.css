@@ -248,6 +248,47 @@
   gap: 12px;
 }
 
+.directory-import-section {
+  display: grid;
+  gap: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
+}
+
+.directory-import-section:not(.is-expanded) {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.82));
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.03);
+}
+
+.directory-import-header {
+  margin-bottom: 0;
+  gap: 12px;
+}
+
+.directory-import-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.directory-import-summary,
+.directory-import-collapsed-copy,
+.directory-import-help {
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.directory-import-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.directory-import-panel {
+  display: grid;
+  gap: 10px;
+}
+
 .directory-create-section:not(.is-expanded) {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.82));
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.03);

@@ -1,12 +1,21 @@
 import { useState } from 'react';
 import BASE_URL from '../config/api';
 
-function ImportContacts({ onImportSuccess }) {
+function ImportContacts({ onImportSuccess, onImportError }) {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleUpload = async () => {
-    if (!file) return alert('Please select a CSV file');
+    if (!file) {
+      const message = 'Please select a CSV file';
+
+      if (onImportError) {
+        onImportError(message);
+      } else {
+        alert(message);
+      }
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
@@ -21,16 +30,26 @@ function ImportContacts({ onImportSuccess }) {
 
       const data = await res.json();
 
-      alert(`âœ… Imported ${data.count} contacts`);
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to import contacts');
+      }
 
       setFile(null);
 
-      // ðŸ”¥ REFRESH CONTACTS
-      if (onImportSuccess) onImportSuccess();
-
+      if (onImportSuccess) {
+        onImportSuccess(data);
+      } else {
+        alert(`Imported ${data.count || 0} contacts`);
+      }
     } catch (err) {
-      console.error('âŒ Import error:', err);
-      alert('Failed to import contacts');
+      console.error('Import error:', err);
+      const message = err?.message || 'Failed to import contacts';
+
+      if (onImportError) {
+        onImportError(message);
+      } else {
+        alert(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -49,6 +68,7 @@ function ImportContacts({ onImportSuccess }) {
         onClick={handleUpload}
         disabled={loading}
         className="import-contacts-button"
+        type="button"
       >
         {loading ? 'Importing...' : 'Import Contacts'}
       </button>
