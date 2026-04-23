@@ -15,7 +15,11 @@ function ContactsList({
   onImportSuccess,
   emptyTitle = 'No conversations here yet',
   emptySubtitle = '',
+  hideHeader = false,
+  listVariant = 'default',
 }) {
+  const isInternalChatList = listVariant === 'internal-chat';
+
   const getSectionTitle = () => {
     if (activeSection === 'internal') return 'Internal Chat';
     if (activeSection === 'teams') return 'Internal Teams';
@@ -69,7 +73,7 @@ function ContactsList({
     }
 
     if (item.conversationType === 'internal_dm') {
-      return item.role || 'Direct message';
+      return isInternalChatList ? '' : (item.role || 'Direct message');
     }
 
     return [phone, item.dba].filter(Boolean).join(' / ');
@@ -91,6 +95,10 @@ function ContactsList({
     if (item.conversationType === 'team') return 'conversation-dot is-team';
     if (item.conversationType === 'internal_dm') return 'conversation-dot is-internal';
     return 'conversation-dot is-customer';
+  };
+
+  const getAvatarLabel = (label = '') => {
+    return String(label || '').trim().charAt(0).toUpperCase() || '?';
   };
 
   const handleDelete = async (id, e) => {
@@ -121,7 +129,7 @@ function ContactsList({
       return (
         <div
           key={conversationKey || index}
-          className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}`}
+          className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}${isInternalChatList && item.conversationType === 'internal_dm' ? ' is-internal-chat-card' : ''}`}
           onClick={() => onSelect(item)}
         >
           {item._id && item.conversationType === 'customer' && (
@@ -138,7 +146,13 @@ function ContactsList({
               <div className="contact-main">
                 <div className="contact-name-row">
                   <div className="contact-name-wrap">
-                    <span className={getIdentityClassName(item)} aria-hidden="true" />
+                    {isInternalChatList && item.conversationType === 'internal_dm' ? (
+                      <span className="contact-avatar contact-avatar-internal" aria-hidden="true">
+                        {getAvatarLabel(displayName)}
+                      </span>
+                    ) : (
+                      <span className={getIdentityClassName(item)} aria-hidden="true" />
+                    )}
                     <div className="contact-name">
                       {displayName}
                     </div>
@@ -149,7 +163,7 @@ function ContactsList({
                     </div>
                   ) : null}
                 </div>
-                {secondaryLine && (
+                {secondaryLine && !isInternalChatList && (
                   <div className="contact-meta">
                     {secondaryLine}
                   </div>
@@ -162,9 +176,11 @@ function ContactsList({
                 {preview}
               </div>
               <div className="contact-indicators">
-                <span className={getBadgeClassName(item)}>
-                  {getBadgeLabel(item)}
-                </span>
+                {!isInternalChatList ? (
+                  <span className={getBadgeClassName(item)}>
+                    {getBadgeLabel(item)}
+                  </span>
+                ) : null}
                 {hasUnread && (
                   <span className="unread-badge">{item.unread}</span>
                 )}
@@ -177,16 +193,18 @@ function ContactsList({
   };
 
   return (
-    <div className="contacts-wrapper">
-      <div className="contacts-header">
-        <div>
-          <h3>{getSectionTitle()}</h3>
+    <div className={`contacts-wrapper${isInternalChatList ? ' is-internal-chat-list' : ''}`}>
+      {!hideHeader ? (
+        <div className="contacts-header">
+          <div>
+            <h3>{getSectionTitle()}</h3>
+          </div>
+          <div className="contacts-header-meta">
+            {showUnreadOnly ? <span className="tag">Unread</span> : null}
+            <span>{list.length} total</span>
+          </div>
         </div>
-        <div className="contacts-header-meta">
-          {showUnreadOnly ? <span className="tag">Unread</span> : null}
-          <span>{list.length} total</span>
-        </div>
-      </div>
+      ) : null}
 
       {showImportTools ? (
         <div className="contacts-import">

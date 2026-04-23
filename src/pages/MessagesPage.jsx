@@ -4,7 +4,7 @@ import ChatWindow from '../components/ChatWindow';
 import NewMessageModal from '../components/NewMessageModal';
 import socket from '../socket';
 import BASE_URL from '../config/api';
-import { MoreHorizontal, Plus, Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { getAgentMeta, getDepartmentLabel } from '../config/agents';
 import {
   fetchTeammatesRequest,
@@ -291,6 +291,9 @@ const VIEW_MODE_CONFIG = {
   },
 };
 
+const INTERNAL_CHAT_RECENTS_STORAGE_KEY = 'voip_internal_chat_recent_searches';
+const INTERNAL_CHAT_RECENTS_LIMIT = 5;
+
 function MessagesPage({
   currentRole: providedRole,
   currentUserId: providedUserId,
@@ -313,11 +316,24 @@ function MessagesPage({
   const [searchQuery, setSearchQuery] = useState('');
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [showImportTools, setShowImportTools] = useState(false);
+  const [internalChatFilter, setInternalChatFilter] = useState('all');
+  const [teammatePickerQuery, setTeammatePickerQuery] = useState('');
+  const [recentInternalSearches, setRecentInternalSearches] = useState(() => {
+    if (typeof window === 'undefined') return [];
+
+    try {
+      const stored = JSON.parse(window.localStorage.getItem(INTERNAL_CHAT_RECENTS_STORAGE_KEY) || '[]');
+      return Array.isArray(stored) ? stored.slice(0, INTERNAL_CHAT_RECENTS_LIMIT) : [];
+    } catch (error) {
+      return [];
+    }
+  });
 
   const currentRole = providedRole || getEffectiveRole();
   const currentUserId = providedUserId || getEffectiveAgentId() || 'agent_1';
   const storedAuthUser = getStoredAuthUser();
   const currentAuthUserDbId = storedAuthUser?.id || storedAuthUser?._id || '';
+  const isInternalChatPage = resolvedViewMode === 'internal';
 
   useEffect(() => {
     setActiveSection(viewConfig.section);
@@ -326,9 +342,21 @@ function MessagesPage({
     setMessages([]);
     setShowModal(false);
     setShowTeammatePicker(false);
+    setShowUnreadOnly(false);
     setShowToolsMenu(false);
     setShowImportTools(false);
+    setInternalChatFilter('all');
+    setTeammatePickerQuery('');
   }, [viewConfig.section]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    window.localStorage.setItem(
+      INTERNAL_CHAT_RECENTS_STORAGE_KEY,
+      JSON.stringify(recentInternalSearches.slice(0, INTERNAL_CHAT_RECENTS_LIMIT))
+    );
+  }, [recentInternalSearches]);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -550,6 +578,20 @@ function MessagesPage({
     [currentAuthUserDbId, currentUserId, teammates]
   );
 
+  const teammatePickerOptions = useMemo(() => {
+    const normalizedQuery = teammatePickerQuery.trim().toLowerCase();
+    if (!normalizedQuery) return teammateOptions;
+
+    return teammateOptions.filter((agent) => {
+      const haystack = [agent.name, agent.role, agent.agentId]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
+  }, [teammateOptions, teammatePickerQuery]);
+
   const assignableAgents = useMemo(() => {
     const currentUser = storedAuthUser?.agentId
       ? {
@@ -607,6 +649,23 @@ function MessagesPage({
     });
   }, []);
 
+  const rememberInternalSearch = useCallback((entry) => {
+    if (!entry?.agentId) return;
+
+    setRecentInternalSearches((prev) => {
+      const nextEntry = {
+        agentId: entry.agentId,
+        name: entry.name || entry.agentId,
+        role: entry.role || 'Teammate',
+      };
+
+      return [
+        nextEntry,
+        ...prev.filter((item) => item.agentId !== nextEntry.agentId),
+      ].slice(0, INTERNAL_CHAT_RECENTS_LIMIT);
+    });
+  }, []);
+
   const handleStartDirectChat = useCallback(async (targetUserId) => {
     if (!targetUserId || startingDirectChat) return;
 
@@ -652,13 +711,19 @@ function MessagesPage({
       setActiveChatId(buildConversationKey('internal_dm', conversation.conversationId));
       setMessages([]);
       setShowTeammatePicker(false);
+      setTeammatePickerQuery('');
+      rememberInternalSearch({
+        agentId: otherAgent.agentId,
+        name: otherAgent.name,
+        role: otherAgent.role,
+      });
       fetchInternalConversations();
     } catch (err) {
       console.error('Start direct chat error:', err);
     } finally {
       setStartingDirectChat(false);
     }
-  }, [currentUserId, fetchInternalConversations, startingDirectChat, upsertInternalConversation, workspaceUserDirectory]);
+  }, [currentUserId, fetchInternalConversations, rememberInternalSearch, startingDirectChat, upsertInternalConversation, workspaceUserDirectory]);
 
   const conversationList = buildConversationList({
     contacts,
@@ -678,7 +743,11 @@ function MessagesPage({
     filteredList = conversationList.filter((item) => item.conversationType === 'team');
   }
 
-  if (showUnreadOnly) {
+  const effectiveShowUnreadOnly = isInternalChatPage
+    ? internalChatFilter === 'unread'
+    : showUnreadOnly;
+
+  if (effectiveShowUnreadOnly) {
     filteredList = filteredList.filter(
       (item) => !isDirectoryOnlyCustomer(item) && hasUnreadConversation(item)
     );
@@ -989,6 +1058,14 @@ function MessagesPage({
         : null
     );
     markChatRead(conversation);
+
+    if ((conversation.conversationType || '') === 'internal_dm') {
+      rememberInternalSearch({
+        agentId: conversation.agentId,
+        name: conversation.name || conversation.title || conversation.agentId,
+        role: conversation.subtitle || conversation.role || 'Teammate',
+      });
+    }
   };
 
   const handleImportContactsSuccess = useCallback(async () => {
@@ -1008,10 +1085,16 @@ function MessagesPage({
   const canStartDirectMessage = activeSection === 'internal';
   const canImportContacts = activeSection === 'customers';
   const hasMoreActions = canStartDirectMessage || canImportContacts;
+  const internalRecentSearches = recentInternalSearches.filter((entry) => Boolean(entry?.agentId));
+  const internalChatFilterTabs = [
+    { id: 'all', label: 'All' },
+    { id: 'unread', label: 'Unread' },
+    { id: 'favorites', label: 'Favorites' },
+  ];
 
   return (
-    <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}`}>
-      <div className="messages-contacts-pane">
+    <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}${isInternalChatPage ? ' is-internal-chat-page' : ''}`}>
+      <div className={`messages-contacts-pane${isInternalChatPage ? ' is-internal-chat-pane' : ''}`}>
         <div className="messages-panel-header">
           <div className="messages-panel-title-row">
             <h1 className="page-title">{viewConfig.pageTitle}</h1>
@@ -1021,94 +1104,173 @@ function MessagesPage({
           <p className="page-subtitle">{viewConfig.pageSubtitle}</p>
         </div>
 
-        <div className="messages-toolbar">
-          <label className="messages-search" htmlFor="messages-search">
-            <Search size={15} />
-            <input
-              id="messages-search"
-              type="search"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search conversations"
-            />
-          </label>
+        {isInternalChatPage ? (
+          <div className="internal-chat-toolbar">
+            <div className="internal-chat-search-row">
+              <label className="messages-search internal-chat-search" htmlFor="messages-search">
+                <Search size={16} />
+                <input
+                  id="messages-search"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search or start a new chat"
+                />
+              </label>
 
-          <div className="messages-toolbar-actions">
-            <button
-              onClick={() => setShowUnreadOnly((prev) => !prev)}
-              className={`messages-filter-btn messages-filter-btn-inline${showUnreadOnly ? ' is-active' : ''}`}
-              type="button"
-            >
-              Unread {unreadThreadCount > 0 ? `(${unreadThreadCount})` : ''}
-            </button>
-
-            {canCreateCustomerMessage ? (
-              <button
-                onClick={() => setShowModal(true)}
-                className="messages-new-button"
-                type="button"
-              >
-                <Plus size={16} />
-                {viewConfig.primaryActionLabel}
-              </button>
-            ) : null}
-
-            {canStartDirectMessage ? (
               <button
                 onClick={() => setShowTeammatePicker(true)}
-                className="messages-new-button"
+                className="internal-chat-new-chat"
                 type="button"
+                aria-label="Start a new chat"
               >
                 <Plus size={16} />
-                {viewConfig.primaryActionLabel}
+                <span>New Chat</span>
               </button>
-            ) : null}
+            </div>
 
-            {hasMoreActions ? (
-              <div className="messages-tools-menu">
+            <div className="internal-chat-recents">
+              <div className="internal-chat-recents-head">
+                <span className="internal-chat-recents-label">Recent searches</span>
                 <button
                   type="button"
-                  className={`messages-tools-trigger${showToolsMenu ? ' is-open' : ''}`}
-                  onClick={() => setShowToolsMenu((prev) => !prev)}
-                  aria-expanded={showToolsMenu}
-                  aria-label="More actions"
+                  className="internal-chat-clear"
+                  onClick={() => setRecentInternalSearches([])}
+                  disabled={internalRecentSearches.length === 0}
                 >
-                  <MoreHorizontal size={16} />
-                  <span className="messages-tools-label">More</span>
+                  Clear all
                 </button>
-
-                {showToolsMenu ? (
-                  <div className="messages-tools-dropdown">
-                    {canStartDirectMessage ? (
-                      <button
-                        onClick={() => {
-                          setShowTeammatePicker(true);
-                          setShowToolsMenu(false);
-                        }}
-                        className="messages-tools-option"
-                        type="button"
-                      >
-                        Message Teammate
-                      </button>
-                    ) : null}
-                    {canImportContacts ? (
-                      <button
-                        onClick={() => {
-                          setShowImportTools((prev) => !prev);
-                          setShowToolsMenu(false);
-                        }}
-                        className={`messages-tools-option${showImportTools ? ' is-active' : ''}`}
-                        type="button"
-                      >
-                        {showImportTools ? 'Hide Import Contacts' : 'Import Contacts'}
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
-            ) : null}
+
+              {internalRecentSearches.length > 0 ? (
+                <div className="internal-chat-recent-list">
+                  {internalRecentSearches.map((entry) => (
+                    <button
+                      key={entry.agentId}
+                      type="button"
+                      className="internal-chat-recent-item"
+                      onClick={() => handleStartDirectChat(entry.agentId)}
+                    >
+                      <span className="internal-chat-recent-avatar" aria-hidden="true">
+                        {(entry.name || entry.agentId).trim().charAt(0).toUpperCase()}
+                      </span>
+                      <span className="internal-chat-recent-name">{entry.name || entry.agentId}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="internal-chat-recents-empty">
+                  Recent teammate searches will appear here.
+                </div>
+              )}
+            </div>
+
+            <div className="internal-chat-filters" role="tablist" aria-label="Internal chat filters">
+              {internalChatFilterTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`internal-chat-filter-tab${internalChatFilter === tab.id ? ' is-active' : ''}`}
+                  onClick={() => setInternalChatFilter(tab.id)}
+                  aria-pressed={internalChatFilter === tab.id}
+                >
+                  <span>{tab.label}</span>
+                  {tab.id === 'unread' && unreadThreadCount > 0 ? (
+                    <span className="internal-chat-filter-count">{unreadThreadCount}</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="messages-toolbar">
+            <label className="messages-search" htmlFor="messages-search">
+              <Search size={15} />
+              <input
+                id="messages-search"
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search conversations"
+              />
+            </label>
+
+            <div className="messages-toolbar-actions">
+              <button
+                onClick={() => setShowUnreadOnly((prev) => !prev)}
+                className={`messages-filter-btn messages-filter-btn-inline${showUnreadOnly ? ' is-active' : ''}`}
+                type="button"
+              >
+                Unread {unreadThreadCount > 0 ? `(${unreadThreadCount})` : ''}
+              </button>
+
+              {canCreateCustomerMessage ? (
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="messages-new-button"
+                  type="button"
+                >
+                  <Plus size={16} />
+                  {viewConfig.primaryActionLabel}
+                </button>
+              ) : null}
+
+              {canStartDirectMessage ? (
+                <button
+                  onClick={() => setShowTeammatePicker(true)}
+                  className="messages-new-button"
+                  type="button"
+                >
+                  <Plus size={16} />
+                  {viewConfig.primaryActionLabel}
+                </button>
+              ) : null}
+
+              {hasMoreActions ? (
+                <div className="messages-tools-menu">
+                  <button
+                    type="button"
+                    className={`messages-tools-trigger${showToolsMenu ? ' is-open' : ''}`}
+                    onClick={() => setShowToolsMenu((prev) => !prev)}
+                    aria-expanded={showToolsMenu}
+                    aria-label="More actions"
+                  >
+                    <span>•••</span>
+                  </button>
+
+                  {showToolsMenu ? (
+                    <div className="messages-tools-dropdown">
+                      {canStartDirectMessage ? (
+                        <button
+                          onClick={() => {
+                            setShowTeammatePicker(true);
+                            setShowToolsMenu(false);
+                          }}
+                          className="messages-tools-option"
+                          type="button"
+                        >
+                          Message Teammate
+                        </button>
+                      ) : null}
+                      {canImportContacts ? (
+                        <button
+                          onClick={() => {
+                            setShowImportTools((prev) => !prev);
+                            setShowToolsMenu(false);
+                          }}
+                          className={`messages-tools-option${showImportTools ? ' is-active' : ''}`}
+                          type="button"
+                        >
+                          {showImportTools ? 'Hide Import Contacts' : 'Import Contacts'}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
 
         <ContactsList
           list={filteredList}
@@ -1116,11 +1278,13 @@ function MessagesPage({
           activeContactId={activeChat?.conversationType === 'customer' ? (activeChat?._id || activeCustomerContactId) : null}
           onSelect={handleSelectChat}
           activeSection={activeSection}
-          showUnreadOnly={showUnreadOnly}
+          showUnreadOnly={effectiveShowUnreadOnly}
           showImportTools={canImportContacts && showImportTools}
           onImportSuccess={handleImportContactsSuccess}
           emptyTitle={viewConfig.emptyLabel}
           emptySubtitle={viewConfig.emptySubtitle}
+          hideHeader={isInternalChatPage}
+          listVariant={isInternalChatPage ? 'internal-chat' : 'default'}
         />
       </div>
 
@@ -1162,11 +1326,26 @@ function MessagesPage({
               <p>Start or reopen a direct internal chat.</p>
             </div>
 
+            <div className="messages-picker-search">
+              <label className="messages-picker-search-field" htmlFor="teammate-picker-search">
+                <Search size={15} />
+                <input
+                  id="teammate-picker-search"
+                  type="search"
+                  value={teammatePickerQuery}
+                  onChange={(event) => setTeammatePickerQuery(event.target.value)}
+                  placeholder="Search teammates"
+                />
+              </label>
+            </div>
+
             <div className="messages-picker-list">
-              {teammateOptions.length === 0 ? (
-                <div className="messages-picker-empty">No teammates available.</div>
+              {teammatePickerOptions.length === 0 ? (
+                <div className="messages-picker-empty">
+                  {teammateOptions.length === 0 ? 'No teammates available.' : 'No teammates match your search.'}
+                </div>
               ) : (
-                teammateOptions.map((agent) => (
+                teammatePickerOptions.map((agent) => (
                   <button
                     key={agent.agentId}
                     type="button"
