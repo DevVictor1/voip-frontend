@@ -126,7 +126,9 @@ function ContactsList({
       const hasUnread = item.unread > 0;
       const displayName = getDisplayName(item);
       const secondaryLine = getSecondaryLine(item, activePhone);
-      const preview = item.lastMessage || item.previewFallback || 'No messages yet';
+      const preview = isInternalTeamsList && item.conversationType === 'team' && item.lastMessage
+        ? `${item.lastMessageSenderName || 'Teammate'}: ${item.lastMessage}`
+        : (item.lastMessage || item.previewFallback || 'No messages yet');
       const timestamp = formatTimestamp(item.lastMessageAt || item.updatedAt);
 
       return (

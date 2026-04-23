@@ -190,6 +190,9 @@ const normalizeInternalConversation = (conversation, currentUserId, userDirector
     : (otherAgent?.role || conversation?.role || 'Internal chat');
   const unreadCount = normalizeUnreadCount(conversation?.unread);
   const lastMessageAt = conversation?.updatedAt || 0;
+  const lastMessageSenderName = conversationType === 'team'
+    ? (conversation?.lastMessageSenderName || '')
+    : '';
 
   return {
     ...conversation,
@@ -202,6 +205,7 @@ const normalizeInternalConversation = (conversation, currentUserId, userDirector
     subtitle,
     name: title,
     lastMessage: conversation?.lastMessage || '',
+    lastMessageSenderName,
     lastMessageAt,
     updatedAt: lastMessageAt,
     unreadCount,
