@@ -18,6 +18,7 @@ function ContactsList({
   hideHeader = false,
   listVariant = 'default',
 }) {
+  const isSmsList = listVariant === 'sms';
   const isInternalChatList = listVariant === 'internal-chat';
   const isInternalTeamsList = listVariant === 'internal-teams';
 
@@ -78,6 +79,10 @@ function ContactsList({
       return isInternalChatList ? '' : (item.role || 'Direct message');
     }
 
+    if (isSmsList) {
+      return '';
+    }
+
     return [phone, item.dba].filter(Boolean).join(' / ');
   };
 
@@ -133,7 +138,7 @@ function ContactsList({
       return (
         <div
           key={conversationKey || index}
-          className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}${isInternalChatList && item.conversationType === 'internal_dm' ? ' is-internal-chat-card' : ''}${isInternalTeamsList && item.conversationType === 'team' ? ' is-internal-teams-card' : ''}`}
+          className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}${isSmsList && item.conversationType === 'customer' ? ' is-sms-card' : ''}${isInternalChatList && item.conversationType === 'internal_dm' ? ' is-internal-chat-card' : ''}${isInternalTeamsList && item.conversationType === 'team' ? ' is-internal-teams-card' : ''}`}
           onClick={() => onSelect(item)}
         >
           {item._id && item.conversationType === 'customer' && (
@@ -161,7 +166,7 @@ function ContactsList({
                     ) : (
                       <span className={getIdentityClassName(item)} aria-hidden="true" />
                     )}
-                    <div className={`contact-name${isInternalTeamsList && hasUnread ? ' is-unread' : ''}`}>
+                    <div className={`contact-name${(isSmsList || isInternalTeamsList) && hasUnread ? ' is-unread' : ''}`}>
                       {displayName}
                     </div>
                   </div>
@@ -171,7 +176,7 @@ function ContactsList({
                     </div>
                   ) : null}
                 </div>
-                {secondaryLine && !isInternalChatList && !isInternalTeamsList && (
+                {secondaryLine && !isSmsList && !isInternalChatList && !isInternalTeamsList && (
                   <div className="contact-meta">
                     {secondaryLine}
                   </div>
@@ -201,7 +206,7 @@ function ContactsList({
   };
 
   return (
-    <div className={`contacts-wrapper${isInternalChatList ? ' is-internal-chat-list' : ''}${isInternalTeamsList ? ' is-internal-teams-list' : ''}`}>
+    <div className={`contacts-wrapper${isSmsList ? ' is-sms-list' : ''}${isInternalChatList ? ' is-internal-chat-list' : ''}${isInternalTeamsList ? ' is-internal-teams-list' : ''}`}>
       {!hideHeader ? (
         <div className="contacts-header">
           <div>

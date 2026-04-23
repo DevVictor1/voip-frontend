@@ -338,6 +338,7 @@ function MessagesPage({
   const currentUserId = providedUserId || getEffectiveAgentId() || 'agent_1';
   const storedAuthUser = getStoredAuthUser();
   const currentAuthUserDbId = storedAuthUser?.id || storedAuthUser?._id || '';
+  const isSmsPage = resolvedViewMode === 'customers';
   const isInternalChatPage = resolvedViewMode === 'internal';
   const isInternalTeamsPage = resolvedViewMode === 'teams';
   const [showTeamCreator, setShowTeamCreator] = useState(false);
@@ -1488,14 +1489,14 @@ function MessagesPage({
   });
 
   return (
-    <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}${isInternalChatPage ? ' is-internal-chat-page' : ''}${isInternalTeamsPage ? ' is-internal-teams-page' : ''}`}>
+    <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}${isSmsPage ? ' is-sms-page' : ''}${isInternalChatPage ? ' is-internal-chat-page' : ''}${isInternalTeamsPage ? ' is-internal-teams-page' : ''}`}>
       {toast ? (
         <div className={`numbers-toast numbers-toast-${toast.type} messages-toast`}>
           {toast.message}
         </div>
       ) : null}
 
-      <div className={`messages-contacts-pane${isInternalChatPage ? ' is-internal-chat-pane' : ''}${isInternalTeamsPage ? ' is-internal-teams-pane' : ''}`}>
+      <div className={`messages-contacts-pane${isSmsPage ? ' is-sms-pane' : ''}${isInternalChatPage ? ' is-internal-chat-pane' : ''}${isInternalTeamsPage ? ' is-internal-teams-pane' : ''}`}>
         <div className="messages-panel-header">
           <div className="messages-panel-title-row">
             <h1 className="page-title">{viewConfig.pageTitle}</h1>
@@ -1625,6 +1626,42 @@ function MessagesPage({
               ))}
             </div>
           </div>
+        ) : isSmsPage ? (
+          <div className="sms-toolbar">
+            <label className="messages-search sms-search" htmlFor="messages-search">
+              <Search size={16} />
+              <input
+                id="messages-search"
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search conversations or phone number"
+              />
+            </label>
+
+            <div className="sms-filters" role="tablist" aria-label="SMS inbox filters">
+              {[
+                { id: 'all', label: 'All', count: threadCount },
+                { id: 'unread', label: 'Unread', count: unreadThreadCount },
+              ].map((filter) => {
+                const isActive = filter.id === 'unread' ? showUnreadOnly : !showUnreadOnly;
+
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    className={`sms-filter-tab${isActive ? ' is-active' : ''}`}
+                    onClick={() => setShowUnreadOnly(filter.id === 'unread')}
+                  >
+                    <span>{filter.label}</span>
+                    {filter.count > 0 ? (
+                      <span className="sms-filter-count">{filter.count}</span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         ) : (
           <div className="messages-toolbar">
             <label className="messages-search" htmlFor="messages-search">
@@ -1722,12 +1759,12 @@ function MessagesPage({
           onSelect={handleSelectChat}
           activeSection={activeSection}
           showUnreadOnly={effectiveShowUnreadOnly}
-          showImportTools={canImportContacts && showImportTools}
+          showImportTools={isSmsPage ? false : canImportContacts && showImportTools}
           onImportSuccess={handleImportContactsSuccess}
           emptyTitle={viewConfig.emptyLabel}
           emptySubtitle={viewConfig.emptySubtitle}
-          hideHeader={isInternalChatPage || isInternalTeamsPage}
-          listVariant={isInternalChatPage ? 'internal-chat' : isInternalTeamsPage ? 'internal-teams' : 'default'}
+          hideHeader={isSmsPage || isInternalChatPage || isInternalTeamsPage}
+          listVariant={isSmsPage ? 'sms' : isInternalChatPage ? 'internal-chat' : isInternalTeamsPage ? 'internal-teams' : 'default'}
         />
       </div>
 
