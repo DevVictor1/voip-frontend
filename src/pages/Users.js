@@ -747,7 +747,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
         <div className="directory-company-list">
           <div className="directory-company-search">
             <input
-              className="numbers-input"
+              className="numbers-input directory-search-input"
               placeholder="Search company contacts"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -875,7 +875,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
               <div className="directory-detail-note">
                 <div className="directory-detail-label">Direct Number</div>
                 <div className="text-muted">
-                  No dedicated direct number is stored for this teammate yet. The current directory safely reuses the existing internal user identity fields only.
+                  No direct number is stored yet. The directory is currently using the existing internal user profile only.
                 </div>
               </div>
             </div>
