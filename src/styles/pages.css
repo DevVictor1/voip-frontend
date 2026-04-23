@@ -1225,13 +1225,15 @@
 .messages-toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 6px 8px 8px;
 }
 
 .messages-search {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 100%;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1265,13 +1267,16 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex: 0 0 auto;
-  flex-wrap: nowrap;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
   min-width: 0;
   white-space: nowrap;
+  margin-left: auto;
+  justify-content: flex-end;
 }
 
 .messages-filter-btn {
+  flex: 0 0 auto;
   min-height: 36px;
   padding: 6px 10px;
   border-radius: 10px;
@@ -1289,6 +1294,7 @@
 }
 
 .messages-new-button {
+  flex: 0 0 auto;
   min-height: 36px;
   padding: 6px 11px;
   background: rgba(37, 99, 235, 0.92);
@@ -1317,6 +1323,7 @@
 }
 
 .messages-tools-trigger {
+  flex: 0 0 auto;
   min-height: 36px;
   min-width: 36px;
   padding: 6px 9px;
@@ -1350,7 +1357,9 @@
   }
 
   .messages-toolbar-actions {
-    flex-wrap: wrap;
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
   }
 }
 
