@@ -1,6 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
-import { MessageSquare, MoreHorizontal, Phone, Video } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  MessageSquare,
+  MoreHorizontal,
+  Phone,
+  Plus,
+  Upload,
+  Video,
+  X,
+} from 'lucide-react';
 import { DEPARTMENT_OPTIONS, getDepartmentLabel } from '../config/agents';
+import BASE_URL from '../config/api';
 import ImportContacts from '../components/ImportContacts';
 import {
   createUserRequest,
@@ -26,39 +36,54 @@ const emptyPasswordForm = {
   password: '',
 };
 
+const emptyClientForm = {
+  name: '',
+  phone: '',
+  business: '',
+  merchantId: '',
+};
+
 function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'directory' }) {
+  const navigate = useNavigate();
   const isSettingsMode = mode === 'settings';
+
   const [users, setUsers] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [clientChats, setClientChats] = useState([]);
+
   const [form, setForm] = useState(emptyCreateForm);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [detailUser, setDetailUser] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [passwordForm, setPasswordForm] = useState(emptyPasswordForm);
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [activeDirectoryTab, setActiveDirectoryTab] = useState('internal');
+  const [selectedClientId, setSelectedClientId] = useState('');
+
   const [loading, setLoading] = useState(true);
+  const [clientLoading, setClientLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [deletingId, setDeletingId] = useState('');
+  const [clientStatusSaving, setClientStatusSaving] = useState(false);
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
   const [isCreateExpanded, setIsCreateExpanded] = useState(false);
   const [isImportExpanded, setIsImportExpanded] = useState(false);
+  const [showClientImport, setShowClientImport] = useState(false);
+  const [showAddClientModal, setShowAddClientModal] = useState(false);
+  const [addClientForm, setAddClientForm] = useState(emptyClientForm);
 
   const toastType = error ? 'error' : success ? 'success' : '';
   const toastMessage = error || success;
   const generatedCreateAgentId = buildAgentIdPreview(form);
   const isEditingExistingAgentId = Boolean(detailUser?.agentId);
-
-  useEffect(() => {
-    if (currentUserRole !== 'admin') {
-      setLoading(false);
-      return;
-    }
-
-    loadUsers();
-  }, [currentUserRole]);
 
   useEffect(() => {
     if (!toastMessage) return undefined;
@@ -99,17 +124,51 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
   }, [searchQuery, searchableUsers]);
 
   const departmentGroups = useMemo(() => buildDepartmentGroups(filteredUsers), [filteredUsers]);
+
+  const clientDirectory = useMemo(() => {
+    return buildClientDirectory({ contacts, chats: clientChats });
+  }, [contacts, clientChats]);
+
+  const filteredClients = useMemo(() => {
+    const normalizedQuery = String(clientSearchQuery || '').trim().toLowerCase();
+    if (!normalizedQuery) {
+      return clientDirectory;
+    }
+
+    return clientDirectory.filter((client) => (
+      [
+        client.name,
+        client.phone,
+        client.businessName,
+        client.mid,
+        client.previewText,
+        client.assignmentLabel,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedQuery))
+    ));
+  }, [clientDirectory, clientSearchQuery]);
+
   const selectedDirectoryUser = useMemo(() => {
     if (!selectedUserId) return filteredUsers[0] || searchableUsers[0] || null;
-    return searchableUsers.find((user) => user.id === selectedUserId) || filteredUsers[0] || searchableUsers[0] || null;
+    return searchableUsers.find((user) => user.id === selectedUserId)
+      || filteredUsers[0]
+      || searchableUsers[0]
+      || null;
   }, [filteredUsers, searchableUsers, selectedUserId]);
 
+  const selectedClient = useMemo(() => {
+    if (!selectedClientId) return filteredClients[0] || clientDirectory[0] || null;
+    return clientDirectory.find((client) => client.id === selectedClientId)
+      || filteredClients[0]
+      || clientDirectory[0]
+      || null;
+  }, [clientDirectory, filteredClients, selectedClientId]);
+
   useEffect(() => {
-    if (loading || isSettingsMode) return;
+    if (loading || isSettingsMode || activeDirectoryTab !== 'internal') return;
     if (!filteredUsers.length) {
-      if (selectedUserId) {
-        setSelectedUserId('');
-      }
+      if (selectedUserId) setSelectedUserId('');
       return;
     }
 
@@ -117,9 +176,22 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
     if (!selectedStillVisible) {
       setSelectedUserId(filteredUsers[0].id);
     }
-  }, [filteredUsers, isSettingsMode, loading, selectedUserId]);
+  }, [activeDirectoryTab, filteredUsers, isSettingsMode, loading, selectedUserId]);
 
-  const loadUsers = async () => {
+  useEffect(() => {
+    if (clientLoading || isSettingsMode || activeDirectoryTab !== 'clients') return;
+    if (!filteredClients.length) {
+      if (selectedClientId) setSelectedClientId('');
+      return;
+    }
+
+    const selectedStillVisible = filteredClients.some((client) => client.id === selectedClientId);
+    if (!selectedStillVisible) {
+      setSelectedClientId(filteredClients[0].id);
+    }
+  }, [activeDirectoryTab, clientLoading, filteredClients, isSettingsMode, selectedClientId]);
+
+  const loadUsers = useCallback(async () => {
     try {
       const token = getStoredAuthToken();
       const payload = await fetchUsersRequest(token);
@@ -131,24 +203,52 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const loadClients = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({
+        role: currentUserRole,
+        userId: currentUserId,
+      });
+
+      const [contactsRes, chatsRes] = await Promise.all([
+        fetch(`${BASE_URL}/api/contacts?${params.toString()}`),
+        fetch(`${BASE_URL}/api/sms/conversations`),
+      ]);
+
+      const contactsData = contactsRes.ok ? await contactsRes.json() : [];
+      const chatsData = chatsRes.ok ? await chatsRes.json() : [];
+
+      setContacts(Array.isArray(contactsData) ? contactsData : []);
+      setClientChats(Array.isArray(chatsData) ? chatsData : []);
+    } catch (loadError) {
+      console.error('Directory client load error:', loadError);
+      setError((prev) => prev || 'Failed to load clients');
+    } finally {
+      setClientLoading(false);
+    }
+  }, [currentUserRole, currentUserId]);
+
+  useEffect(() => {
+    if (currentUserRole !== 'admin') {
+      setLoading(false);
+      setClientLoading(false);
+      return;
+    }
+
+    loadUsers();
+    loadClients();
+  }, [currentUserRole, loadClients, loadUsers]);
 
   const handleCreateChange = (field) => (event) => {
     const value = field === 'isActive' ? event.target.checked : event.target.value;
-
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleEditChange = (field) => (event) => {
     const value = field === 'isActive' ? event.target.checked : event.target.value;
-
-    setEditForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setEditForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleCreateSubmit = async (event) => {
@@ -181,6 +281,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
 
   const openUserDetails = async (userId) => {
     if (!userId) return;
+
     if (selectedUserId === userId && detailUser && isSettingsMode) {
       setSelectedUserId('');
       setDetailUser(null);
@@ -332,11 +433,44 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
     setError('');
     setSuccess(`Imported ${payload?.count || 0} contacts successfully`);
     setIsImportExpanded(false);
+    setShowClientImport(false);
+    loadClients();
   };
 
   const handleImportContactsError = (message) => {
     setSuccess('');
     setError(message || 'Failed to import contacts');
+  };
+
+  const handleClientStatusChange = async (contactId, assignmentStatus) => {
+    if (!contactId || !assignmentStatus) return;
+
+    setClientStatusSaving(true);
+    setError('');
+
+    try {
+      const res = await fetch(`${BASE_URL}/api/contacts/${contactId}/assignment-status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignmentStatus }),
+      });
+
+      const updatedContact = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(updatedContact?.error || 'Failed to update client status');
+      }
+
+      setContacts((prev) => prev.map((contact) => (
+        contact._id === contactId
+          ? { ...contact, ...(updatedContact || {}), assignmentStatus }
+          : contact
+      )));
+      setSuccess('Client status updated');
+    } catch (statusError) {
+      setError(statusError.message || 'Failed to update client status');
+    } finally {
+      setClientStatusSaving(false);
+    }
   };
 
   if (currentUserRole !== 'admin') {
@@ -725,7 +859,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
   }
 
   return (
-    <div className="directory-page is-internal-company-directory" style={{ display: 'grid', gap: '24px' }}>
+    <div className={`directory-page${activeDirectoryTab === 'internal' ? ' is-internal-company-directory' : ' is-clients-directory'}`} style={{ display: 'grid', gap: '24px' }}>
       {toastMessage ? (
         <div className={`numbers-toast numbers-toast-${toastType}`}>
           {toastMessage}
@@ -734,159 +868,426 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
 
       <div className="directory-hero">
         <div className="directory-hero-tabs">
-          <button type="button" className="directory-tab is-active">Internal Company</button>
-          <button type="button" className="directory-tab" disabled>Clients</button>
+          <button
+            type="button"
+            className={`directory-tab${activeDirectoryTab === 'internal' ? ' is-active' : ''}`}
+            onClick={() => setActiveDirectoryTab('internal')}
+          >
+            Internal Company
+          </button>
+          <button
+            type="button"
+            className={`directory-tab${activeDirectoryTab === 'clients' ? ' is-active' : ''}`}
+            onClick={() => setActiveDirectoryTab('clients')}
+          >
+            Clients
+          </button>
         </div>
         <h1 className="page-title">Directory</h1>
         <div className="page-subtitle">
-          Search internal teammates, review their communication identity, and open a clean company phonebook view without the old admin dashboard clutter.
+          {activeDirectoryTab === 'internal'
+            ? 'Search internal teammates, review their communication identity, and open a clean company phonebook view without the old admin dashboard clutter.'
+            : 'Browse client records, search by phone number or Merchant ID, and keep the customer directory separate from the live SMS inbox.'}
         </div>
       </div>
 
-      <div className="section-card directory-company-shell">
-        <div className="directory-company-list">
-          <div className="directory-company-search">
-            <input
-              className="numbers-input directory-search-input"
-              placeholder="Search company contacts"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-            <div className="directory-company-count text-muted">
-              {loading ? 'Loading contacts...' : `${filteredUsers.length} teammates`}
+      {activeDirectoryTab === 'internal' ? (
+        <div className="section-card directory-company-shell">
+          <div className="directory-company-list">
+            <div className="directory-company-search">
+              <input
+                className="numbers-input directory-search-input"
+                placeholder="Search company contacts"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+              <div className="directory-company-count text-muted">
+                {loading ? 'Loading contacts...' : `${filteredUsers.length} teammates`}
+              </div>
+            </div>
+
+            <div className="directory-company-list-scroll">
+              {loading ? (
+                <div className="directory-company-empty">
+                  <h3>Loading teammates</h3>
+                  <div className="text-muted">Fetching the current internal company directory.</div>
+                </div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="directory-company-empty">
+                  <h3>No company contacts found</h3>
+                  <div className="text-muted">Try a different name, email, department, or extension search.</div>
+                </div>
+              ) : (
+                filteredUsers.map((user) => {
+                  const isSelected = selectedDirectoryUser?.id === user.id;
+                  return (
+                    <button
+                      type="button"
+                      key={user.id}
+                      className={`directory-contact-row${isSelected ? ' is-active' : ''}`}
+                      onClick={() => setSelectedUserId(user.id)}
+                    >
+                      <div className="directory-contact-avatar">{getInitials(user.name)}</div>
+                      <div className="directory-contact-copy">
+                        <div className="directory-contact-primary">
+                          <span>{user.name}</span>
+                          {user.agentId ? (
+                            <span className="directory-contact-extension">Ext. {user.agentId}</span>
+                          ) : null}
+                        </div>
+                        <div className="directory-contact-secondary">{user.email}</div>
+                        <div className="directory-contact-tertiary">
+                          {formatRole(user.role)}{user.department ? ` · ${getDepartmentLabel(user.department) || user.department}` : ''}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
             </div>
           </div>
 
-          <div className="directory-company-list-scroll">
-            {loading ? (
-              <div className="directory-company-empty">
-                <h3>Loading teammates</h3>
-                <div className="text-muted">Fetching the current internal company directory.</div>
-              </div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="directory-company-empty">
-                <h3>No company contacts found</h3>
-                <div className="text-muted">Try a different name, email, department, or extension search.</div>
+          <div className="directory-company-detail">
+            {selectedDirectoryUser ? (
+              <div className="directory-detail-card">
+                <div className="directory-detail-hero">
+                  <div className="directory-detail-avatar">{getInitials(selectedDirectoryUser.name)}</div>
+                  <div className="directory-detail-copy">
+                    <h2>{selectedDirectoryUser.name}</h2>
+                    <div className="directory-detail-subtitle">
+                      {formatRole(selectedDirectoryUser.role)}
+                      {selectedDirectoryUser.department ? ` · ${getDepartmentLabel(selectedDirectoryUser.department) || selectedDirectoryUser.department}` : ''}
+                    </div>
+                  </div>
+                  <div className="directory-quick-actions" aria-label="Contact quick actions">
+                    <button
+                      type="button"
+                      className="directory-quick-action"
+                      title="Internal messaging shortcut will connect here in a later directory phase"
+                      aria-label="Message teammate"
+                      disabled
+                    >
+                      <MessageSquare size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="directory-quick-action"
+                      title="Meeting shortcuts are not connected from Directory yet"
+                      aria-label="Start meeting"
+                      disabled
+                    >
+                      <Video size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="directory-quick-action"
+                      title="Direct calling from Directory is not connected yet"
+                      aria-label="Call teammate"
+                      disabled
+                    >
+                      <Phone size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="directory-quick-action"
+                      title="More teammate tools will appear here later"
+                      aria-label="More teammate options"
+                      disabled
+                    >
+                      <MoreHorizontal size={16} />
+                    </button>
+                  </div>
+                  <span className={`directory-status-pill${selectedDirectoryUser.isActive ? ' is-active' : ''}`}>
+                    {selectedDirectoryUser.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                <div className="directory-detail-grid">
+                  <div className="directory-detail-section">
+                    <div className="directory-detail-label">Extension / Agent ID</div>
+                    <div className="directory-detail-value">{selectedDirectoryUser.agentId || 'Not assigned yet'}</div>
+                  </div>
+                  <div className="directory-detail-section">
+                    <div className="directory-detail-label">Email</div>
+                    <div className="directory-detail-value">{selectedDirectoryUser.email || 'Not available'}</div>
+                  </div>
+                  <div className="directory-detail-section">
+                    <div className="directory-detail-label">Department</div>
+                    <div className="directory-detail-value">{getDepartmentLabel(selectedDirectoryUser.department) || 'Unassigned / Global'}</div>
+                  </div>
+                  <div className="directory-detail-section">
+                    <div className="directory-detail-label">Availability</div>
+                    <div className="directory-detail-value">{formatPresence(selectedDirectoryUser.status)}</div>
+                  </div>
+                </div>
+
+                <div className="directory-detail-note">
+                  <div className="directory-detail-label">Direct Number</div>
+                  <div className="text-muted">
+                    No direct number is stored yet. The directory is currently using the existing internal user profile only.
+                  </div>
+                </div>
               </div>
             ) : (
-              filteredUsers.map((user) => {
-                const isSelected = selectedDirectoryUser?.id === user.id;
-                return (
-                  <button
-                    type="button"
-                    key={user.id}
-                    className={`directory-contact-row${isSelected ? ' is-active' : ''}`}
-                    onClick={() => setSelectedUserId(user.id)}
-                  >
-                    <div className="directory-contact-avatar">{getInitials(user.name)}</div>
-                    <div className="directory-contact-copy">
-                      <div className="directory-contact-primary">
-                        <span>{user.name}</span>
-                        {user.agentId ? (
-                          <span className="directory-contact-extension">Ext. {user.agentId}</span>
-                        ) : null}
-                      </div>
-                      <div className="directory-contact-secondary">{user.email}</div>
-                      <div className="directory-contact-tertiary">
-                        {formatRole(user.role)}{user.department ? ` · ${getDepartmentLabel(user.department) || user.department}` : ''}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })
+              <div className="directory-company-empty directory-company-empty-detail">
+                <h3>Select a teammate</h3>
+                <div className="text-muted">Choose someone from the left to view internal company details.</div>
+              </div>
             )}
           </div>
         </div>
+      ) : (
+        <div className="section-card directory-clients-shell">
+          <div className="directory-clients-list">
+            <div className="directory-clients-actions">
+              <button
+                type="button"
+                className="directory-client-action-btn"
+                onClick={() => setShowAddClientModal(true)}
+              >
+                <Plus size={15} />
+                <span>Add Client</span>
+              </button>
+              <button
+                type="button"
+                className="directory-client-action-btn"
+                onClick={() => setShowClientImport((prev) => !prev)}
+              >
+                <Upload size={15} />
+                <span>{showClientImport ? 'Hide Import' : 'Import Clients'}</span>
+              </button>
+            </div>
 
-        <div className="directory-company-detail">
-          {selectedDirectoryUser ? (
-            <div className="directory-detail-card">
-              <div className="directory-detail-hero">
-                <div className="directory-detail-avatar">{getInitials(selectedDirectoryUser.name)}</div>
-                <div className="directory-detail-copy">
-                  <h2>{selectedDirectoryUser.name}</h2>
-                  <div className="directory-detail-subtitle">
-                    {formatRole(selectedDirectoryUser.role)}
-                    {selectedDirectoryUser.department ? ` · ${getDepartmentLabel(selectedDirectoryUser.department) || selectedDirectoryUser.department}` : ''}
+            {showClientImport ? (
+              <div className="directory-client-import">
+                <ImportContacts
+                  onImportSuccess={handleImportContactsSuccess}
+                  onImportError={handleImportContactsError}
+                />
+              </div>
+            ) : null}
+
+            <div className="directory-company-search directory-clients-search">
+              <input
+                className="numbers-input directory-search-input"
+                placeholder="Search by phone number, Merchant ID"
+                value={clientSearchQuery}
+                onChange={(event) => setClientSearchQuery(event.target.value)}
+              />
+              <div className="directory-company-count text-muted">
+                {clientLoading ? 'Loading clients...' : `${filteredClients.length} clients`}
+              </div>
+            </div>
+
+            <div className="directory-company-list-scroll">
+              {clientLoading ? (
+                <div className="directory-company-empty">
+                  <h3>Loading clients</h3>
+                  <div className="text-muted">Fetching current contact records and customer conversations.</div>
+                </div>
+              ) : filteredClients.length === 0 ? (
+                <div className="directory-company-empty">
+                  <h3>No clients found</h3>
+                  <div className="text-muted">Try a phone number, business name, or Merchant ID search.</div>
+                </div>
+              ) : (
+                filteredClients.map((client) => (
+                  <button
+                    type="button"
+                    key={client.id}
+                    className={`directory-client-row${selectedClient?.id === client.id ? ' is-active' : ''}`}
+                    onClick={() => setSelectedClientId(client.id)}
+                  >
+                    <div className="directory-client-row-head">
+                      <div className="directory-client-name">{client.name}</div>
+                      <div className="directory-client-assignment-badge">{client.assignmentLabel}</div>
+                    </div>
+                    <div className="directory-client-secondary">{client.secondaryLine}</div>
+                    <div className="directory-client-preview">{client.previewText}</div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="directory-clients-detail">
+            {selectedClient ? (
+              <div className="directory-client-detail-card">
+                <div className="directory-client-detail-head">
+                  <div>
+                    <h2 className="directory-client-detail-title">{selectedClient.name}</h2>
+                    <div className="directory-client-detail-subtitle">{selectedClient.secondaryLine}</div>
+                  </div>
+                  <span className="directory-status-pill is-active">Active</span>
+                </div>
+
+                <div className="directory-client-badges">
+                  <span className="directory-client-badge">{selectedClient.assignmentLabel}</span>
+                  <span className="directory-client-badge">Open</span>
+                  {selectedClient.mid ? (
+                    <span className="directory-client-badge is-mid">Merchant ID {selectedClient.mid}</span>
+                  ) : null}
+                </div>
+
+                <div className="directory-client-status-row">
+                  <label className="directory-detail-label" htmlFor="directory-client-status">
+                    Status
+                  </label>
+                  <select
+                    id="directory-client-status"
+                    className="numbers-input directory-client-status-select"
+                    value={selectedClient.assignmentStatus}
+                    onChange={(event) => handleClientStatusChange(selectedClient._id, event.target.value)}
+                    disabled={!selectedClient._id || clientStatusSaving}
+                  >
+                    <option value="open">Open</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+
+                {selectedClient.businessName ? (
+                  <div className="directory-client-store-tag">Store</div>
+                ) : null}
+
+                <div className="directory-client-actions">
+                  <button
+                    type="button"
+                    className="directory-client-toolbar-btn"
+                    disabled
+                    title="Assignment tools stay in the existing SMS flow for now"
+                  >
+                    Assign
+                  </button>
+                  <button
+                    type="button"
+                    className="directory-client-toolbar-btn"
+                    disabled
+                    title="Client notes are not connected from Directory yet"
+                  >
+                    Notes
+                  </button>
+                  <button
+                    type="button"
+                    className="directory-client-toolbar-btn"
+                    disabled
+                    title="More client options will appear here later"
+                  >
+                    Options
+                  </button>
+                  <button
+                    type="button"
+                    className="directory-client-toolbar-btn is-accent"
+                    onClick={() => navigate('/calls')}
+                  >
+                    <Phone size={15} />
+                    <span>Call</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="directory-client-toolbar-btn is-accent is-secondary"
+                    onClick={() => navigate('/sms-mms')}
+                  >
+                    <MessageSquare size={15} />
+                    <span>SMS / MMS</span>
+                  </button>
+                </div>
+
+                <div className="directory-client-detail-body">
+                  <div className="directory-detail-section">
+                    <div className="directory-detail-label">Phone number</div>
+                    <div className="directory-detail-value">{selectedClient.phone || 'Unknown'}</div>
+                  </div>
+                  <div className="directory-detail-section">
+                    <div className="directory-detail-label">Business</div>
+                    <div className="directory-detail-value">{selectedClient.businessName || 'Not available'}</div>
+                  </div>
+                  <div className="directory-detail-section">
+                    <div className="directory-detail-label">Last preview</div>
+                    <div className="directory-detail-value directory-client-preview-value">{selectedClient.previewText}</div>
                   </div>
                 </div>
-                <div className="directory-quick-actions" aria-label="Contact quick actions">
-                  <button
-                    type="button"
-                    className="directory-quick-action"
-                    title="Internal messaging shortcut will connect here in a later directory phase"
-                    aria-label="Message teammate"
-                    disabled
-                  >
-                    <MessageSquare size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    className="directory-quick-action"
-                    title="Meeting shortcuts are not connected from Directory yet"
-                    aria-label="Start meeting"
-                    disabled
-                  >
-                    <Video size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    className="directory-quick-action"
-                    title="Direct calling from Directory is not connected yet"
-                    aria-label="Call teammate"
-                    disabled
-                  >
-                    <Phone size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    className="directory-quick-action"
-                    title="More teammate tools will appear here later"
-                    aria-label="More teammate options"
-                    disabled
-                  >
-                    <MoreHorizontal size={16} />
-                  </button>
-                </div>
-                <span className={`directory-status-pill${selectedDirectoryUser.isActive ? ' is-active' : ''}`}>
-                  {selectedDirectoryUser.isActive ? 'Active' : 'Inactive'}
-                </span>
               </div>
-
-              <div className="directory-detail-grid">
-                <div className="directory-detail-section">
-                  <div className="directory-detail-label">Extension / Agent ID</div>
-                  <div className="directory-detail-value">{selectedDirectoryUser.agentId || 'Not assigned yet'}</div>
-                </div>
-                <div className="directory-detail-section">
-                  <div className="directory-detail-label">Email</div>
-                  <div className="directory-detail-value">{selectedDirectoryUser.email || 'Not available'}</div>
-                </div>
-                <div className="directory-detail-section">
-                  <div className="directory-detail-label">Department</div>
-                  <div className="directory-detail-value">{getDepartmentLabel(selectedDirectoryUser.department) || 'Unassigned / Global'}</div>
-                </div>
-                <div className="directory-detail-section">
-                  <div className="directory-detail-label">Availability</div>
-                  <div className="directory-detail-value">{formatPresence(selectedDirectoryUser.status)}</div>
-                </div>
+            ) : (
+              <div className="directory-company-empty directory-company-empty-detail">
+                <h3>Select a client</h3>
+                <div className="text-muted">Choose a client from the left to view contact and conversation details.</div>
               </div>
-
-              <div className="directory-detail-note">
-                <div className="directory-detail-label">Direct Number</div>
-                <div className="text-muted">
-                  No direct number is stored yet. The directory is currently using the existing internal user profile only.
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="directory-company-empty directory-company-empty-detail">
-              <h3>Select a teammate</h3>
-              <div className="text-muted">Choose someone from the left to view internal company details.</div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {showAddClientModal ? (
+        <div className="directory-modal-overlay" onClick={() => setShowAddClientModal(false)}>
+          <div className="directory-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="directory-modal-header">
+              <div>
+                <h3>Add Client</h3>
+                <p>Prepare a client entry point without faking backend creation.</p>
+              </div>
+              <button
+                type="button"
+                className="directory-modal-close"
+                onClick={() => setShowAddClientModal(false)}
+                aria-label="Close add client"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="directory-modal-body">
+              <input
+                className="numbers-input"
+                placeholder="Client name"
+                value={addClientForm.name}
+                onChange={(event) => setAddClientForm((prev) => ({ ...prev, name: event.target.value }))}
+              />
+              <input
+                className="numbers-input"
+                placeholder="Phone number"
+                value={addClientForm.phone}
+                onChange={(event) => setAddClientForm((prev) => ({ ...prev, phone: event.target.value }))}
+              />
+              <input
+                className="numbers-input"
+                placeholder="Business / store"
+                value={addClientForm.business}
+                onChange={(event) => setAddClientForm((prev) => ({ ...prev, business: event.target.value }))}
+              />
+              <input
+                className="numbers-input"
+                placeholder="Merchant ID"
+                value={addClientForm.merchantId}
+                onChange={(event) => setAddClientForm((prev) => ({ ...prev, merchantId: event.target.value }))}
+              />
+              <div className="directory-modal-note">
+                Manual client creation is not wired to a backend create endpoint yet. Use Import Clients for a real save today, or let SMS auto-create a new number through the existing messaging flow.
+              </div>
+            </div>
+
+            <div className="directory-modal-footer">
+              <button
+                type="button"
+                className="directory-client-toolbar-btn"
+                onClick={() => {
+                  setShowAddClientModal(false);
+                  setShowClientImport(true);
+                }}
+              >
+                Import Instead
+              </button>
+              <button
+                type="button"
+                className="directory-client-toolbar-btn is-accent"
+                onClick={() => setShowAddClientModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -955,6 +1356,81 @@ function formatPresence(status) {
   if (normalizedStatus === 'available') return 'Available';
   if (normalizedStatus === 'online') return 'Online';
   return normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1);
+}
+
+function normalizePhone(value) {
+  if (!value) return '';
+  return String(value).replace(/\D/g, '').slice(-10);
+}
+
+function buildClientDirectory({ contacts = [], chats = [] }) {
+  const clients = [];
+  const matchedPhones = new Set();
+
+  contacts.forEach((contact) => {
+    const phones = Array.isArray(contact?.phones) ? contact.phones : [];
+    const normalizedPhones = phones
+      .map((phone) => normalizePhone(phone.number))
+      .filter(Boolean);
+    const matchedChat = chats.find((chat) => normalizedPhones.includes(normalizePhone(chat?.phone)));
+    const phone = normalizePhone(matchedChat?.phone || phones[0]?.number || '');
+    const fullName = [contact?.firstName, contact?.lastName].filter(Boolean).join(' ').trim();
+    const businessName = contact?.dba || '';
+    const name = fullName || contact?.name || businessName || phone;
+    const previewText = matchedChat?.lastMessage || 'No messages yet';
+
+    clients.push({
+      ...contact,
+      id: contact?._id || `client:${phone}`,
+      _id: contact?._id || null,
+      name: name || phone || 'Unknown client',
+      phone,
+      businessName,
+      mid: contact?.mid || '',
+      previewText,
+      assignedTo: contact?.assignedTo || matchedChat?.assignedTo || null,
+      isUnassigned: typeof contact?.isUnassigned === 'boolean'
+        ? contact.isUnassigned
+        : typeof matchedChat?.isUnassigned === 'boolean'
+          ? matchedChat.isUnassigned
+          : !(contact?.assignedTo || matchedChat?.assignedTo),
+      assignmentStatus: contact?.assignmentStatus || matchedChat?.assignmentStatus || 'open',
+      unread: Number(matchedChat?.unread || 0),
+      updatedAt: matchedChat?.updatedAt || contact?.updatedAt || 0,
+      secondaryLine: [phone, businessName].filter(Boolean).join(' / '),
+    });
+
+    normalizedPhones.forEach((item) => matchedPhones.add(item));
+    if (phone) matchedPhones.add(phone);
+  });
+
+  chats.forEach((chat) => {
+    const phone = normalizePhone(chat?.phone);
+    if (!phone || matchedPhones.has(phone)) return;
+
+    clients.push({
+      id: `client:${phone}`,
+      _id: null,
+      name: chat?.name || phone,
+      phone,
+      businessName: '',
+      mid: '',
+      previewText: chat?.lastMessage || 'No messages yet',
+      assignedTo: chat?.assignedTo || null,
+      isUnassigned: typeof chat?.isUnassigned === 'boolean' ? chat.isUnassigned : !chat?.assignedTo,
+      assignmentStatus: chat?.assignmentStatus || 'open',
+      unread: Number(chat?.unread || 0),
+      updatedAt: chat?.updatedAt || 0,
+      secondaryLine: phone,
+    });
+  });
+
+  return clients
+    .map((client) => ({
+      ...client,
+      assignmentLabel: client.isUnassigned ? 'Unassigned' : (client.assignedTo || 'Assigned'),
+    }))
+    .sort((left, right) => new Date(right.updatedAt || 0) - new Date(left.updatedAt || 0));
 }
 
 function buildDepartmentGroups(users = []) {
