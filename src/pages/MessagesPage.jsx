@@ -349,6 +349,9 @@ function MessagesPage({
   const [teamDetailsName, setTeamDetailsName] = useState('');
   const [teamDetailsMembers, setTeamDetailsMembers] = useState([]);
   const [teamDetailsSearch, setTeamDetailsSearch] = useState('');
+  const [showDeleteTeamConfirm, setShowDeleteTeamConfirm] = useState(false);
+  const [deletingTeam, setDeletingTeam] = useState(false);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     setActiveSection(viewConfig.section);
@@ -376,7 +379,20 @@ function MessagesPage({
     setTeamDetailsName('');
     setTeamDetailsMembers([]);
     setTeamDetailsSearch('');
+    setShowDeleteTeamConfirm(false);
+    setDeletingTeam(false);
+    setToast(null);
   }, [viewConfig.section]);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null);
+    }, 2500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [toast]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -692,6 +708,12 @@ function MessagesPage({
     });
   }, []);
 
+  const removeInternalConversation = useCallback((conversationId) => {
+    if (!conversationId) return;
+
+    setInternalChats((prev) => prev.filter((item) => item.conversationId !== conversationId));
+  }, []);
+
   const rememberInternalSearch = useCallback((entry) => {
     if (!entry?.agentId) return;
 
@@ -774,6 +796,7 @@ function MessagesPage({
       setTeamCreatorQuery('');
       setTeamCreatorName('');
       setSelectedTeamMembers([]);
+      setToast({ type: 'success', message: 'Group created successfully' });
       fetchInternalConversations();
     } catch (error) {
       console.error('Create group chat error:', error);
@@ -899,6 +922,8 @@ function MessagesPage({
     try {
       setTeamDetailsSaving(true);
       setTeamDetailsError('');
+      const previousName = teamDetailsData.teamName || '';
+      const previousMembers = (teamDetailsData.members || []).map((member) => member.agentId);
 
       const res = await fetch(`${BASE_URL}/api/messages/team/${encodeURIComponent(teamDetailsData.conversationId)}/details`, {
         method: 'PUT',
@@ -919,6 +944,10 @@ function MessagesPage({
       setTeamDetailsData(payload);
       setTeamDetailsName(payload.teamName || '');
       setTeamDetailsMembers((payload.members || []).map((member) => member.agentId));
+      const nextMembers = (payload.members || []).map((member) => member.agentId);
+      const addedCount = nextMembers.filter((memberId) => !previousMembers.includes(memberId)).length;
+      const removedCount = previousMembers.filter((memberId) => !nextMembers.includes(memberId)).length;
+      const nameChanged = previousName.trim() !== (payload.teamName || '').trim();
       upsertInternalConversation({
         conversationType: 'team',
         conversationId: payload.conversationId,
@@ -930,6 +959,15 @@ function MessagesPage({
         isInternal: true,
         isTeam: true,
       });
+      if (addedCount > 0 && removedCount === 0 && !nameChanged) {
+        setToast({ type: 'success', message: addedCount === 1 ? 'Member added' : 'Members added' });
+      } else if (removedCount > 0 && addedCount === 0 && !nameChanged) {
+        setToast({ type: 'success', message: removedCount === 1 ? 'Member removed' : 'Members removed' });
+      } else if (nameChanged && addedCount === 0 && removedCount === 0) {
+        setToast({ type: 'success', message: 'Group renamed successfully' });
+      } else {
+        setToast({ type: 'success', message: 'Group updated successfully' });
+      }
       fetchInternalConversations();
     } catch (error) {
       console.error('Save team details error:', error);
@@ -937,7 +975,7 @@ function MessagesPage({
     } finally {
       setTeamDetailsSaving(false);
     }
-  }, [currentRole, currentUserId, fetchInternalConversations, teamDetailsData?.conversationId, teamDetailsMembers, teamDetailsName, teamDetailsSaving, upsertInternalConversation]);
+  }, [currentRole, currentUserId, fetchInternalConversations, teamDetailsData, teamDetailsMembers, teamDetailsName, teamDetailsSaving, upsertInternalConversation]);
 
   const handleLeaveTeam = useCallback(async () => {
     if (!teamDetailsData?.conversationId || teamDetailsSaving) return;
@@ -966,12 +1004,15 @@ function MessagesPage({
       setTeamDetailsName('');
       setTeamDetailsMembers([]);
       setTeamDetailsSearch('');
+      setShowDeleteTeamConfirm(false);
+      removeInternalConversation(teamDetailsData.conversationId);
       setActiveChatId((prev) => (
         prev === buildConversationKey('team', teamDetailsData.conversationId)
           ? null
           : prev
       ));
       setMessages([]);
+      setToast({ type: 'success', message: 'You left the group' });
       fetchInternalConversations();
     } catch (error) {
       console.error('Leave team error:', error);
@@ -979,7 +1020,51 @@ function MessagesPage({
     } finally {
       setTeamDetailsSaving(false);
     }
-  }, [currentRole, currentUserId, fetchInternalConversations, teamDetailsData, teamDetailsSaving]);
+  }, [currentRole, currentUserId, fetchInternalConversations, removeInternalConversation, teamDetailsData, teamDetailsSaving]);
+
+  const handleDeleteTeam = useCallback(async () => {
+    if (!teamDetailsData?.conversationId || deletingTeam) return;
+
+    try {
+      setDeletingTeam(true);
+      setTeamDetailsError('');
+
+      const res = await fetch(`${BASE_URL}/api/messages/team/${encodeURIComponent(teamDetailsData.conversationId)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          role: currentRole,
+        }),
+      });
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to delete group');
+      }
+
+      removeInternalConversation(teamDetailsData.conversationId);
+      setShowDeleteTeamConfirm(false);
+      setShowTeamDetails(false);
+      setTeamDetailsData(null);
+      setTeamDetailsName('');
+      setTeamDetailsMembers([]);
+      setTeamDetailsSearch('');
+      setActiveChatId((prev) => (
+        prev === buildConversationKey('team', teamDetailsData.conversationId)
+          ? null
+          : prev
+      ));
+      setMessages([]);
+      setToast({ type: 'success', message: 'Group deleted' });
+      fetchInternalConversations();
+    } catch (error) {
+      console.error('Delete team error:', error);
+      setTeamDetailsError(error.message || 'Failed to delete group');
+    } finally {
+      setDeletingTeam(false);
+    }
+  }, [currentRole, currentUserId, deletingTeam, fetchInternalConversations, removeInternalConversation, teamDetailsData]);
 
   let filteredList = conversationList;
 
@@ -1385,6 +1470,12 @@ function MessagesPage({
 
   return (
     <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}${isInternalChatPage ? ' is-internal-chat-page' : ''}${isInternalTeamsPage ? ' is-internal-teams-page' : ''}`}>
+      {toast ? (
+        <div className={`numbers-toast numbers-toast-${toast.type} messages-toast`}>
+          {toast.message}
+        </div>
+      ) : null}
+
       <div className={`messages-contacts-pane${isInternalChatPage ? ' is-internal-chat-pane' : ''}${isInternalTeamsPage ? ' is-internal-teams-pane' : ''}`}>
         <div className="messages-panel-header">
           <div className="messages-panel-title-row">
@@ -1887,6 +1978,25 @@ function MessagesPage({
                       )}
                     </div>
                   </div>
+
+                  {teamDetailsData.canDelete ? (
+                    <div className="internal-teams-danger-zone">
+                      <div className="internal-teams-danger-copy">
+                        <div className="internal-teams-danger-title">Delete Group</div>
+                        <div className="internal-teams-danger-text">
+                          Permanently remove this custom group from Internal Teams.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="internal-teams-delete-btn"
+                        onClick={() => setShowDeleteTeamConfirm(true)}
+                        disabled={teamDetailsSaving || deletingTeam}
+                      >
+                        Delete Group
+                      </button>
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <div className="messages-picker-empty">
@@ -1913,7 +2023,7 @@ function MessagesPage({
                   type="button"
                   className="internal-teams-leave-btn"
                   onClick={handleLeaveTeam}
-                  disabled={teamDetailsSaving}
+                  disabled={teamDetailsSaving || deletingTeam}
                 >
                   {teamDetailsSaving ? 'Working…' : 'Leave Group'}
                 </button>
@@ -1923,7 +2033,7 @@ function MessagesPage({
                   type="button"
                   className="internal-teams-create-btn"
                   onClick={handleSaveTeamDetails}
-                  disabled={teamDetailsSaving || !teamDetailsName.trim() || teamDetailsMembers.length === 0}
+                  disabled={teamDetailsSaving || deletingTeam || !teamDetailsName.trim() || teamDetailsMembers.length === 0}
                 >
                   {teamDetailsSaving ? 'Saving…' : 'Save Changes'}
                 </button>
@@ -1994,6 +2104,48 @@ function MessagesPage({
           </div>
         </div>
       )}
+
+      {showDeleteTeamConfirm ? (
+        <div
+          className="messages-picker-overlay"
+          onClick={() => !deletingTeam && setShowDeleteTeamConfirm(false)}
+        >
+          <div
+            className="messages-picker-modal internal-teams-confirm-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="messages-picker-header">
+              <h3>Delete Group</h3>
+              <p>Are you sure you want to delete this group?</p>
+            </div>
+
+            <div className="internal-teams-confirm-body">
+              <div className="internal-teams-confirm-warning">
+                This action cannot be undone.
+              </div>
+            </div>
+
+            <div className="messages-picker-footer internal-teams-confirm-footer">
+              <button
+                type="button"
+                className="messages-picker-cancel"
+                onClick={() => setShowDeleteTeamConfirm(false)}
+                disabled={deletingTeam}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="internal-teams-delete-btn"
+                onClick={handleDeleteTeam}
+                disabled={deletingTeam}
+              >
+                {deletingTeam ? 'Deleting…' : 'Delete Group'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

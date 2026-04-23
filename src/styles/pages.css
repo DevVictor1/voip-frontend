@@ -2134,6 +2134,84 @@
   justify-content: space-between;
 }
 
+.messages-toast {
+  position: sticky;
+  top: 12px;
+  margin-left: auto;
+  z-index: 12;
+}
+
+.internal-teams-danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(252, 165, 165, 0.65);
+  border-radius: 16px;
+  background: rgba(254, 242, 242, 0.74);
+}
+
+.internal-teams-danger-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.internal-teams-danger-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #991b1b;
+}
+
+.internal-teams-danger-text {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #7f1d1d;
+}
+
+.internal-teams-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(239, 68, 68, 0.85);
+  border-radius: 10px;
+  background: #fff;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.internal-teams-delete-btn:hover {
+  background: rgba(254, 242, 242, 0.98);
+}
+
+.internal-teams-confirm-modal {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.internal-teams-confirm-body {
+  padding: 12px 16px 0;
+}
+
+.internal-teams-confirm-warning {
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(254, 242, 242, 0.92);
+  border: 1px solid rgba(252, 165, 165, 0.72);
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.internal-teams-confirm-footer {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .contacts-wrapper.is-internal-chat-list {
   background: rgba(255, 255, 255, 0.92);
   border-radius: 24px;
