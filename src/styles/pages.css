@@ -1223,17 +1223,16 @@
 }
 
 .messages-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 12px;
   padding: 6px 8px 8px;
 }
 
 .messages-search {
-  flex: 1 1 220px;
-  min-width: 180px;
-  max-width: 100%;
+  width: 100%;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1264,15 +1263,15 @@
 }
 
 .messages-toolbar-actions {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
-  flex: 0 1 auto;
-  flex-wrap: wrap;
-  min-width: 0;
+  flex-wrap: nowrap;
+  width: max-content;
+  max-width: 100%;
   white-space: nowrap;
-  margin-left: auto;
-  justify-content: flex-end;
+  margin-left: 0;
+  justify-content: flex-start;
 }
 
 .messages-filter-btn {
@@ -1357,9 +1356,7 @@
   }
 
   .messages-toolbar-actions {
-    width: 100%;
-    margin-left: 0;
-    justify-content: flex-start;
+    width: max-content;
   }
 }
 
