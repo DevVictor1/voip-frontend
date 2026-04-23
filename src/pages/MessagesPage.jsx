@@ -1763,6 +1763,7 @@ function MessagesPage({
               messages={messages}
               setMessages={setMessages}
               currentUserId={currentUserId}
+              isSmsPage={isSmsPage}
               showTeamDetailsAction={false}
               onOpenTeamDetails={handleOpenTeamDetails}
               onSwitchNumber={(num) => {
@@ -1787,45 +1788,53 @@ function MessagesPage({
                   </div>
                 </div>
 
-                <div className="sms-details-body">
-                  <div className="sms-details-block">
-                    <div className="sms-details-field-label">Contact</div>
-                    <div className="sms-details-field-value">{smsDisplayName}</div>
+                  <div className="sms-details-body">
+                    <div className="sms-details-section">
+                      <div className="sms-details-section-title">Contact info</div>
+
+                      <div className="sms-details-block">
+                        <div className="sms-details-field-label">Name</div>
+                        <div className="sms-details-field-value">{smsDisplayName}</div>
+                      </div>
+
+                      <div className="sms-details-block">
+                        <div className="sms-details-field-label">Phone number</div>
+                        <div className="sms-details-field-value sms-details-phone">
+                          {activeChat?.phone || 'Unknown'}
+                        </div>
+                      </div>
+
+                      {activeChat?.dba ? (
+                        <div className="sms-details-block">
+                          <div className="sms-details-field-label">Business</div>
+                          <div className="sms-details-field-value">{activeChat.dba}</div>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="sms-details-section">
+                      <div className="sms-details-section-title">Conversation meta</div>
+
+                      <div className="sms-details-grid">
+                        <div className="sms-details-metric">
+                          <span className="sms-details-field-label">Status</span>
+                          <strong>{smsDetailStatus}</strong>
+                        </div>
+                        <div className="sms-details-metric">
+                          <span className="sms-details-field-label">Assignment</span>
+                          <strong>{smsDetailAssignment}</strong>
+                        </div>
+                      </div>
+
+                      {!activeChat?._id ? (
+                        <div className="sms-details-note">
+                          This looks like an unsaved number. Add it to contacts from the conversation flow when needed.
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-
-                  <div className="sms-details-block">
-                    <div className="sms-details-field-label">Phone number</div>
-                    <div className="sms-details-field-value sms-details-phone">
-                      {activeChat?.phone || 'Unknown'}
-                    </div>
-                  </div>
-
-                  {activeChat?.dba ? (
-                    <div className="sms-details-block">
-                      <div className="sms-details-field-label">Business</div>
-                      <div className="sms-details-field-value">{activeChat.dba}</div>
-                    </div>
-                  ) : null}
-
-                  <div className="sms-details-grid">
-                    <div className="sms-details-metric">
-                      <span className="sms-details-field-label">Status</span>
-                      <strong>{smsDetailStatus}</strong>
-                    </div>
-                    <div className="sms-details-metric">
-                      <span className="sms-details-field-label">Assignment</span>
-                      <strong>{smsDetailAssignment}</strong>
-                    </div>
-                  </div>
-
-                  {!activeChat?._id ? (
-                    <div className="sms-details-note">
-                      This looks like an unsaved number. Add it to contacts from the conversation flow when needed.
-                    </div>
-                  ) : null}
                 </div>
-              </div>
-            ) : (
+              ) : (
               <div className="sms-details-card is-empty">
                 <div className="sms-details-label">Conversation details</div>
                 <div className="sms-details-empty-title">No conversation selected</div>
@@ -1843,6 +1852,7 @@ function MessagesPage({
             messages={messages}
             setMessages={setMessages}
             currentUserId={currentUserId}
+            isSmsPage={false}
             showTeamDetailsAction={isInternalTeamsPage && activeChat?.conversationType === 'team'}
             onOpenTeamDetails={handleOpenTeamDetails}
             onSwitchNumber={(num) => {

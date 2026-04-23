@@ -15,6 +15,7 @@ function ChatWindow({
   messages,
   setMessages,
   currentUserId,
+  isSmsPage = false,
   showTeamDetailsAction = false,
   onOpenTeamDetails,
   onSwitchNumber,
@@ -215,6 +216,23 @@ function ChatWindow({
     || (chat.firstName || chat.lastName
       ? `${chat.firstName || ''} ${chat.lastName || ''}`.trim()
       : chat.phone);
+  const smsSystemHints = isSmsPage && isCustomerChat ? [
+    {
+      key: 'received',
+      title: `SMS received from ${chat?.phone || 'this number'}`,
+      body: 'Messages from this contact will continue to appear in this thread.',
+    },
+    ...(!chat?._id ? [{
+      key: 'contact',
+      title: 'Add user to contacts',
+      body: 'Save this number in Directory when you want it available as a managed contact.',
+    }] : []),
+    {
+      key: 'reply',
+      title: 'Send another SMS message',
+      body: 'Use the reply box below to continue the conversation.',
+    },
+  ] : [];
 
   const handleCall = async () => {
     if (!isCustomerChat || !chat?.phone) return;
@@ -287,7 +305,7 @@ function ChatWindow({
   };
 
   return (
-    <div className="panel chat-window chat-window-shell">
+    <div className={`panel chat-window chat-window-shell${isSmsPage && isCustomerChat ? ' is-sms-chat-window' : ''}`}>
       <Header
         title={displayName}
         status={isCustomerChat ? 'Active' : (chat.conversationType === 'team' ? 'Team Chat' : 'Internal Chat')}
@@ -308,6 +326,17 @@ function ChatWindow({
       <div className="chat-messages-container">
         <div className="chat-thread-backdrop" />
         <div className="message-list">
+          {smsSystemHints.length > 0 ? (
+            <div className="sms-system-hints" aria-hidden="true">
+              {smsSystemHints.map((hint) => (
+                <div key={hint.key} className="sms-system-card">
+                  <div className="sms-system-title">{hint.title}</div>
+                  <div className="sms-system-copy">{hint.body}</div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           {mergedTimeline.map((item, index) => {
             if (item.type === 'message') {
               return <MessageBubble key={item._id || index} message={item} onRetry={handleRetry} />;
