@@ -1186,7 +1186,12 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                   <button
                     type="button"
                     className="directory-client-toolbar-btn is-accent is-secondary"
-                    onClick={() => navigate('/sms-mms')}
+                    onClick={() => navigate('/sms-mms', {
+                      state: {
+                        openSmsModeChooser: true,
+                        phone: selectedClient.phone || '',
+                      },
+                    })}
                   >
                     <MessageSquare size={15} />
                     <span>SMS / MMS</span>

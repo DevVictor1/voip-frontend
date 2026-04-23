@@ -16,6 +16,7 @@ function ChatWindow({
   setMessages,
   currentUserId,
   isSmsPage = false,
+  isTextingGroupThread = false,
   threadLoading = false,
   showTeamDetailsAction = false,
   onOpenTeamDetails,
@@ -221,7 +222,9 @@ function ChatWindow({
     {
       key: 'received',
       title: `SMS received from ${chat?.phone || 'this number'}`,
-      body: 'Messages from this contact will continue to appear in this thread.',
+      body: isTextingGroupThread
+        ? `Shared replies from ${chat?.textingGroupName || 'this texting group'} will continue in this thread.`
+        : 'Messages from this contact will continue to appear in this thread.',
     },
     ...(!chat?._id ? [{
       key: 'contact',
@@ -391,6 +394,7 @@ function ChatWindow({
         conversationType={chat.conversationType || 'customer'}
         userId={currentUserId}
         teamName={chat.conversationType === 'team' ? (chat.teamName || chat.name || '') : ''}
+        textingGroupId={chat?.textingGroupId || ''}
         allowAttachments={isCustomerChat}
         setMessages={setMessages}
         onFocusInput={() => {

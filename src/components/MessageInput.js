@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import './MessageInput.css';
 import BASE_URL from '../config/api';
+import { getStoredAuthUser } from '../services/auth';
 
 export const sendMessageRequest = async (to, message, mediaUrl) => {
   const isCustomerChat = !to?.conversationType || to.conversationType === 'customer';
@@ -13,6 +14,8 @@ export const sendMessageRequest = async (to, message, mediaUrl) => {
         userId: to.userId,
         body: message,
         ...(to.teamName ? { teamName: to.teamName } : {}),
+        ...(to.textingGroupId ? { textingGroupId: to.textingGroupId } : {}),
+        ...(to.senderName ? { senderName: to.senderName } : {}),
       };
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
@@ -30,6 +33,7 @@ function MessageInput({
   conversationType = 'customer',
   userId,
   teamName = '',
+  textingGroupId = '',
   allowAttachments = true,
   onMessageSent,
   setMessages,
@@ -41,6 +45,7 @@ function MessageInput({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
+  const currentUserName = getStoredAuthUser()?.name || getStoredAuthUser()?.agentId || '';
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -122,6 +127,8 @@ function MessageInput({
           conversationType,
           userId,
           teamName,
+          textingGroupId,
+          senderName: currentUserName,
         },
         text,
         mediaUrl || undefined
