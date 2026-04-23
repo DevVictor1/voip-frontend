@@ -6,7 +6,7 @@ import Dashboard from './pages/Dashboard';
 import CallLogs from './pages/CallLogs';
 import Users from './pages/Users';
 import Messages from './pages/MessagesPage';
-import NumbersPage from './pages/NumbersPage';
+import SettingsPage from './pages/SettingsPage';
 import IncomingCallPopup from './components/IncomingCallPopup';
 import socket from './socket';
 import {
@@ -516,7 +516,13 @@ function App() {
           />
           <Route
             path="/settings"
-            element={renderProtectedLayout(<NumbersPage />, { adminOnly: true })}
+            element={renderProtectedLayout(
+              <SettingsPage
+                currentUserRole={authUser?.role || userRole}
+                currentUserId={authUser?.id || ''}
+              />,
+              { adminOnly: true }
+            )}
           />
           <Route
             path="/numbers"

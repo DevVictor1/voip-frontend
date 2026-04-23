@@ -17,7 +17,7 @@ const emptyForm = {
   completedDate: '',
 };
 
-function NumbersPage() {
+function NumbersPage({ embedded = false }) {
   const [numbers, setNumbers] = useState([]);
   const [drafts, setDrafts] = useState({});
   const [form, setForm] = useState(emptyForm);
@@ -167,19 +167,21 @@ function NumbersPage() {
   };
 
   return (
-    <div className="numbers-page" style={{ display: 'grid', gap: '24px' }}>
+    <div className={`numbers-page${embedded ? ' numbers-page-embedded' : ''}`} style={{ display: 'grid', gap: '24px' }}>
       {toast ? (
         <div className={`numbers-toast numbers-toast-${toast.type}`}>
           {toast.message}
         </div>
       ) : null}
 
-      <div>
-        <h1 className="page-title">Numbers & Porting</h1>
-        <div className="page-subtitle">
-          Track phone inventory, provider migrations, and internal ownership without changing live routing.
+      {!embedded ? (
+        <div>
+          <h1 className="page-title">Numbers & Porting</h1>
+          <div className="page-subtitle">
+            Track phone inventory, provider migrations, and internal ownership without changing live routing.
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div className="call-stats numbers-summary-grid">
         <div className="call-stat-card numbers-summary-card">

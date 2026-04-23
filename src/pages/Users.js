@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  DEPARTMENT_OPTIONS,
-  getDepartmentLabel,
-} from '../config/agents';
+import { DEPARTMENT_OPTIONS, getDepartmentLabel } from '../config/agents';
 import ImportContacts from '../components/ImportContacts';
 import {
   createUserRequest,
@@ -28,13 +25,15 @@ const emptyPasswordForm = {
   password: '',
 };
 
-function Users({ currentUserRole = 'admin', currentUserId = '' }) {
+function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'directory' }) {
+  const isSettingsMode = mode === 'settings';
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState(emptyCreateForm);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [detailUser, setDetailUser] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [passwordForm, setPasswordForm] = useState(emptyPasswordForm);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -45,12 +44,11 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
   const [success, setSuccess] = useState('');
   const [isCreateExpanded, setIsCreateExpanded] = useState(false);
   const [isImportExpanded, setIsImportExpanded] = useState(false);
+
   const toastType = error ? 'error' : success ? 'success' : '';
   const toastMessage = error || success;
   const generatedCreateAgentId = buildAgentIdPreview(form);
   const isEditingExistingAgentId = Boolean(detailUser?.agentId);
-  const directoryStats = useMemo(() => buildDirectoryStats(users), [users]);
-  const departmentGroups = useMemo(() => buildDepartmentGroups(users), [users]);
 
   useEffect(() => {
     if (currentUserRole !== 'admin') {
@@ -72,11 +70,60 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
     return () => window.clearTimeout(timeoutId);
   }, [toastMessage]);
 
+  const searchableUsers = useMemo(() => {
+    return [...users].sort((left, right) => (
+      String(left?.name || '').localeCompare(String(right?.name || ''))
+    ));
+  }, [users]);
+
+  const filteredUsers = useMemo(() => {
+    const normalizedQuery = String(searchQuery || '').trim().toLowerCase();
+    if (!normalizedQuery) {
+      return searchableUsers;
+    }
+
+    return searchableUsers.filter((user) => {
+      const departmentLabel = getDepartmentLabel(user.department) || '';
+      return [
+        user.name,
+        user.email,
+        user.agentId,
+        user.department,
+        departmentLabel,
+        formatRole(user.role),
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+    });
+  }, [searchQuery, searchableUsers]);
+
+  const departmentGroups = useMemo(() => buildDepartmentGroups(filteredUsers), [filteredUsers]);
+  const selectedDirectoryUser = useMemo(() => {
+    if (!selectedUserId) return filteredUsers[0] || searchableUsers[0] || null;
+    return searchableUsers.find((user) => user.id === selectedUserId) || filteredUsers[0] || searchableUsers[0] || null;
+  }, [filteredUsers, searchableUsers, selectedUserId]);
+
+  useEffect(() => {
+    if (loading || isSettingsMode) return;
+    if (!filteredUsers.length) {
+      if (selectedUserId) {
+        setSelectedUserId('');
+      }
+      return;
+    }
+
+    const selectedStillVisible = filteredUsers.some((user) => user.id === selectedUserId);
+    if (!selectedStillVisible) {
+      setSelectedUserId(filteredUsers[0].id);
+    }
+  }, [filteredUsers, isSettingsMode, loading, selectedUserId]);
+
   const loadUsers = async () => {
     try {
       const token = getStoredAuthToken();
       const payload = await fetchUsersRequest(token);
-      setUsers(Array.isArray(payload?.users) ? payload.users : []);
+      const nextUsers = Array.isArray(payload?.users) ? payload.users : [];
+      setUsers(nextUsers);
       setError('');
     } catch (loadError) {
       setError(loadError.message || 'Failed to load users');
@@ -118,9 +165,11 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
 
       if (payload?.user) {
         setUsers((prev) => [payload.user, ...prev]);
+        setSelectedUserId(payload.user.id);
       }
 
       setForm(emptyCreateForm);
+      setIsCreateExpanded(false);
       setSuccess('User created successfully');
     } catch (saveError) {
       setError(saveError.message || 'Failed to create user');
@@ -130,13 +179,17 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
   };
 
   const openUserDetails = async (userId) => {
-    if (!userId || selectedUserId === userId) {
+    if (!userId) return;
+    if (selectedUserId === userId && detailUser && isSettingsMode) {
       setSelectedUserId('');
       setDetailUser(null);
       setEditForm(null);
       setPasswordForm(emptyPasswordForm);
       return;
     }
+
+    setSelectedUserId(userId);
+    if (!isSettingsMode) return;
 
     setDetailLoading(true);
     setError('');
@@ -145,7 +198,6 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
     try {
       const token = getStoredAuthToken();
       const payload = await fetchUserDetailsRequest(token, userId);
-      setSelectedUserId(userId);
       setDetailUser(payload?.user || null);
       setEditForm(payload?.user ? toEditForm(payload.user) : null);
       setPasswordForm(emptyPasswordForm);
@@ -290,17 +342,389 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
     return (
       <div className="directory-page" style={{ display: 'grid', gap: '24px' }}>
         <div>
-          <h1 className="page-title">Users</h1>
+          <h1 className="page-title">{isSettingsMode ? 'Settings' : 'Directory'}</h1>
           <div className="page-subtitle">
-            You do not have access to manage users.
+            You do not have access to {isSettingsMode ? 'workspace settings' : 'the company directory'}.
           </div>
         </div>
       </div>
     );
   }
 
+  if (isSettingsMode) {
+    return (
+      <div className="directory-admin-page" style={{ display: 'grid', gap: '24px' }}>
+        {toastMessage ? (
+          <div className={`numbers-toast numbers-toast-${toastType}`}>
+            {toastMessage}
+          </div>
+        ) : null}
+
+        <div className="section-card settings-admin-shell">
+          <div className="section-header users-directory-header">
+            <div>
+              <h3 style={{ margin: 0 }}>User Management</h3>
+              <div className="text-muted" style={helperTextStyle}>
+                Manage workspace users, communication identities, password resets, and account activation from Settings instead of Directory.
+              </div>
+            </div>
+            <span className="tag">{loading ? 'Loading' : `${users.length} users`}</span>
+          </div>
+
+          <div className="directory-settings-layout">
+            <div className="directory-settings-list">
+              {loading ? (
+                <div className="text-muted">Loading users...</div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="text-muted">No users found.</div>
+              ) : (
+                <div style={{ display: 'grid', gap: '20px' }}>
+                  {departmentGroups.map((group) => (
+                    <section key={group.key} className="directory-group">
+                      <div className="directory-group-header">
+                        <div>
+                          <h4 className="directory-group-title">{group.label}</h4>
+                          <div className="directory-group-subtitle">
+                            {group.activeCount} active of {group.users.length} users
+                          </div>
+                        </div>
+                        <span className="tag">{group.users.length}</span>
+                      </div>
+
+                      <div className="user-grid directory-user-grid">
+                        {group.users.map((user) => (
+                          <div
+                            key={user.id}
+                            className="user-card directory-user-card"
+                            style={selectedUserId === user.id ? activeCardStyle : undefined}
+                          >
+                            <div className="avatar-stack directory-user-identity">
+                              <div className="avatar-circle directory-avatar-circle">
+                                {getInitials(user.name)}
+                              </div>
+                              <div className="directory-identity-copy">
+                                <h4>{user.name}</h4>
+                                <div className="user-role">{formatRole(user.role)}</div>
+                              </div>
+                            </div>
+
+                            <div className="directory-user-tags">
+                              <span className="tag">{user.isActive ? 'Active' : 'Inactive'}</span>
+                              <span className="tag">{getDepartmentLabel(user.department) || group.label}</span>
+                            </div>
+
+                            <div className="text-muted directory-user-email">{user.email}</div>
+
+                            <div className="directory-user-meta">
+                              <div className="directory-meta-item">
+                                <span className="directory-meta-label">Role</span>
+                                <strong>{formatRole(user.role)}</strong>
+                              </div>
+                              <div className="directory-meta-item">
+                                <span className="directory-meta-label">Department</span>
+                                <strong>{getDepartmentLabel(user.department) || 'Unassigned / Global'}</strong>
+                              </div>
+                              <div className="directory-meta-item">
+                                <span className="directory-meta-label">Agent ID</span>
+                                <strong>{user.agentId || 'Not assigned'}</strong>
+                              </div>
+                              <div className="directory-meta-item">
+                                <span className="directory-meta-label">Status</span>
+                                <strong>{user.isActive ? 'Active' : 'Inactive'}</strong>
+                              </div>
+                            </div>
+
+                            <div className="directory-card-actions" style={actionsStyle}>
+                              <button type="button" style={secondaryButtonStyle} onClick={() => openUserDetails(user.id)}>
+                                {selectedUserId === user.id ? 'Hide details' : 'Manage user'}
+                              </button>
+                              <button
+                                type="button"
+                                style={dangerButtonStyle}
+                                onClick={() => handleDeleteUser(user.id)}
+                                disabled={deletingId === user.id || user.id === currentUserId}
+                              >
+                                {deletingId === user.id ? 'Deleting...' : 'Delete'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="directory-settings-detail">
+              {selectedUserId ? (
+                <div className="section-card directory-detail-shell" style={detailShellStyle}>
+                  {detailLoading || !detailUser || !editForm ? (
+                    <div className="text-muted">Loading details...</div>
+                  ) : (
+                    <>
+                      <div className="section-header directory-detail-header" style={detailHeaderStyle}>
+                        <div className="directory-detail-header-info" style={detailHeaderInfoStyle}>
+                          <div className="avatar-stack directory-user-identity">
+                            <div className="avatar-circle directory-avatar-circle">
+                              {getInitials(detailUser.name)}
+                            </div>
+                            <div className="directory-identity-copy">
+                              <h3 style={detailTitleStyle}>{detailUser.name}</h3>
+                              <div className="user-role directory-user-email">{detailUser.email}</div>
+                            </div>
+                          </div>
+                          <div className="directory-detail-meta-wrap" style={detailMetaWrapStyle}>
+                            <span className="tag">{detailUser.isActive ? 'Active' : 'Inactive'}</span>
+                            <div className="directory-detail-meta" style={detailMetaStyle}>
+                              <span className="text-muted">Role: {formatRole(detailUser.role)}</span>
+                              <span className="text-muted">Department: {getDepartmentLabel(detailUser.department) || 'None'}</span>
+                              <span className="text-muted">Agent ID: {detailUser.agentId || 'None'}</span>
+                              <span className="text-muted">Created: {formatDate(detailUser.createdAt)}</span>
+                              <span className="text-muted">Updated: {formatDate(detailUser.updatedAt)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <button type="button" style={closeButtonStyle} onClick={() => openUserDetails(selectedUserId)}>
+                          Close
+                        </button>
+                      </div>
+
+                      <div className="directory-detail-content" style={detailContentStyle}>
+                        <form className="directory-detail-form" onSubmit={handleUpdateUser} style={detailFormStyle}>
+                          <div className="section-header">
+                            <h3 style={sectionTitleStyle}>Edit User</h3>
+                            <span className="tag">Admin only</span>
+                          </div>
+                          <input className="numbers-input" placeholder="Full name" value={editForm.name} onChange={handleEditChange('name')} required />
+                          <input className="numbers-input" type="email" placeholder="Email" value={editForm.email} onChange={handleEditChange('email')} required />
+                          <select className="numbers-input" value={editForm.role} onChange={handleEditChange('role')}>
+                            <option value="agent">Agent</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                          <div style={fieldGroupStyle}>
+                            <label style={fieldLabelStyle}>Department</label>
+                            <select className="numbers-input" value={editForm.department} onChange={handleEditChange('department')}>
+                              <option value="">No department assigned</option>
+                              {DEPARTMENT_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                              ))}
+                            </select>
+                            <div className="text-muted" style={helperTextStyle}>
+                              Department represents the business team while preserving existing permissions.
+                            </div>
+                          </div>
+                          <div style={fieldGroupStyle}>
+                            <label style={fieldLabelStyle}>Agent ID</label>
+                            <input
+                              className="numbers-input"
+                              style={isEditingExistingAgentId ? readOnlyFieldStyle : undefined}
+                              value={editForm.agentId}
+                              onChange={isEditingExistingAgentId ? undefined : handleEditChange('agentId')}
+                              placeholder={isEditingExistingAgentId ? 'Stable communication identity' : 'Communication identity'}
+                              required={editForm.role === 'agent'}
+                              readOnly={isEditingExistingAgentId}
+                            />
+                            <div className="text-muted" style={helperTextStyle}>
+                              {isEditingExistingAgentId
+                                ? 'Locked after creation to protect voice identity, routing, messaging, and socket presence continuity.'
+                                : 'Set carefully when the user does not already have a communication identity.'}
+                            </div>
+                          </div>
+                          <label style={checkboxStyle}>
+                            <input type="checkbox" checked={editForm.isActive} onChange={handleEditChange('isActive')} />
+                            <span>Active user</span>
+                          </label>
+                          <div style={actionsStyle}>
+                            <button className="numbers-primary-btn" type="submit" disabled={editing}>
+                              {editing ? 'Saving...' : 'Save changes'}
+                            </button>
+                            <button type="button" style={secondaryButtonStyle} onClick={handleToggleActive} disabled={editing}>
+                              {detailUser.isActive ? 'Deactivate' : 'Activate'}
+                            </button>
+                          </div>
+                        </form>
+
+                        <form className="directory-detail-form" onSubmit={handleResetPassword} style={detailFormStyle}>
+                          <div className="section-header">
+                            <h3 style={sectionTitleStyle}>Reset Password</h3>
+                            <span className="tag">Set new password</span>
+                          </div>
+                          <div className="text-muted" style={helperTextStyle}>
+                            Set a new password for this user.
+                          </div>
+                          <input
+                            className="numbers-input"
+                            type="password"
+                            placeholder="New password"
+                            value={passwordForm.password}
+                            onChange={handlePasswordChange}
+                            required
+                          />
+                          <button className="numbers-primary-btn" style={compactPrimaryButtonStyle} type="submit" disabled={passwordSaving}>
+                            {passwordSaving ? 'Resetting...' : 'Reset password'}
+                          </button>
+                        </form>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="section-card directory-settings-empty">
+                  <h3 style={{ margin: 0 }}>Select a user</h3>
+                  <div className="text-muted">
+                    Open a teammate from the list to edit account details, manage status, or reset a password.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className={`section-card directory-create-section${isCreateExpanded ? ' is-expanded' : ''}`} style={{ display: 'grid', gap: '16px' }}>
+          <div className="section-header directory-create-header">
+            <div className="directory-create-header-copy">
+              <h3 style={{ margin: 0 }}>Create User</h3>
+              <div className="text-muted directory-create-summary">
+                Add a new admin or agent from Settings without leaving the management area.
+              </div>
+            </div>
+            <div className="directory-create-header-actions">
+              <span className="tag">Admin only</span>
+              <button
+                type="button"
+                className="directory-collapse-btn"
+                onClick={() => setIsCreateExpanded((prev) => !prev)}
+                aria-expanded={isCreateExpanded}
+              >
+                {isCreateExpanded ? 'Hide form' : 'Open form'}
+              </button>
+            </div>
+          </div>
+
+          {isCreateExpanded ? (
+            <form className="directory-create-form" onSubmit={handleCreateSubmit} style={createFormStyle}>
+              <div className="directory-create-primary-row" style={createPrimaryRowStyle}>
+                <div className="directory-field-group" style={fieldGroupStyle}>
+                  <label style={fieldLabelStyle}>Full Name</label>
+                  <input className="numbers-input" style={compactFieldStyle} placeholder="Full name" value={form.name} onChange={handleCreateChange('name')} required />
+                </div>
+                <div className="directory-field-group" style={fieldGroupStyle}>
+                  <label style={fieldLabelStyle}>Email</label>
+                  <input className="numbers-input" style={compactFieldStyle} type="email" placeholder="Email" value={form.email} onChange={handleCreateChange('email')} required />
+                </div>
+                <div className="directory-field-group" style={fieldGroupStyle}>
+                  <label style={fieldLabelStyle}>Password</label>
+                  <input className="numbers-input" style={compactFieldStyle} type="password" placeholder="Password" value={form.password} onChange={handleCreateChange('password')} required />
+                </div>
+              </div>
+
+              <div className="directory-create-secondary-row" style={createSecondaryRowStyle}>
+                <div className="directory-field-group" style={fieldGroupStyle}>
+                  <label style={fieldLabelStyle}>Role</label>
+                  <select className="numbers-input" style={compactFieldStyle} value={form.role} onChange={handleCreateChange('role')}>
+                    <option value="agent">Agent</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+
+                <div className="directory-field-group" style={fieldGroupStyle}>
+                  <label style={fieldLabelStyle}>Department</label>
+                  <select className="numbers-input" style={compactFieldStyle} value={form.department} onChange={handleCreateChange('department')}>
+                    <option value="">No department assigned</option>
+                    {DEPARTMENT_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  <div className="text-muted" style={helperTextStyle}>
+                    Department is the business team the user belongs to.
+                  </div>
+                </div>
+
+                <div className="directory-field-group" style={fieldGroupStyle}>
+                  <label style={fieldLabelStyle}>Agent ID</label>
+                  <input
+                    className="numbers-input"
+                    style={{
+                      ...compactFieldStyle,
+                      ...readOnlyFieldStyle,
+                    }}
+                    value={generatedCreateAgentId}
+                    readOnly
+                    placeholder="Generated from name and department"
+                  />
+                  <div className="text-muted" style={helperTextStyle}>
+                    Generated automatically for calls, messaging, routing, and presence.
+                  </div>
+                </div>
+
+                <div className="directory-checkbox-field" style={checkboxFieldStyle}>
+                  <label style={fieldLabelStyle}>Status</label>
+                  <label style={createCheckboxStyle}>
+                    <input type="checkbox" checked={form.isActive} onChange={handleCreateChange('isActive')} />
+                    <span>Active user</span>
+                  </label>
+                </div>
+
+                <div className="directory-create-button-wrap" style={createButtonWrapStyle}>
+                  <button className="numbers-primary-btn" style={createButtonStyle} type="submit" disabled={saving}>
+                    {saving ? 'Creating...' : 'Create User'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          ) : (
+            <div className="directory-create-collapsed">
+              <div className="directory-create-collapsed-copy">
+                User provisioning stays available here in Settings while Directory focuses on internal teammate lookup.
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className={`section-card directory-import-section${isImportExpanded ? ' is-expanded' : ''}`}>
+          <div className="section-header directory-import-header">
+            <div className="directory-import-copy">
+              <h3 style={{ margin: 0 }}>Import Contacts</h3>
+              <div className="text-muted directory-import-summary">
+                Keep contact import access available from Settings until the client-facing Directory section is built.
+              </div>
+            </div>
+            <div className="directory-import-actions">
+              <span className="tag">Contacts</span>
+              <button
+                type="button"
+                className="directory-collapse-btn"
+                onClick={() => setIsImportExpanded((prev) => !prev)}
+                aria-expanded={isImportExpanded}
+              >
+                {isImportExpanded ? 'Hide import' : 'Open import'}
+              </button>
+            </div>
+          </div>
+
+          {isImportExpanded ? (
+            <div className="directory-import-panel">
+              <ImportContacts
+                onImportSuccess={handleImportContactsSuccess}
+                onImportError={handleImportContactsError}
+              />
+              <div className="text-muted directory-import-help">
+                The existing import component and backend flow are unchanged.
+              </div>
+            </div>
+          ) : (
+            <div className="directory-import-collapsed-copy">
+              Contact imports stay accessible here for now while the Directory route is focused on the internal company directory.
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="directory-page" style={{ display: 'grid', gap: '24px' }}>
+    <div className="directory-page is-internal-company-directory" style={{ display: 'grid', gap: '24px' }}>
       {toastMessage ? (
         <div className={`numbers-toast numbers-toast-${toastType}`}>
           {toastMessage}
@@ -308,427 +732,128 @@ function Users({ currentUserRole = 'admin', currentUserId = '' }) {
       ) : null}
 
       <div className="directory-hero">
+        <div className="directory-hero-tabs">
+          <button type="button" className="directory-tab is-active">Internal Company</button>
+          <button type="button" className="directory-tab" disabled>Clients</button>
+        </div>
         <h1 className="page-title">Directory</h1>
         <div className="page-subtitle">
-          Review every teammate by department, role, status, and communication identity while keeping user management in place.
+          Search internal teammates, review their communication identity, and open a clean company phonebook view without the old admin dashboard clutter.
         </div>
       </div>
 
-      <div className={`section-card directory-import-section${isImportExpanded ? ' is-expanded' : ''}`}>
-        <div className="section-header directory-import-header">
-          <div className="directory-import-copy">
-            <h3 style={{ margin: 0 }}>Import Contacts</h3>
-            <div className="text-muted directory-import-summary">
-              Upload customer contacts from Directory so contact management stays separate from the SMS inbox.
-            </div>
-          </div>
-          <div className="directory-import-actions">
-            <span className="tag">Contacts</span>
-            <button
-              type="button"
-              className="directory-collapse-btn"
-              onClick={() => setIsImportExpanded((prev) => !prev)}
-              aria-expanded={isImportExpanded}
-            >
-              {isImportExpanded ? 'Hide import' : 'Open import'}
-            </button>
-          </div>
-        </div>
-
-        {isImportExpanded ? (
-          <div className="directory-import-panel">
-            <ImportContacts
-              onImportSuccess={handleImportContactsSuccess}
-              onImportError={handleImportContactsError}
+      <div className="section-card directory-company-shell">
+        <div className="directory-company-list">
+          <div className="directory-company-search">
+            <input
+              className="numbers-input"
+              placeholder="Search company contacts"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
             />
-            <div className="text-muted directory-import-help">
-              Upload a CSV of customer contacts. The existing import flow and backend processing stay unchanged.
+            <div className="directory-company-count text-muted">
+              {loading ? 'Loading contacts...' : `${filteredUsers.length} teammates`}
             </div>
           </div>
-        ) : (
-          <div className="directory-import-collapsed-copy">
-            Keep contact imports here as a directory-management action while SMS / MMS stays focused on active conversations.
-          </div>
-        )}
-      </div>
 
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-label">Total Users</div>
-          <div className="stat-value">{directoryStats.totalUsers}</div>
-          <div className="text-muted">All workspace users</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Active Users</div>
-          <div className="stat-value">{directoryStats.activeUsers}</div>
-          <div className="text-muted">Currently enabled accounts</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Admins</div>
-          <div className="stat-value">{directoryStats.adminUsers}</div>
-          <div className="text-muted">Administrative access</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Departments</div>
-          <div className="stat-value">{directoryStats.departmentCount}</div>
-          <div className="text-muted">Operational team groups</div>
-        </div>
-      </div>
-
-      <div className="section-card directory-shell" style={{ display: 'grid', gap: '20px' }}>
-        <div className="section-header users-directory-header">
-          <div>
-            <h3 style={{ margin: 0 }}>Team Directory</h3>
-            <div className="text-muted" style={helperTextStyle}>
-              Users are grouped by department so admins can quickly review team structure before opening full account details.
-            </div>
-          </div>
-          <span className="tag">{loading ? 'Loading' : `${users.length} users`}</span>
-        </div>
-
-        {loading ? (
-          <div className="text-muted">Loading users...</div>
-        ) : users.length === 0 ? (
-          <div className="text-muted">No users found.</div>
-        ) : (
-          <div style={{ display: 'grid', gap: '20px' }}>
-            {departmentGroups.map((group) => (
-              <section key={group.key} className="directory-group">
-                <div className="directory-group-header">
-                  <div>
-                    <h4 className="directory-group-title">{group.label}</h4>
-                    <div className="directory-group-subtitle">
-                      {group.activeCount} active of {group.users.length} users
-                    </div>
-                  </div>
-                  <span className="tag">{group.users.length}</span>
-                </div>
-
-                <div className="user-grid directory-user-grid">
-                  {group.users.map((user) => (
-                    <div key={user.id} className="user-card directory-user-card" style={selectedUserId === user.id ? activeCardStyle : undefined}>
-                      <div className="avatar-stack directory-user-identity">
-                        <div className="avatar-circle directory-avatar-circle">
-                          {String(user.name || '?')
-                            .split(' ')
-                            .filter(Boolean)
-                            .map((part) => part[0])
-                            .join('')
-                            .slice(0, 2)}
-                        </div>
-                        <div className="directory-identity-copy">
-                          <h4>{user.name}</h4>
-                          <div className="user-role">{formatRole(user.role)}</div>
-                        </div>
-                      </div>
-
-                      <div className="directory-user-tags">
-                        <span className="tag">{user.isActive ? 'Active' : 'Inactive'}</span>
-                        <span className="tag">{getDepartmentLabel(user.department) || group.label}</span>
-                      </div>
-
-                      <div className="text-muted directory-user-email">{user.email}</div>
-
-                      <div className="directory-user-meta">
-                        <div className="directory-meta-item">
-                          <span className="directory-meta-label">Role</span>
-                          <strong>{formatRole(user.role)}</strong>
-                        </div>
-                        <div className="directory-meta-item">
-                          <span className="directory-meta-label">Department</span>
-                          <strong>{getDepartmentLabel(user.department) || 'Unassigned / Global'}</strong>
-                        </div>
-                        <div className="directory-meta-item">
-                          <span className="directory-meta-label">Agent ID</span>
-                          <strong>{user.agentId || 'Not assigned'}</strong>
-                        </div>
-                        <div className="directory-meta-item">
-                          <span className="directory-meta-label">Status</span>
-                          <strong>{user.isActive ? 'Active' : 'Inactive'}</strong>
-                        </div>
-                      </div>
-
-                      <div className="directory-card-actions" style={actionsStyle}>
-                        <button type="button" style={secondaryButtonStyle} onClick={() => openUserDetails(user.id)}>
-                          {selectedUserId === user.id ? 'Hide details' : 'View details'}
-                        </button>
-                        <button
-                          type="button"
-                          style={dangerButtonStyle}
-                          onClick={() => handleDeleteUser(user.id)}
-                          disabled={deletingId === user.id || user.id === currentUserId}
-                        >
-                          {deletingId === user.id ? 'Deleting...' : 'Delete'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
-
-        {selectedUserId ? (
-          <div className="section-card directory-detail-shell" style={detailShellStyle}>
-            {detailLoading || !detailUser || !editForm ? (
-              <div className="text-muted">Loading details...</div>
+          <div className="directory-company-list-scroll">
+            {loading ? (
+              <div className="directory-company-empty">
+                <h3>Loading teammates</h3>
+                <div className="text-muted">Fetching the current internal company directory.</div>
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="directory-company-empty">
+                <h3>No company contacts found</h3>
+                <div className="text-muted">Try a different name, email, department, or extension search.</div>
+              </div>
             ) : (
-              <>
-                <div className="section-header directory-detail-header" style={detailHeaderStyle}>
-                  <div className="directory-detail-header-info" style={detailHeaderInfoStyle}>
-                    <div className="avatar-stack directory-user-identity">
-                      <div className="avatar-circle directory-avatar-circle">
-                        {String(detailUser.name || '?')
-                          .split(' ')
-                          .filter(Boolean)
-                          .map((part) => part[0])
-                          .join('')
-                          .slice(0, 2)}
+              filteredUsers.map((user) => {
+                const isSelected = selectedDirectoryUser?.id === user.id;
+                return (
+                  <button
+                    type="button"
+                    key={user.id}
+                    className={`directory-contact-row${isSelected ? ' is-active' : ''}`}
+                    onClick={() => setSelectedUserId(user.id)}
+                  >
+                    <div className="directory-contact-avatar">{getInitials(user.name)}</div>
+                    <div className="directory-contact-copy">
+                      <div className="directory-contact-primary">
+                        <span>{user.name}</span>
+                        {user.agentId ? (
+                          <span className="directory-contact-extension">Ext. {user.agentId}</span>
+                        ) : null}
                       </div>
-                      <div className="directory-identity-copy">
-                        <h3 style={detailTitleStyle}>{detailUser.name}</h3>
-                        <div className="user-role directory-user-email">{detailUser.email}</div>
-                      </div>
-                    </div>
-                    <div className="directory-detail-meta-wrap" style={detailMetaWrapStyle}>
-                      <span className="tag">{detailUser.isActive ? 'Active' : 'Inactive'}</span>
-                      <div className="directory-detail-meta" style={detailMetaStyle}>
-                        <span className="text-muted">Role: {formatRole(detailUser.role)}</span>
-                        <span className="text-muted">Department: {getDepartmentLabel(detailUser.department) || 'None'}</span>
-                        <span className="text-muted">Agent ID: {detailUser.agentId || 'None'}</span>
-                        <span className="text-muted">Created: {formatDate(detailUser.createdAt)}</span>
-                        <span className="text-muted">Updated: {formatDate(detailUser.updatedAt)}</span>
+                      <div className="directory-contact-secondary">{user.email}</div>
+                      <div className="directory-contact-tertiary">
+                        {formatRole(user.role)}{user.department ? ` · ${getDepartmentLabel(user.department) || user.department}` : ''}
                       </div>
                     </div>
-                  </div>
-                  <button type="button" style={closeButtonStyle} onClick={() => openUserDetails(selectedUserId)}>
-                    Close
                   </button>
-                </div>
-
-                <div className="directory-detail-content" style={detailContentStyle}>
-                  <form className="directory-detail-form" onSubmit={handleUpdateUser} style={detailFormStyle}>
-                    <div className="section-header">
-                      <h3 style={sectionTitleStyle}>Edit User</h3>
-                      <span className="tag">Admin only</span>
-                    </div>
-                    <input className="numbers-input" placeholder="Full name" value={editForm.name} onChange={handleEditChange('name')} required />
-                    <input className="numbers-input" type="email" placeholder="Email" value={editForm.email} onChange={handleEditChange('email')} required />
-                    <select className="numbers-input" value={editForm.role} onChange={handleEditChange('role')}>
-                      <option value="agent">Agent</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                    <div style={fieldGroupStyle}>
-                      <label style={fieldLabelStyle}>Department</label>
-                      <select
-                        className="numbers-input"
-                        value={editForm.department}
-                        onChange={handleEditChange('department')}
-                      >
-                        <option value="">No department assigned</option>
-                        {DEPARTMENT_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </select>
-                      <div className="text-muted" style={helperTextStyle}>
-                        Department represents the business team. Admin users can also be assigned here without losing admin permissions.
-                      </div>
-                    </div>
-                    <div style={fieldGroupStyle}>
-                      <label style={fieldLabelStyle}>Agent ID</label>
-                      <input
-                        className="numbers-input"
-                        style={isEditingExistingAgentId ? readOnlyFieldStyle : undefined}
-                        value={editForm.agentId}
-                        onChange={isEditingExistingAgentId ? undefined : handleEditChange('agentId')}
-                        placeholder={isEditingExistingAgentId ? 'Stable communication identity' : 'Communication identity'}
-                        required={editForm.role === 'agent'}
-                        readOnly={isEditingExistingAgentId}
-                      />
-                      <div className="text-muted" style={helperTextStyle}>
-                        {isEditingExistingAgentId
-                          ? 'Locked after creation to protect Twilio voice identity, call routing, messaging, and socket presence continuity.'
-                          : 'Set this carefully once if the user does not already have a communication identity.'}
-                      </div>
-                    </div>
-                    <label style={checkboxStyle}>
-                      <input type="checkbox" checked={editForm.isActive} onChange={handleEditChange('isActive')} />
-                      <span>Active user</span>
-                    </label>
-                    <div style={actionsStyle}>
-                      <button className="numbers-primary-btn" type="submit" disabled={editing}>
-                        {editing ? 'Saving...' : 'Save changes'}
-                      </button>
-                      <button
-                        type="button"
-                        style={secondaryButtonStyle}
-                        onClick={handleToggleActive}
-                        disabled={editing}
-                      >
-                        {detailUser.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
-                    </div>
-                  </form>
-
-                  <form className="directory-detail-form" onSubmit={handleResetPassword} style={detailFormStyle}>
-                    <div className="section-header">
-                      <h3 style={sectionTitleStyle}>Reset Password</h3>
-                      <span className="tag">Set new password</span>
-                    </div>
-                    <div className="text-muted" style={helperTextStyle}>
-                      Set a new password for this user.
-                    </div>
-                    <input
-                      className="numbers-input"
-                      type="password"
-                      placeholder="New password"
-                      value={passwordForm.password}
-                      onChange={handlePasswordChange}
-                      required
-                    />
-                    <button className="numbers-primary-btn" style={compactPrimaryButtonStyle} type="submit" disabled={passwordSaving}>
-                      {passwordSaving ? 'Resetting...' : 'Reset password'}
-                    </button>
-                  </form>
-                </div>
-              </>
+                );
+              })
             )}
           </div>
-        ) : null}
-      </div>
-
-      <div className={`section-card directory-create-section${isCreateExpanded ? ' is-expanded' : ''}`} style={{ display: 'grid', gap: '16px' }}>
-        <div className="section-header directory-create-header">
-          <div className="directory-create-header-copy">
-            <h3 style={{ margin: 0 }}>Create User</h3>
-            <div className="text-muted directory-create-summary">
-              Add a new admin or agent without leaving the directory.
-            </div>
-          </div>
-          <div className="directory-create-header-actions">
-            <span className="tag">Admin only</span>
-            <button
-              type="button"
-              className="directory-collapse-btn"
-              onClick={() => setIsCreateExpanded((prev) => !prev)}
-              aria-expanded={isCreateExpanded}
-            >
-              {isCreateExpanded ? 'Hide form' : 'Open form'}
-            </button>
-          </div>
         </div>
 
-        {isCreateExpanded ? (
-          <form className="directory-create-form" onSubmit={handleCreateSubmit} style={createFormStyle}>
-            <div className="directory-create-primary-row" style={createPrimaryRowStyle}>
-              <div className="directory-field-group" style={fieldGroupStyle}>
-                <label style={fieldLabelStyle}>Full Name</label>
-                <input
-                  className="numbers-input"
-                  style={compactFieldStyle}
-                  placeholder="Full name"
-                  value={form.name}
-                  onChange={handleCreateChange('name')}
-                  required
-                />
-              </div>
-              <div className="directory-field-group" style={fieldGroupStyle}>
-                <label style={fieldLabelStyle}>Email</label>
-                <input
-                  className="numbers-input"
-                  style={compactFieldStyle}
-                  type="email"
-                  placeholder="Email"
-                  value={form.email}
-                  onChange={handleCreateChange('email')}
-                  required
-                />
-              </div>
-              <div className="directory-field-group" style={fieldGroupStyle}>
-                <label style={fieldLabelStyle}>Password</label>
-                <input
-                  className="numbers-input"
-                  style={compactFieldStyle}
-                  type="password"
-                  placeholder="Password"
-                  value={form.password}
-                  onChange={handleCreateChange('password')}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="directory-create-secondary-row" style={createSecondaryRowStyle}>
-              <div className="directory-field-group" style={fieldGroupStyle}>
-                <label style={fieldLabelStyle}>Role</label>
-                <select className="numbers-input" style={compactFieldStyle} value={form.role} onChange={handleCreateChange('role')}>
-                  <option value="agent">Agent</option>
-                  <option value="admin">Admin</option>
-                </select>
+        <div className="directory-company-detail">
+          {selectedDirectoryUser ? (
+            <div className="directory-detail-card">
+              <div className="directory-detail-hero">
+                <div className="directory-detail-avatar">{getInitials(selectedDirectoryUser.name)}</div>
+                <div className="directory-detail-copy">
+                  <h2>{selectedDirectoryUser.name}</h2>
+                  <div className="directory-detail-subtitle">
+                    {formatRole(selectedDirectoryUser.role)}
+                    {selectedDirectoryUser.department ? ` · ${getDepartmentLabel(selectedDirectoryUser.department) || selectedDirectoryUser.department}` : ''}
+                  </div>
+                </div>
+                <span className={`directory-status-pill${selectedDirectoryUser.isActive ? ' is-active' : ''}`}>
+                  {selectedDirectoryUser.isActive ? 'Active' : 'Inactive'}
+                </span>
               </div>
 
-              <div className="directory-field-group" style={fieldGroupStyle}>
-                <label style={fieldLabelStyle}>Department</label>
-                <select
-                  className="numbers-input"
-                  style={compactFieldStyle}
-                  value={form.department}
-                  onChange={handleCreateChange('department')}
-                >
-                  <option value="">No department assigned</option>
-                  {DEPARTMENT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-                <div className="text-muted" style={helperTextStyle}>
-                  Department is the business team the user belongs to. Admins and agents can both be assigned here while keeping their existing permissions.
+              <div className="directory-detail-grid">
+                <div className="directory-detail-section">
+                  <div className="directory-detail-label">Extension / Agent ID</div>
+                  <div className="directory-detail-value">{selectedDirectoryUser.agentId || 'Not assigned yet'}</div>
+                </div>
+                <div className="directory-detail-section">
+                  <div className="directory-detail-label">Email</div>
+                  <div className="directory-detail-value">{selectedDirectoryUser.email || 'Not available'}</div>
+                </div>
+                <div className="directory-detail-section">
+                  <div className="directory-detail-label">Department</div>
+                  <div className="directory-detail-value">{getDepartmentLabel(selectedDirectoryUser.department) || 'Unassigned / Global'}</div>
+                </div>
+                <div className="directory-detail-section">
+                  <div className="directory-detail-label">Availability</div>
+                  <div className="directory-detail-value">{formatPresence(selectedDirectoryUser.status)}</div>
                 </div>
               </div>
 
-              <div className="directory-field-group" style={fieldGroupStyle}>
-                <label style={fieldLabelStyle}>Agent ID</label>
-                <input
-                  className="numbers-input"
-                  style={{
-                    ...compactFieldStyle,
-                    ...readOnlyFieldStyle,
-                  }}
-                  value={generatedCreateAgentId}
-                  readOnly
-                  placeholder="Generated from name and department"
-                />
-                <div className="text-muted" style={helperTextStyle}>
-                  Generated automatically for calls, messaging, routing, and presence. The backend keeps it unique and may append a suffix like <code>_2</code> if needed.
+              <div className="directory-detail-note">
+                <div className="directory-detail-label">Direct Number</div>
+                <div className="text-muted">
+                  No dedicated direct number is stored for this teammate yet. The current directory safely reuses the existing internal user identity fields only.
                 </div>
               </div>
-
-              <div className="directory-checkbox-field" style={checkboxFieldStyle}>
-                <label style={fieldLabelStyle}>Status</label>
-                <label style={createCheckboxStyle}>
-                  <input type="checkbox" checked={form.isActive} onChange={handleCreateChange('isActive')} />
-                  <span>Active user</span>
-                </label>
-              </div>
-
-              <div className="directory-create-button-wrap" style={createButtonWrapStyle}>
-                <button className="numbers-primary-btn" style={createButtonStyle} type="submit" disabled={saving}>
-                  {saving ? 'Creating...' : 'Create User'}
-                </button>
-              </div>
             </div>
-          </form>
-        ) : (
-          <div className="directory-create-collapsed">
-            <div className="directory-create-collapsed-copy">
-              Keep user creation available on this page while letting the team directory stay visually primary.
+          ) : (
+            <div className="directory-company-empty directory-company-empty-detail">
+              <h3>Select a teammate</h3>
+              <div className="text-muted">Choose someone from the left to view internal company details.</div>
             </div>
-          </div>
-        )}
-
+          )}
+        </div>
       </div>
     </div>
   );
+}
+
+export function UserAdminSettingsSection(props) {
+  return <Users {...props} mode="settings" />;
 }
 
 function toEditForm(user) {
@@ -740,6 +865,15 @@ function toEditForm(user) {
     agentId: user.agentId || '',
     isActive: user.isActive !== false,
   };
+}
+
+function getInitials(name) {
+  return String(name || '?')
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2);
 }
 
 function buildAgentIdPreview({ name, role, department }) {
@@ -775,21 +909,13 @@ function formatRole(role) {
   return normalizedRole.charAt(0).toUpperCase() + normalizedRole.slice(1);
 }
 
-function buildDirectoryStats(users = []) {
-  const activeUsers = users.filter((user) => user?.isActive !== false).length;
-  const adminUsers = users.filter((user) => String(user?.role || '').toLowerCase() === 'admin').length;
-  const departmentCount = new Set(
-    users
-      .map((user) => String(user?.department || '').trim())
-      .filter(Boolean)
-  ).size;
-
-  return {
-    totalUsers: users.length,
-    activeUsers,
-    adminUsers,
-    departmentCount,
-  };
+function formatPresence(status) {
+  const normalizedStatus = String(status || '').trim().toLowerCase();
+  if (!normalizedStatus) return 'Offline';
+  if (normalizedStatus === 'busy') return 'Busy';
+  if (normalizedStatus === 'available') return 'Available';
+  if (normalizedStatus === 'online') return 'Online';
+  return normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1);
 }
 
 function buildDepartmentGroups(users = []) {
@@ -869,7 +995,6 @@ const readOnlyFieldStyle = {
 const detailShellStyle = {
   display: 'grid',
   gap: '24px',
-  marginTop: '12px',
 };
 
 const detailHeaderStyle = {
