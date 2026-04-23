@@ -23,44 +23,48 @@ function Sidebar({ userRole = 'admin', onRoleChange, roleLocked = false }) {
   const visibleItems = navItems.filter((item) => item.roles.includes(userRole));
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <div className="brand-mark">V</div>
-        <div className="brand-copy">
-          <div className="brand-name">KAYLAD</div>
-          <div className="brand-subtitle">Premium VoIP Suite</div>
+      <div className="sidebar-top">
+        <div className="brand">
+          <div className="brand-mark">V</div>
+          <div className="brand-copy">
+            <div className="brand-name">KAYLAD</div>
+            <div className="brand-subtitle">Premium VoIP Suite</div>
+          </div>
+        </div>
+
+        <div style={roleWrap}>
+          <div style={roleLabel}>Role: {userRole === 'agent' ? 'Agent' : 'Admin'}</div>
+          <select
+            value={userRole}
+            onChange={(e) => onRoleChange?.(e.target.value)}
+            style={roleSelect}
+            disabled={roleLocked}
+          >
+            <option value="admin">Admin</option>
+            <option value="agent">Agent</option>
+          </select>
         </div>
       </div>
 
-      <div style={roleWrap}>
-        <div style={roleLabel}>Role: {userRole === 'agent' ? 'Agent' : 'Admin'}</div>
-        <select
-          value={userRole}
-          onChange={(e) => onRoleChange?.(e.target.value)}
-          style={roleSelect}
-          disabled={roleLocked}
-        >
-          <option value="admin">Admin</option>
-          <option value="agent">Agent</option>
-        </select>
+      <div className="sidebar-nav-scroll">
+        <nav className="sidebar-nav">
+          {visibleItems.map((item) => (
+            <NavLink
+              key={item.label}
+              to={item.to}
+              className={({ isActive }) =>
+                isActive ? 'nav-item active' : 'nav-item'
+              }
+              end={item.to === '/'}
+            >
+              <span className="nav-icon" aria-hidden="true">
+                <item.icon size={18} />
+              </span>
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
       </div>
-
-      <nav className="sidebar-nav">
-        {visibleItems.map((item) => (
-          <NavLink
-            key={item.label}
-            to={item.to}
-            className={({ isActive }) =>
-              isActive ? 'nav-item active' : 'nav-item'
-            }
-            end={item.to === '/'}
-          >
-            <span className="nav-icon" aria-hidden="true">
-              <item.icon size={18} />
-            </span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
 
       <div className="sidebar-footer">
         <span>Workspace</span>

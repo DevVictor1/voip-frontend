@@ -4,12 +4,19 @@
   padding: 28px 20px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   flex: 0 0 260px;
   width: 260px;
   height: 100%;
+  min-height: 0;
   overflow: hidden;
+}
+
+.sidebar-top {
+  display: grid;
+  gap: 28px;
+  flex: 0 0 auto;
 }
 
 .brand {
@@ -51,6 +58,16 @@
   color: #cbd5f5;
 }
 
+.sidebar-nav-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0 -6px;
+  padding: 0 6px;
+  scrollbar-gutter: stable;
+}
+
 .sidebar-nav {
   display: flex;
   flex-direction: column;
@@ -89,7 +106,7 @@
 }
 
 .sidebar-footer {
-  margin-top: auto;
+  flex: 0 0 auto;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 16px;
@@ -878,6 +895,7 @@
     flex: 0 0 auto;
     width: 100%;
     height: auto;
+    min-height: auto;
   }
 
   .brand {
@@ -887,6 +905,18 @@
   .brand div:nth-child(2) {
     display: block;
     font-size: 14px;
+  }
+
+  .sidebar-top {
+    gap: 16px;
+  }
+
+  .sidebar-nav-scroll {
+    flex: 0 0 auto;
+    min-height: auto;
+    overflow: visible;
+    margin: 0;
+    padding: 0;
   }
 
   .sidebar-nav {
@@ -909,6 +939,10 @@
   .sidebar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .sidebar-top {
+    width: 100%;
   }
 
   .sidebar-nav {
