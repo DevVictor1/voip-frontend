@@ -94,6 +94,12 @@ const matchesConversationSearch = (conversation, query) => {
   return haystack.includes(normalizedQuery);
 };
 
+const formatSmsStatusLabel = (value) => {
+  const normalized = String(value || 'open').trim().toLowerCase();
+  if (!normalized) return 'Open';
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
 const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
   const phones = contact?.phones || [];
   const normalizedPhones = phones.map((phone) => ({
@@ -1148,6 +1154,14 @@ function MessagesPage({
   const activeCustomerPhone = activeConversationType === 'customer'
     ? normalize(activeChat?.phone || activeConversationId)
     : '';
+  const smsDisplayName = activeChat?.name
+    || [activeChat?.firstName, activeChat?.lastName].filter(Boolean).join(' ').trim()
+    || activeChat?.phone
+    || 'No conversation selected';
+  const smsDetailStatus = formatSmsStatusLabel(activeChat?.assignmentStatus || 'open');
+  const smsDetailAssignment = activeChat?.conversationType === 'customer'
+    ? (activeChat?.isUnassigned ? 'Unassigned' : (activeChat?.assignedTo || 'Assigned'))
+    : '';
 
   const handleOpenTeamDetails = useCallback(async () => {
     if (!isInternalTeamsPage || activeChat?.conversationType !== 'team') return;
@@ -1741,25 +1755,108 @@ function MessagesPage({
         />
       </div>
 
-      <div className="messages-chat-pane">
-        <ChatWindow
-          chat={activeChat}
-          messages={messages}
-          setMessages={setMessages}
-          currentUserId={currentUserId}
-          showTeamDetailsAction={isInternalTeamsPage && activeChat?.conversationType === 'team'}
-          onOpenTeamDetails={handleOpenTeamDetails}
-          onSwitchNumber={(num) => {
-            setActiveChatId(buildConversationKey('customer', normalize(num)));
-            setActiveCustomerContactId(activeChat?._id || null);
-          }}
-          onAssignContact={handleAssignContact}
-          onUpdateAssignmentStatus={handleUpdateAssignmentStatus}
-          assignableAgents={assignableAgents}
-          onBack={() => setActiveChatId(null)}
-          showBack={isChatOpen}
-        />
-      </div>
+      {isSmsPage ? (
+        <div className="messages-sms-region">
+          <div className="messages-chat-pane is-sms-chat-pane">
+            <ChatWindow
+              chat={activeChat}
+              messages={messages}
+              setMessages={setMessages}
+              currentUserId={currentUserId}
+              showTeamDetailsAction={false}
+              onOpenTeamDetails={handleOpenTeamDetails}
+              onSwitchNumber={(num) => {
+                setActiveChatId(buildConversationKey('customer', normalize(num)));
+                setActiveCustomerContactId(activeChat?._id || null);
+              }}
+              onAssignContact={handleAssignContact}
+              onUpdateAssignmentStatus={handleUpdateAssignmentStatus}
+              assignableAgents={assignableAgents}
+              onBack={() => setActiveChatId(null)}
+              showBack={isChatOpen}
+            />
+          </div>
+
+          <aside className="sms-details-pane">
+            {activeChat?.conversationType === 'customer' ? (
+              <div className="sms-details-card">
+                <div className="sms-details-header">
+                  <div className="sms-details-label">Conversation details</div>
+                  <div className={`sms-details-status status-${String(activeChat?.assignmentStatus || 'open').toLowerCase()}`}>
+                    {smsDetailStatus}
+                  </div>
+                </div>
+
+                <div className="sms-details-body">
+                  <div className="sms-details-block">
+                    <div className="sms-details-field-label">Contact</div>
+                    <div className="sms-details-field-value">{smsDisplayName}</div>
+                  </div>
+
+                  <div className="sms-details-block">
+                    <div className="sms-details-field-label">Phone number</div>
+                    <div className="sms-details-field-value sms-details-phone">
+                      {activeChat?.phone || 'Unknown'}
+                    </div>
+                  </div>
+
+                  {activeChat?.dba ? (
+                    <div className="sms-details-block">
+                      <div className="sms-details-field-label">Business</div>
+                      <div className="sms-details-field-value">{activeChat.dba}</div>
+                    </div>
+                  ) : null}
+
+                  <div className="sms-details-grid">
+                    <div className="sms-details-metric">
+                      <span className="sms-details-field-label">Status</span>
+                      <strong>{smsDetailStatus}</strong>
+                    </div>
+                    <div className="sms-details-metric">
+                      <span className="sms-details-field-label">Assignment</span>
+                      <strong>{smsDetailAssignment}</strong>
+                    </div>
+                  </div>
+
+                  {!activeChat?._id ? (
+                    <div className="sms-details-note">
+                      This looks like an unsaved number. Add it to contacts from the conversation flow when needed.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <div className="sms-details-card is-empty">
+                <div className="sms-details-label">Conversation details</div>
+                <div className="sms-details-empty-title">No conversation selected</div>
+                <div className="sms-details-empty-copy">
+                  Select a customer thread to view basic contact and inbox details here.
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
+      ) : (
+        <div className="messages-chat-pane">
+          <ChatWindow
+            chat={activeChat}
+            messages={messages}
+            setMessages={setMessages}
+            currentUserId={currentUserId}
+            showTeamDetailsAction={isInternalTeamsPage && activeChat?.conversationType === 'team'}
+            onOpenTeamDetails={handleOpenTeamDetails}
+            onSwitchNumber={(num) => {
+              setActiveChatId(buildConversationKey('customer', normalize(num)));
+              setActiveCustomerContactId(activeChat?._id || null);
+            }}
+            onAssignContact={handleAssignContact}
+            onUpdateAssignmentStatus={handleUpdateAssignmentStatus}
+            assignableAgents={assignableAgents}
+            onBack={() => setActiveChatId(null)}
+            showBack={isChatOpen}
+          />
+        </div>
+      )}
 
       <NewMessageModal
         isOpen={showModal}
