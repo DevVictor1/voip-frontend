@@ -1,12 +1,22 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Phone, Users, PhoneForwarded } from 'lucide-react';
+import {
+  LayoutDashboard,
+  MessageSquare,
+  UsersRound,
+  MessagesSquare,
+  Phone,
+  Users,
+  Settings,
+} from 'lucide-react';
 
 const navItems = [
   { label: 'Dashboard', to: '/', icon: LayoutDashboard, roles: ['admin'] },
-  { label: 'Messages', to: '/messages', icon: MessageSquare, roles: ['admin', 'agent'] },
+  { label: 'Internal Chat', to: '/internal-chat', icon: MessageSquare, roles: ['admin', 'agent'] },
+  { label: 'Internal Teams', to: '/internal-teams', icon: UsersRound, roles: ['admin', 'agent'] },
+  { label: 'SMS / MMS', to: '/sms-mms', icon: MessagesSquare, roles: ['admin', 'agent'] },
   { label: 'Calls', to: '/calls', icon: Phone, roles: ['admin', 'agent'] },
-  { label: 'Numbers', to: '/numbers', icon: PhoneForwarded, roles: ['admin'] },
-  { label: 'Directory', to: '/users', icon: Users, roles: ['admin'] }
+  { label: 'Directory', to: '/users', icon: Users, roles: ['admin'] },
+  { label: 'Settings', to: '/settings', icon: Settings, roles: ['admin'] }
 ];
 
 function Sidebar({ userRole = 'admin', onRoleChange, roleLocked = false }) {

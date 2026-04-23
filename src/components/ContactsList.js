@@ -13,6 +13,8 @@ function ContactsList({
   showUnreadOnly = false,
   showImportTools = false,
   onImportSuccess,
+  emptyTitle = 'No conversations here yet',
+  emptySubtitle = '',
 }) {
   const getSectionTitle = () => {
     if (activeSection === 'internal') return 'Internal Chat';
@@ -201,13 +203,15 @@ function ContactsList({
           </div>
         ) : (
           <div className="empty-state contacts-empty-state">
-            <div className="empty-title">No conversations here yet</div>
+            <div className="empty-title">{emptyTitle}</div>
             <div className="empty-subtitle">
-              {activeSection === 'customers'
-                ? 'Imported contacts and SMS threads will appear in this panel.'
-                : activeSection === 'internal'
-                  ? 'Direct teammate chats will appear here once opened.'
-                  : 'Team channels will appear here when available.'}
+              {emptySubtitle || (
+                activeSection === 'customers'
+                  ? 'Imported contacts and SMS threads will appear in this panel.'
+                  : activeSection === 'internal'
+                    ? 'Direct teammate chats will appear here once opened.'
+                    : 'Team channels will appear here when available.'
+              )}
             </div>
           </div>
         )}

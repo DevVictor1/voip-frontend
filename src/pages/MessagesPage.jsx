@@ -264,7 +264,38 @@ const buildConversationList = ({ contacts, chats, internalChats, currentUserId, 
   });
 };
 
-function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId }) {
+const VIEW_MODE_CONFIG = {
+  customers: {
+    pageTitle: 'SMS / MMS',
+    pageSubtitle: 'Customer and contact conversations only.',
+    section: 'customers',
+    primaryActionLabel: 'New Message',
+    emptyLabel: 'No SMS / MMS conversations yet',
+    emptySubtitle: 'Imported contacts and customer threads will appear in this panel.',
+  },
+  internal: {
+    pageTitle: 'Internal Chat',
+    pageSubtitle: 'Direct teammate conversations only.',
+    section: 'internal',
+    primaryActionLabel: 'Message Teammate',
+    emptyLabel: 'No internal chats yet',
+    emptySubtitle: 'Direct teammate chats will appear here once opened.',
+  },
+  teams: {
+    pageTitle: 'Internal Teams',
+    pageSubtitle: 'Shared team and group conversations only.',
+    section: 'teams',
+    primaryActionLabel: '',
+    emptyLabel: 'No team conversations yet',
+    emptySubtitle: 'Team channels will appear here when available.',
+  },
+};
+
+function MessagesPage({
+  currentRole: providedRole,
+  currentUserId: providedUserId,
+  viewMode = 'customers',
+}) {
   const [chats, setChats] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [internalChats, setInternalChats] = useState([]);
@@ -275,7 +306,9 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   const [showModal, setShowModal] = useState(false);
   const [showTeammatePicker, setShowTeammatePicker] = useState(false);
   const [startingDirectChat, setStartingDirectChat] = useState(false);
-  const [activeSection, setActiveSection] = useState('customers');
+  const resolvedViewMode = VIEW_MODE_CONFIG[viewMode] ? viewMode : 'customers';
+  const viewConfig = VIEW_MODE_CONFIG[resolvedViewMode];
+  const [activeSection, setActiveSection] = useState(viewConfig.section);
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showToolsMenu, setShowToolsMenu] = useState(false);
@@ -285,6 +318,17 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   const currentUserId = providedUserId || getEffectiveAgentId() || 'agent_1';
   const storedAuthUser = getStoredAuthUser();
   const currentAuthUserDbId = storedAuthUser?.id || storedAuthUser?._id || '';
+
+  useEffect(() => {
+    setActiveSection(viewConfig.section);
+    setActiveChatId(null);
+    setActiveCustomerContactId(null);
+    setMessages([]);
+    setShowModal(false);
+    setShowTeammatePicker(false);
+    setShowToolsMenu(false);
+    setShowImportTools(false);
+  }, [viewConfig.section]);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -624,11 +668,6 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
     userDirectory: workspaceUserDirectory,
   });
 
-  const unreadCount = conversationList.filter(hasUnreadConversation).length;
-  const customerCount = conversationList.filter((item) => item.conversationType === 'customer').length;
-  const internalDmCount = conversationList.filter((item) => item.conversationType === 'internal_dm').length;
-  const teamCount = conversationList.filter((item) => item.conversationType === 'team').length;
-
   let filteredList = conversationList;
 
   if (activeSection === 'customers') {
@@ -963,45 +1002,23 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
   }, [fetchContacts, fetchConversations]);
 
   const isChatOpen = Boolean(activeChatId);
+  const threadCount = filteredList.length;
+  const unreadThreadCount = filteredList.filter(hasUnreadConversation).length;
+  const canCreateCustomerMessage = activeSection === 'customers';
+  const canStartDirectMessage = activeSection === 'internal';
+  const canImportContacts = activeSection === 'customers';
+  const hasMoreActions = canStartDirectMessage || canImportContacts;
 
   return (
     <div className={`page-shell messages-shell${isChatOpen ? ' is-chat-open' : ''}`}>
       <div className="messages-contacts-pane">
         <div className="messages-panel-header">
           <div className="messages-panel-title-row">
-            <h1 className="page-title">Messages</h1>
-            <span className="tag">{conversationList.length} threads</span>
-            <span className="tag">{unreadCount} unread</span>
+            <h1 className="page-title">{viewConfig.pageTitle}</h1>
+            <span className="tag">{threadCount} threads</span>
+            <span className="tag">{unreadThreadCount} unread</span>
           </div>
-        </div>
-
-        <div className="messages-sections">
-          <button
-            onClick={() => setActiveSection('customers')}
-            className={`messages-section-btn${activeSection === 'customers' ? ' is-active' : ''}`}
-            type="button"
-          >
-            <span className="messages-section-label">Customers / SMS</span>
-            <span className="messages-section-count">{customerCount}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSection('internal')}
-            className={`messages-section-btn${activeSection === 'internal' ? ' is-active' : ''}`}
-            type="button"
-          >
-            <span className="messages-section-label">Internal Chat</span>
-            <span className="messages-section-count">{internalDmCount}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSection('teams')}
-            className={`messages-section-btn${activeSection === 'teams' ? ' is-active' : ''}`}
-            type="button"
-          >
-            <span className="messages-section-label">Internal Teams</span>
-            <span className="messages-section-count">{teamCount}</span>
-          </button>
+          <p className="page-subtitle">{viewConfig.pageSubtitle}</p>
         </div>
 
         <div className="messages-toolbar">
@@ -1022,55 +1039,74 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
               className={`messages-filter-btn messages-filter-btn-inline${showUnreadOnly ? ' is-active' : ''}`}
               type="button"
             >
-              Unread {unreadCount > 0 ? `(${unreadCount})` : ''}
+              Unread {unreadThreadCount > 0 ? `(${unreadThreadCount})` : ''}
             </button>
 
-            <button
-              onClick={() => setShowModal(true)}
-              className="messages-new-button"
-              type="button"
-            >
-              <Plus size={16} />
-              New Message
-            </button>
-
-            <div className="messages-tools-menu">
+            {canCreateCustomerMessage ? (
               <button
+                onClick={() => setShowModal(true)}
+                className="messages-new-button"
                 type="button"
-                className={`messages-tools-trigger${showToolsMenu ? ' is-open' : ''}`}
-                onClick={() => setShowToolsMenu((prev) => !prev)}
-                aria-expanded={showToolsMenu}
-                aria-label="More actions"
               >
-                <MoreHorizontal size={16} />
-                <span className="messages-tools-label">More</span>
+                <Plus size={16} />
+                {viewConfig.primaryActionLabel}
               </button>
+            ) : null}
 
-              {showToolsMenu ? (
-                <div className="messages-tools-dropdown">
-                  <button
-                    onClick={() => {
-                      setShowTeammatePicker(true);
-                      setShowToolsMenu(false);
-                    }}
-                    className="messages-tools-option"
-                    type="button"
-                  >
-                    Message Teammate
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowImportTools((prev) => !prev);
-                      setShowToolsMenu(false);
-                    }}
-                    className={`messages-tools-option${showImportTools ? ' is-active' : ''}`}
-                    type="button"
-                  >
-                    {showImportTools ? 'Hide Import Contacts' : 'Import Contacts'}
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            {canStartDirectMessage ? (
+              <button
+                onClick={() => setShowTeammatePicker(true)}
+                className="messages-new-button"
+                type="button"
+              >
+                <Plus size={16} />
+                {viewConfig.primaryActionLabel}
+              </button>
+            ) : null}
+
+            {hasMoreActions ? (
+              <div className="messages-tools-menu">
+                <button
+                  type="button"
+                  className={`messages-tools-trigger${showToolsMenu ? ' is-open' : ''}`}
+                  onClick={() => setShowToolsMenu((prev) => !prev)}
+                  aria-expanded={showToolsMenu}
+                  aria-label="More actions"
+                >
+                  <MoreHorizontal size={16} />
+                  <span className="messages-tools-label">More</span>
+                </button>
+
+                {showToolsMenu ? (
+                  <div className="messages-tools-dropdown">
+                    {canStartDirectMessage ? (
+                      <button
+                        onClick={() => {
+                          setShowTeammatePicker(true);
+                          setShowToolsMenu(false);
+                        }}
+                        className="messages-tools-option"
+                        type="button"
+                      >
+                        Message Teammate
+                      </button>
+                    ) : null}
+                    {canImportContacts ? (
+                      <button
+                        onClick={() => {
+                          setShowImportTools((prev) => !prev);
+                          setShowToolsMenu(false);
+                        }}
+                        className={`messages-tools-option${showImportTools ? ' is-active' : ''}`}
+                        type="button"
+                      >
+                        {showImportTools ? 'Hide Import Contacts' : 'Import Contacts'}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -1081,8 +1117,10 @@ function MessagesPage({ currentRole: providedRole, currentUserId: providedUserId
           onSelect={handleSelectChat}
           activeSection={activeSection}
           showUnreadOnly={showUnreadOnly}
-          showImportTools={showImportTools}
+          showImportTools={canImportContacts && showImportTools}
           onImportSuccess={handleImportContactsSuccess}
+          emptyTitle={viewConfig.emptyLabel}
+          emptySubtitle={viewConfig.emptySubtitle}
         />
       </div>
 

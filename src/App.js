@@ -461,17 +461,42 @@ function App() {
                     agentSelectionLocked={authUser?.role !== 'admin'}
                   />
                 ) : (
-                  <Navigate to="/messages" replace />
+                  <Navigate to="/internal-chat" replace />
                 )
               )
             }
           />
           <Route
             path="/messages"
+            element={<Navigate to="/sms-mms" replace />}
+          />
+          <Route
+            path="/internal-chat"
             element={renderProtectedLayout(
               <Messages
                 currentRole={authUser?.role || userRole}
                 currentUserId={workspaceAgentId}
+                viewMode="internal"
+              />
+            )}
+          />
+          <Route
+            path="/internal-teams"
+            element={renderProtectedLayout(
+              <Messages
+                currentRole={authUser?.role || userRole}
+                currentUserId={workspaceAgentId}
+                viewMode="teams"
+              />
+            )}
+          />
+          <Route
+            path="/sms-mms"
+            element={renderProtectedLayout(
+              <Messages
+                currentRole={authUser?.role || userRole}
+                currentUserId={workspaceAgentId}
+                viewMode="customers"
               />
             )}
           />
@@ -490,8 +515,12 @@ function App() {
             )}
           />
           <Route
-            path="/numbers"
+            path="/settings"
             element={renderProtectedLayout(<NumbersPage />, { adminOnly: true })}
+          />
+          <Route
+            path="/numbers"
+            element={<Navigate to="/settings" replace />}
           />
           <Route path="/info" element={<InfoPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
