@@ -2300,6 +2300,7 @@ function MessagesPage({
                 messages={messages}
                 setMessages={setMessages}
                 currentUserId={currentUserId}
+                currentUserRole={currentRole}
                 isSmsPage={isSmsPage}
                 isTextingGroupThread={smsMode === 'texting-group' && Boolean(activeChat?.textingGroupId)}
                 selectedTextingGroup={smsMode === 'texting-group' ? selectedTextingGroup : null}
@@ -2394,6 +2395,7 @@ function MessagesPage({
             messages={messages}
             setMessages={setMessages}
             currentUserId={currentUserId}
+            currentUserRole={currentRole}
             isSmsPage={false}
             threadLoading={isInternalTeamsPage && activeChat?.conversationType === 'team' ? teamThreadLoading : false}
             showTeamDetailsAction={isInternalTeamsPage && activeChat?.conversationType === 'team'}

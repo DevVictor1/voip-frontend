@@ -7,7 +7,15 @@ export const sendMessageRequest = async (to, message, mediaUrl) => {
   const isCustomerChat = !to?.conversationType || to.conversationType === 'customer';
   const endpoint = isCustomerChat ? '/api/sms/send' : '/api/messages/send';
   const payload = isCustomerChat
-    ? { to: to?.chatId || to, message, mediaUrl }
+    ? {
+        to: to?.chatId || to,
+        message,
+        mediaUrl,
+        ...(to?.textingGroupId ? { textingGroupId: to.textingGroupId } : {}),
+        ...(to?.userId ? { userId: to.userId } : {}),
+        ...(to?.senderName ? { senderName: to.senderName } : {}),
+        ...(to?.role ? { role: to.role } : {}),
+      }
     : {
         conversationType: to.conversationType,
         conversationId: to.chatId,
@@ -32,6 +40,7 @@ function MessageInput({
   chatId,
   conversationType = 'customer',
   userId,
+  role = '',
   teamName = '',
   textingGroupId = '',
   allowAttachments = true,
@@ -149,6 +158,7 @@ function MessageInput({
           chatId,
           conversationType,
           userId,
+          role,
           teamName,
           textingGroupId,
           senderName: currentUserName,

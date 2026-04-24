@@ -15,6 +15,7 @@ function ChatWindow({
   messages,
   setMessages,
   currentUserId,
+  currentUserRole = '',
   isSmsPage = false,
   isTextingGroupThread = false,
   selectedTextingGroup = null,
@@ -325,6 +326,8 @@ function ChatWindow({
           chatId: isCustomerChat ? chat.phone : chat.conversationId,
           conversationType: chat.conversationType || 'customer',
           userId: currentUserId,
+          role: currentUserRole,
+          textingGroupId: chat?.textingGroupId || '',
         },
         message.body,
         message.media?.[0]
@@ -470,6 +473,7 @@ function ChatWindow({
         chatId={isCustomerChat ? chat.phone : chat.conversationId}
         conversationType={chat.conversationType || 'customer'}
         userId={currentUserId}
+        role={currentUserRole}
         teamName={chat.conversationType === 'team' ? (chat.teamName || chat.name || '') : ''}
         textingGroupId={chat?.textingGroupId || ''}
         allowAttachments={isCustomerChat}
