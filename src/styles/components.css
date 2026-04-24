@@ -267,6 +267,28 @@
   flex: 0 0 auto;
 }
 
+.header.is-texting-group-header {
+  align-items: flex-start;
+  padding: 16px 20px 14px;
+}
+
+.header.is-texting-group-header .header-title-text {
+  gap: 6px;
+}
+
+.header.is-texting-group-header .header-title h3 {
+  font-size: 18px;
+  white-space: normal;
+}
+
+.header.is-texting-group-header .header-meta {
+  white-space: normal;
+}
+
+.header.is-texting-group-header .header-actions {
+  display: none;
+}
+
 .header-assign-menu {
   position: relative;
 }

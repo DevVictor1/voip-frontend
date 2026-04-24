@@ -18,6 +18,7 @@ function Header({
   subtitle,
   status,
   chat,
+  mode = 'default',
   onSwitchNumber,
   onBack,
   showBack,
@@ -40,6 +41,7 @@ function Header({
   const phones = chat?.phones || [];
   const activeNumber = chat?.phone;
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
+  const isTextingGroupMode = mode === 'texting-group';
   const assignedAgentId = chat?.assignedTo;
   const hasPersistedContact = Boolean(chat?._id);
   const assignedAgentName = chat?.isUnassigned
@@ -131,7 +133,7 @@ function Header({
     );
 
   return (
-    <div className="header">
+    <div className={`header${isTextingGroupMode ? ' is-texting-group-header' : ''}`}>
       <div className="header-title">
         {showBack && (
           <button
@@ -151,19 +153,21 @@ function Header({
 
           {metaLine && <div className="header-meta">{metaLine}</div>}
 
-          <div className="header-assignment-row">
-            {contextPill}
-            {isCustomerChat && (
-              <span
-                className={`header-assignment-pill is-status status-${assignmentStatus || 'open'}`}
-                title="Contact assignment status"
-              >
-                {formatAssignmentStatus(assignmentStatus)}
-              </span>
-            )}
-          </div>
+          {!isTextingGroupMode ? (
+            <div className="header-assignment-row">
+              {contextPill}
+              {isCustomerChat && (
+                <span
+                  className={`header-assignment-pill is-status status-${assignmentStatus || 'open'}`}
+                  title="Contact assignment status"
+                >
+                  {formatAssignmentStatus(assignmentStatus)}
+                </span>
+              )}
+            </div>
+          ) : null}
 
-          {isCustomerChat && (
+          {isCustomerChat && !isTextingGroupMode ? (
             <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-muted, #6b7280)' }}>Status</span>
               <select
@@ -190,9 +194,9 @@ function Header({
                 ))}
               </select>
             </div>
-          )}
+          ) : null}
 
-          {isCustomerChat && phones.length > 1 && (
+          {isCustomerChat && !isTextingGroupMode && phones.length > 1 && (
             <div ref={phoneDropdownRef} style={{ position: 'relative', marginTop: '6px', display: 'inline-block' }}>
               <button
                 type="button"
@@ -282,7 +286,7 @@ function Header({
       </div>
 
       <div className="header-actions">
-        {isCustomerChat && (
+        {!isTextingGroupMode && isCustomerChat && (
           <div ref={assignMenuRef} className="header-assign-menu">
             <button
               className="button-icon header-assign-trigger"
@@ -325,7 +329,7 @@ function Header({
           </div>
         )}
 
-        {showTeamDetailsAction ? (
+        {!isTextingGroupMode && showTeamDetailsAction ? (
           <button
             className="button-icon"
             type="button"
@@ -333,14 +337,14 @@ function Header({
           >
             Group Details
           </button>
-        ) : (
+        ) : !isTextingGroupMode ? (
           <>
             <button className="button-icon" type="button">Notes</button>
             <button className="button-icon" type="button">Options</button>
           </>
-        )}
+        ) : null}
 
-        {isCustomerChat && (
+        {!isTextingGroupMode && isCustomerChat && (
           <button
             className="header-call-button"
             onClick={onCall}

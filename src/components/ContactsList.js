@@ -16,6 +16,7 @@ function ContactsList({
   listVariant = 'default',
 }) {
   const isSmsList = listVariant === 'sms';
+  const isSmsGroupThreadList = listVariant === 'sms-group-threads';
   const isInternalChatList = listVariant === 'internal-chat';
   const isInternalTeamsList = listVariant === 'internal-teams';
 
@@ -76,7 +77,7 @@ function ContactsList({
       return isInternalChatList ? '' : (item.role || 'Direct message');
     }
 
-    if (isSmsList) {
+    if (isSmsList || isSmsGroupThreadList) {
       return '';
     }
 
@@ -135,10 +136,10 @@ function ContactsList({
       return (
         <div
           key={conversationKey || index}
-          className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}${isSmsList && item.conversationType === 'customer' ? ' is-sms-card' : ''}${isInternalChatList && item.conversationType === 'internal_dm' ? ' is-internal-chat-card' : ''}${isInternalTeamsList && item.conversationType === 'team' ? ' is-internal-teams-card' : ''}`}
+          className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}${isSmsList && item.conversationType === 'customer' ? ' is-sms-card' : ''}${isSmsGroupThreadList && item.conversationType === 'customer' ? ' is-sms-group-thread-card' : ''}${isInternalChatList && item.conversationType === 'internal_dm' ? ' is-internal-chat-card' : ''}${isInternalTeamsList && item.conversationType === 'team' ? ' is-internal-teams-card' : ''}`}
           onClick={() => onSelect(item)}
         >
-          {item._id && item.conversationType === 'customer' && (
+          {item._id && item.conversationType === 'customer' && !isSmsGroupThreadList && (
             <button
               className="delete-btn"
               onClick={(e) => handleDelete(item._id, e)}
@@ -163,7 +164,7 @@ function ContactsList({
                     ) : (
                       <span className={getIdentityClassName(item)} aria-hidden="true" />
                     )}
-                    <div className={`contact-name${(isSmsList || isInternalTeamsList) && hasUnread ? ' is-unread' : ''}`}>
+                    <div className={`contact-name${(isSmsList || isSmsGroupThreadList || isInternalTeamsList) && hasUnread ? ' is-unread' : ''}`}>
                       {displayName}
                     </div>
                   </div>
@@ -203,7 +204,7 @@ function ContactsList({
   };
 
   return (
-    <div className={`contacts-wrapper${isSmsList ? ' is-sms-list' : ''}${isInternalChatList ? ' is-internal-chat-list' : ''}${isInternalTeamsList ? ' is-internal-teams-list' : ''}`}>
+        <div className={`contacts-wrapper${isSmsList ? ' is-sms-list' : ''}${isSmsGroupThreadList ? ' is-sms-group-thread-list' : ''}${isInternalChatList ? ' is-internal-chat-list' : ''}${isInternalTeamsList ? ' is-internal-teams-list' : ''}`}>
       {!hideHeader ? (
         <div className="contacts-header">
           <div>

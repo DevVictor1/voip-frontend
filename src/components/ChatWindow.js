@@ -17,6 +17,7 @@ function ChatWindow({
   currentUserId,
   isSmsPage = false,
   isTextingGroupThread = false,
+  selectedTextingGroup = null,
   threadLoading = false,
   showTeamDetailsAction = false,
   onOpenTeamDetails,
@@ -35,6 +36,12 @@ function ChatWindow({
 
   const safeMessages = messages || [];
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
+  const textingGroupDisplayName = chat?.textingGroupName || selectedTextingGroup?.name || 'Selected texting group';
+  const textingGroupAssignedNumber = chat?.assignedNumber || selectedTextingGroup?.assignedNumber || '';
+  const textingGroupCustomerLabel = chat?.name
+    || [chat?.firstName, chat?.lastName].filter(Boolean).join(' ').trim()
+    || chat?.phone
+    || 'Unknown customer';
 
   const formatPhone = (num) => {
     if (!num) return '';
@@ -234,14 +241,28 @@ function ChatWindow({
   }, [focusComposerForMessage, isTextingGroupThread]);
 
   if (!chat) {
+    const textingGroupEmptyTitle = selectedTextingGroup ? 'No shared threads found' : 'Select a texting group';
+    const textingGroupEmptySubtitle = selectedTextingGroup
+      ? 'Choose a customer thread from Recents to open the shared SMS conversation.'
+      : 'Pick a texting group from the left column to open its shared inbox.';
+
     return (
-      <div className="panel chat-window">
+      <div className={`panel chat-window${isTextingGroupThread || selectedTextingGroup ? ' is-texting-group-chat-window' : ''}`}>
         <div className="chat-window-empty">
           <div className="empty-state chat-window-empty-card">
-            <div className="empty-title">Select a conversation</div>
-            <div className="empty-subtitle">
-              Open a customer thread, teammate chat, or team channel to continue messaging.
-            </div>
+            {isTextingGroupThread || selectedTextingGroup ? (
+              <>
+                <div className="empty-title">{textingGroupEmptyTitle}</div>
+                <div className="empty-subtitle">{textingGroupEmptySubtitle}</div>
+              </>
+            ) : (
+              <>
+                <div className="empty-title">Select a conversation</div>
+                <div className="empty-subtitle">
+                  Open a customer thread, teammate chat, or team channel to continue messaging.
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -252,7 +273,7 @@ function ChatWindow({
     || (chat.firstName || chat.lastName
       ? `${chat.firstName || ''} ${chat.lastName || ''}`.trim()
       : chat.phone);
-  const smsSystemHints = isSmsPage && isCustomerChat ? [
+  const smsSystemHints = isSmsPage && isCustomerChat && !isTextingGroupThread ? [
     {
       key: 'received',
       title: `SMS received from ${chat?.phone || 'this number'}`,
@@ -343,11 +364,15 @@ function ChatWindow({
   };
 
   return (
-    <div className={`panel chat-window chat-window-shell${isSmsPage && isCustomerChat ? ' is-sms-chat-window' : ''}`}>
+    <div className={`panel chat-window chat-window-shell${isSmsPage && isCustomerChat ? ' is-sms-chat-window' : ''}${isTextingGroupThread ? ' is-texting-group-chat-window' : ''}`}>
       <Header
-        title={displayName}
-        status={isCustomerChat ? 'Active' : (chat.conversationType === 'team' ? 'Team Chat' : 'Internal Chat')}
+        title={isTextingGroupThread ? `${textingGroupDisplayName} with ${textingGroupCustomerLabel}` : displayName}
+        subtitle={isTextingGroupThread
+          ? [chat?.phone, textingGroupAssignedNumber ? `Assigned number ${textingGroupAssignedNumber}` : ''].filter(Boolean).join(' • ')
+          : undefined}
+        status={isTextingGroupThread ? null : (isCustomerChat ? 'Active' : (chat.conversationType === 'team' ? 'Team Chat' : 'Internal Chat'))}
         chat={chat}
+        mode={isTextingGroupThread ? 'texting-group' : 'default'}
         callStatus={callStatus}
         callLabel={getCallLabel()}
         onCall={handleCall}
@@ -369,6 +394,15 @@ function ChatWindow({
               <div className="chat-thread-loading-title">Loading conversation…</div>
               <div className="chat-thread-loading-copy">
                 Swapping to the selected team chat.
+              </div>
+            </div>
+          ) : null}
+
+          {isTextingGroupThread && !threadLoading && mergedTimeline.length === 0 ? (
+            <div className="chat-thread-loading is-empty">
+              <div className="chat-thread-loading-title">No messages yet</div>
+              <div className="chat-thread-loading-copy">
+                Shared replies for this customer thread will appear here.
               </div>
             </div>
           ) : null}

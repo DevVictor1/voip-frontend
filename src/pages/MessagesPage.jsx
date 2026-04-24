@@ -2253,8 +2253,15 @@ function MessagesPage({
             <aside className="sms-group-threads-pane">
               <div className="sms-group-threads-header">
                 <div>
-                  <div className="sms-group-threads-label">Texting Group</div>
-                  <div className="sms-group-threads-title">{selectedTextingGroup?.name || 'Select a group'}</div>
+                  <div className="sms-group-threads-label">Recents</div>
+                  <div className="sms-group-threads-title">
+                    {selectedTextingGroup?.name ? `${selectedTextingGroup.name} inbox` : 'Select a group'}
+                  </div>
+                  <div className="sms-group-threads-subtitle">
+                    {selectedTextingGroup
+                      ? 'Shared customer and phone threads for this texting group'
+                      : 'Choose a texting group to view its recent customer threads'}
+                  </div>
                 </div>
                 {selectedTextingGroup?.assignedNumber ? (
                   <div className="sms-group-assigned-number">{selectedTextingGroup.assignedNumber}</div>
@@ -2282,32 +2289,33 @@ function MessagesPage({
                 emptyTitle={textingGroupThreadsLoading ? 'Loading shared threads' : (selectedTextingGroup ? 'No shared threads found' : 'Select a texting group')}
                 emptySubtitle={textingGroupThreadsLoading ? 'Fetching shared customer conversations for this texting group.' : (selectedTextingGroup ? 'Shared customer SMS threads for this assigned number will appear here.' : 'Choose a texting group from the left to open its inbox.')}
                 hideHeader
-                listVariant="sms"
+                listVariant="sms-group-threads"
               />
             </aside>
           ) : null}
 
           <div className="messages-chat-pane is-sms-chat-pane">
-            <ChatWindow
-              chat={activeChat}
-            messages={messages}
-            setMessages={setMessages}
-            currentUserId={currentUserId}
-            isSmsPage={isSmsPage}
-            isTextingGroupThread={smsMode === 'texting-group' && Boolean(activeChat?.textingGroupId)}
-            threadLoading={false}
-            showTeamDetailsAction={false}
-              onOpenTeamDetails={handleOpenTeamDetails}
-              onSwitchNumber={(num) => {
-                setActiveChatId(buildConversationKey('customer', normalize(num)));
+              <ChatWindow
+                chat={activeChat}
+                messages={messages}
+                setMessages={setMessages}
+                currentUserId={currentUserId}
+                isSmsPage={isSmsPage}
+                isTextingGroupThread={smsMode === 'texting-group' && Boolean(activeChat?.textingGroupId)}
+                selectedTextingGroup={smsMode === 'texting-group' ? selectedTextingGroup : null}
+                threadLoading={false}
+                showTeamDetailsAction={false}
+                onOpenTeamDetails={handleOpenTeamDetails}
+                onSwitchNumber={(num) => {
+                  setActiveChatId(buildConversationKey('customer', normalize(num)));
                 setActiveCustomerContactId(activeChat?._id || null);
               }}
               onAssignContact={handleAssignContact}
               onUpdateAssignmentStatus={handleUpdateAssignmentStatus}
               assignableAgents={assignableAgents}
-              onBack={() => setActiveChatId(null)}
-              showBack={isChatOpen}
-            />
+                onBack={() => setActiveChatId(null)}
+                showBack={isChatOpen}
+              />
           </div>
 
           {smsMode === 'direct' ? (
