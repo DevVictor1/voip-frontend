@@ -3636,6 +3636,10 @@
   gap: 16px;
 }
 
+.messages-sms-region.is-direct-region {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .messages-chat-pane.is-sms-chat-pane {
   min-width: 0;
 }
@@ -4580,6 +4584,10 @@
   .messages-sms-region {
     grid-template-columns: minmax(0, 1fr) 240px;
     gap: 14px;
+  }
+
+  .messages-sms-region.is-direct-region {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .compliance-grid,

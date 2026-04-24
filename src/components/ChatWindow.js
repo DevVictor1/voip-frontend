@@ -18,6 +18,7 @@ function ChatWindow({
   currentUserRole = '',
   isSmsPage = false,
   isTextingGroupThread = false,
+  isDirectSmsThread = false,
   selectedTextingGroup = null,
   threadLoading = false,
   showTeamDetailsAction = false,
@@ -264,9 +265,11 @@ function ChatWindow({
               </>
             ) : (
               <>
-                <div className="empty-title">Select a conversation</div>
+                <div className="empty-title">{isDirectSmsThread ? 'No text messages yet' : 'Select a conversation'}</div>
                 <div className="empty-subtitle">
-                  Open a customer thread, teammate chat, or team channel to continue messaging.
+                  {isDirectSmsThread
+                    ? 'Send and received text messages will appear here.'
+                    : 'Open a customer thread, teammate chat, or team channel to continue messaging.'}
                 </div>
               </>
             )}
