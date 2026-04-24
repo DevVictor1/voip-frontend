@@ -199,6 +199,18 @@ function ChatWindow({
     scrollToBottom('auto');
   }, [chat?.conversationId, chat?.phone, scrollToBottom]);
 
+  const focusComposerForMessage = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    window.dispatchEvent(new CustomEvent('focusMessageComposer', {
+      detail: {
+        chatId: isCustomerChat ? chat?.phone : chat?.conversationId,
+        conversationType: chat?.conversationType || 'customer',
+        textingGroupId: chat?.textingGroupId || '',
+      },
+    }));
+  }, [chat?.conversationId, chat?.conversationType, chat?.phone, chat?.textingGroupId, isCustomerChat]);
+
   if (!chat) {
     return (
       <div className="panel chat-window">
@@ -352,7 +364,16 @@ function ChatWindow({
 
           {mergedTimeline.map((item, index) => {
             if (item.type === 'message') {
-              return <MessageBubble key={item._id || index} message={item} onRetry={handleRetry} />;
+              return (
+                <MessageBubble
+                  key={item._id || index}
+                  message={item}
+                  onRetry={handleRetry}
+                  isTextingGroupThread={isTextingGroupThread}
+                  onReplyMessage={focusComposerForMessage}
+                  onSendAnotherMessage={focusComposerForMessage}
+                />
+              );
             }
 
             const isOutbound = normalize(item.from) === normalize(chat.phone);

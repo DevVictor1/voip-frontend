@@ -1,5 +1,29 @@
-function MessageBubble({ message, onRetry }) {
+const formatSmsContextNumber = (primary, fallback) => {
+  return String(primary || fallback || '').trim() || 'unknown number';
+};
+
+function MessageBubble({
+  message,
+  onRetry,
+  isTextingGroupThread = false,
+  onReplyMessage,
+  onSendAnotherMessage,
+}) {
   const isInternalMessage = message.conversationType === 'internal_dm' || message.conversationType === 'team';
+  const isTextingGroupMessage = Boolean(
+    isTextingGroupThread
+    && message.conversationType === 'customer'
+    && message.textingGroupId
+  );
+  const senderDisplayName = message.senderName || message.senderId || 'Internal teammate';
+  const customerNumber = formatSmsContextNumber(
+    message.direction === 'outbound' ? message.toFull : message.fromFull,
+    message.direction === 'outbound' ? message.to : message.from
+  );
+  const assignedNumber = formatSmsContextNumber(
+    message.direction === 'outbound' ? message.fromFull : message.toFull,
+    message.direction === 'outbound' ? message.from : message.to
+  );
 
   const getStatusMeta = () => {
     if (message.direction !== 'outbound') return null;
@@ -35,6 +59,17 @@ function MessageBubble({ message, onRetry }) {
   const isFailed =
     message.status === 'failed' ||
     message.status === 'undelivered';
+  const canCopyText = Boolean(message.body?.trim());
+
+  const handleCopyText = async () => {
+    if (!canCopyText || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
+
+    try {
+      await navigator.clipboard.writeText(message.body);
+    } catch (error) {
+      console.error('Copy text failed:', error);
+    }
+  };
 
   return (
     <div className={`message-row ${message.direction}`}>
@@ -43,8 +78,28 @@ function MessageBubble({ message, onRetry }) {
         style={isSending ? { opacity: 0.6 } : undefined}
       >
         {(message.conversationType === 'team' && message.direction !== 'outbound' && message.senderName)
-          || (message.conversationType === 'customer' && message.textingGroupId && message.senderName) ? (
+          || (!isTextingGroupMessage && message.conversationType === 'customer' && message.textingGroupId && message.senderName) ? (
           <div className="message-author">{message.senderName}</div>
+        ) : null}
+
+        {isTextingGroupMessage ? (
+          <div className="message-context-block">
+            {message.direction === 'outbound' ? (
+              <>
+                <div className="message-author">{senderDisplayName}</div>
+                <div className="message-context-copy">
+                  SMS message sent to {customerNumber} from {assignedNumber}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="message-context-label">Add user to contacts</div>
+                <div className="message-context-copy">
+                  SMS message received from {customerNumber} to {assignedNumber}
+                </div>
+              </>
+            )}
+          </div>
         ) : null}
 
         {message.media?.length > 0 && (
@@ -56,6 +111,35 @@ function MessageBubble({ message, onRetry }) {
         )}
         {message.body}
       </div>
+
+      {isTextingGroupMessage ? (
+        <div className="message-inline-actions">
+          <button
+            type="button"
+            className="message-inline-action"
+            onClick={() => onReplyMessage?.(message)}
+          >
+            Reply
+          </button>
+          <button
+            type="button"
+            className={`message-inline-action${!canCopyText ? ' is-disabled' : ''}`}
+            onClick={handleCopyText}
+            disabled={!canCopyText}
+          >
+            Copy text
+          </button>
+          {message.direction === 'outbound' ? (
+            <button
+              type="button"
+              className="message-inline-action"
+              onClick={() => onSendAnotherMessage?.(message)}
+            >
+              Send another SMS message
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="message-meta" style={isFailed ? { color: '#dc2626' } : undefined}>
         {new Date(message.createdAt).toLocaleTimeString([], {

@@ -59,6 +59,26 @@ function MessageInput({
     textarea.style.overflowY = textarea.scrollHeight > 120 ? 'auto' : 'hidden';
   }, [text]);
 
+  useEffect(() => {
+    const handleComposerFocus = (event) => {
+      const detail = event.detail || {};
+      const matchesChat = String(detail.chatId || '') === String(chatId || '');
+      const matchesConversation = String(detail.conversationType || 'customer') === String(conversationType || 'customer');
+      const matchesTextingGroup = String(detail.textingGroupId || '') === String(textingGroupId || '');
+
+      if (!matchesChat || !matchesConversation || !matchesTextingGroup) return;
+
+      textareaRef.current?.focus();
+      onFocusInput?.();
+    };
+
+    window.addEventListener('focusMessageComposer', handleComposerFocus);
+
+    return () => {
+      window.removeEventListener('focusMessageComposer', handleComposerFocus);
+    };
+  }, [chatId, conversationType, onFocusInput, textingGroupId]);
+
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
