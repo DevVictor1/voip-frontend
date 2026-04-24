@@ -795,7 +795,10 @@ function MessagesPage({
     );
   }, []);
 
-  const upsertDirectConversationPreview = useCallback((message) => {
+  const upsertDirectConversationPreview = useCallback((message, options = {}) => {
+    const {
+      markAsRead = false,
+    } = options;
     const phone = normalize(
       message?.conversationId || message?.to || message?.from || ''
     );
@@ -807,7 +810,7 @@ function MessagesPage({
         phone,
         name: message?.name || phone,
         lastMessage: message?.body || '',
-        unread: message?.direction === 'inbound' ? 1 : 0,
+        unread: message?.direction === 'inbound' && !markAsRead ? 1 : 0,
         updatedAt: message?.createdAt || new Date().toISOString(),
       };
 
@@ -820,9 +823,11 @@ function MessagesPage({
       next[existingIndex] = {
         ...next[existingIndex],
         ...nextPreview,
-        unread: message?.direction === 'inbound'
-          ? Math.max(Number(next[existingIndex]?.unread || 0), 1)
-          : Number(next[existingIndex]?.unread || 0),
+        unread: markAsRead
+          ? 0
+          : message?.direction === 'inbound'
+            ? Math.max(Number(next[existingIndex]?.unread || 0) + 1, 1)
+            : Number(next[existingIndex]?.unread || 0),
       };
       return next;
     });
@@ -1717,19 +1722,15 @@ function MessagesPage({
         return;
       }
 
-      const normalizedCustomerMessage = normalizeCustomerConversation({
-        chat: {
-          phone: msg.conversationId || msg.from || msg.to,
-          lastMessage: msg.body || '',
-          unread: !msg.direction || msg.direction === 'inbound' ? 1 : 0,
-          updatedAt: msg.createdAt || new Date().toISOString(),
-        },
-      });
       const customerConversationId = normalize(msg.conversationId || msg.from || msg.to);
       const customerConversationKey = buildConversationKey('customer', customerConversationId);
       const activePhone = activeCustomerPhone;
       const isActiveCustomerConversation = activeConversationType === 'customer'
         && customerConversationKey === activeChatId;
+
+      upsertDirectConversationPreview(msg, {
+        markAsRead: isActiveCustomerConversation || msg.direction === 'outbound',
+      });
 
       if (isActiveCustomerConversation) {
         setMessages((prev) => {
@@ -1777,23 +1778,6 @@ function MessagesPage({
         }
       }
 
-      if (!activePhone && (!msg.direction || msg.direction === 'inbound')) {
-        setChats((prev) => {
-          const exists = prev.find((item) => normalize(item.phone) === normalize(normalizedCustomerMessage.phone));
-          if (exists) return prev;
-          return [
-            ...prev,
-            {
-              phone: normalizedCustomerMessage.phone,
-              name: normalizedCustomerMessage.title,
-              lastMessage: normalizedCustomerMessage.lastMessage,
-              unread: normalizedCustomerMessage.unreadCount,
-              updatedAt: normalizedCustomerMessage.lastMessageAt,
-            },
-          ];
-        });
-      }
-
       fetchConversations();
     };
 
@@ -1811,6 +1795,7 @@ function MessagesPage({
     fetchInternalConversations,
     markChatRead,
     selectedTextingGroupId,
+    upsertDirectConversationPreview,
   ]);
 
   useEffect(() => {
@@ -2473,7 +2458,7 @@ function MessagesPage({
                 onCustomerMessageSent={(message) => {
                   if (smsMode !== 'direct') return;
                   if (message?.textingGroupId) return;
-                  upsertDirectConversationPreview(message);
+                  upsertDirectConversationPreview(message, { markAsRead: true });
                 }}
                 assignableAgents={assignableAgents}
                 onBack={() => setActiveChatId(null)}
