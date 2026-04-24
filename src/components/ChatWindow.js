@@ -26,6 +26,7 @@ function ChatWindow({
   onSwitchNumber,
   onAssignContact,
   onUpdateAssignmentStatus,
+  onCustomerMessageSent,
   assignableAgents,
   onBack,
   showBack
@@ -493,9 +494,13 @@ function ChatWindow({
             scrollToBottom('smooth');
           }, 160);
         }}
-        onSendSuccess={() => {
+        onSendSuccess={(savedMessage) => {
           if (isTextingGroupThread) {
             setReplyTarget(null);
+          }
+
+          if (isDirectSmsThread && isCustomerChat) {
+            onCustomerMessageSent?.(savedMessage);
           }
         }}
         onMessageSent={(msg) => {

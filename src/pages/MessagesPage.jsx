@@ -212,31 +212,52 @@ const sortConversationsByUnreadAndTime = (conversations = []) => {
 };
 
 const buildDirectSmsConversationList = ({ contacts, chats }) => {
-  const contactsByPhone = new Map();
+  const normalizedCustomers = [];
+  const matchedPhones = new Set();
 
   contacts.forEach((contact) => {
-    (contact.phones || []).forEach((phone) => {
-      const normalizedPhone = normalize(phone.number);
-      if (!normalizedPhone || contactsByPhone.has(normalizedPhone)) return;
-      contactsByPhone.set(normalizedPhone, contact);
-    });
+    const contactPhones = (contact.phones || []).map((phone) => normalize(phone.number));
+    const chat = (chats || []).find((item) => contactPhones.includes(normalize(item.phone)));
+    const normalizedConversation = normalizeCustomerConversation({ contact, chat });
+
+    normalizedCustomers.push(normalizedConversation);
+    contactPhones.forEach((phone) => matchedPhones.add(phone));
+    if (chat?.phone) {
+      matchedPhones.add(normalize(chat.phone));
+    }
   });
 
-  const normalizedChats = (chats || []).map((chat) => {
+  (chats || []).forEach((chat) => {
     const phone = normalize(chat?.phone);
-    const matchedContact = phone ? contactsByPhone.get(phone) || null : null;
+    if (!phone || matchedPhones.has(phone)) return;
 
-    return normalizeCustomerConversation({
-      chat,
-      contact: matchedContact || {
-        name: chat?.name || phone,
-        phones: phone ? [{ number: phone, label: 'mobile' }] : [],
-        isUnassigned: true,
-      },
-    });
+    normalizedCustomers.push(
+      normalizeCustomerConversation({
+        chat,
+        contact: {
+          name: chat?.name || phone,
+          phones: [{ number: phone, label: 'mobile' }],
+          isUnassigned: true,
+        },
+      })
+    );
   });
 
-  return sortConversationsByUnreadAndTime(normalizedChats);
+  return sortConversationsByUnreadAndTime(
+    normalizedCustomers.map((conversation) => ({
+      ...conversation,
+      previewFallback: conversation?.rawConversation ? (conversation.previewFallback || 'No messages yet') : 'No messages yet',
+      unread: conversation?.rawConversation ? conversation.unread : 0,
+      unreadCount: conversation?.rawConversation ? conversation.unreadCount : 0,
+      lastMessage: conversation?.rawConversation ? conversation.lastMessage : '',
+      lastMessageAt: conversation?.rawConversation ? conversation.lastMessageAt : 0,
+      updatedAt: conversation?.rawConversation ? conversation.updatedAt : 0,
+      rawConversation: conversation?.rawConversation || null,
+      ...(conversation?.rawConversation ? {} : {
+        isUnassigned: true,
+      }),
+    }))
+  );
 };
 
 const getDirectoryAgentMeta = (agentId, userDirectory = {}) => {
@@ -772,6 +793,39 @@ function MessagesPage({
           : item
       )
     );
+  }, []);
+
+  const upsertDirectConversationPreview = useCallback((message) => {
+    const phone = normalize(
+      message?.conversationId || message?.to || message?.from || ''
+    );
+
+    if (!phone) return;
+
+    setChats((prev) => {
+      const nextPreview = {
+        phone,
+        name: message?.name || phone,
+        lastMessage: message?.body || '',
+        unread: message?.direction === 'inbound' ? 1 : 0,
+        updatedAt: message?.createdAt || new Date().toISOString(),
+      };
+
+      const existingIndex = prev.findIndex((item) => normalize(item.phone) === phone);
+      if (existingIndex === -1) {
+        return [...prev, nextPreview];
+      }
+
+      const next = [...prev];
+      next[existingIndex] = {
+        ...next[existingIndex],
+        ...nextPreview,
+        unread: message?.direction === 'inbound'
+          ? Math.max(Number(next[existingIndex]?.unread || 0), 1)
+          : Number(next[existingIndex]?.unread || 0),
+      };
+      return next;
+    });
   }, []);
 
   const handleAssignContact = async (contactId, userId) => {
@@ -2414,9 +2468,14 @@ function MessagesPage({
                   setActiveChatId(buildConversationKey('customer', normalize(num)));
                 setActiveCustomerContactId(activeChat?._id || null);
               }}
-              onAssignContact={handleAssignContact}
-              onUpdateAssignmentStatus={handleUpdateAssignmentStatus}
-              assignableAgents={assignableAgents}
+                onAssignContact={handleAssignContact}
+                onUpdateAssignmentStatus={handleUpdateAssignmentStatus}
+                onCustomerMessageSent={(message) => {
+                  if (smsMode !== 'direct') return;
+                  if (message?.textingGroupId) return;
+                  upsertDirectConversationPreview(message);
+                }}
+                assignableAgents={assignableAgents}
                 onBack={() => setActiveChatId(null)}
                 showBack={isChatOpen}
               />
