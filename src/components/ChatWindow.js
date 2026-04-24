@@ -19,6 +19,7 @@ function ChatWindow({
   isSmsPage = false,
   isTextingGroupThread = false,
   isDirectSmsThread = false,
+  hasSavedContact = false,
   selectedTextingGroup = null,
   threadLoading = false,
   showTeamDetailsAction = false,
@@ -41,7 +42,7 @@ function ChatWindow({
 
   const safeMessages = messages || [];
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
-  const canAddUserToContacts = Boolean(onAddUserToContacts && isCustomerChat && !chat?._id);
+  const canAddUserToContacts = Boolean(onAddUserToContacts && isCustomerChat && !hasSavedContact);
   const textingGroupDisplayName = chat?.textingGroupName || selectedTextingGroup?.name || 'Selected texting group';
   const textingGroupAssignedNumber = chat?.assignedNumber || selectedTextingGroup?.assignedNumber || '';
   const textingGroupCustomerLabel = chat?.name
@@ -401,6 +402,7 @@ function ChatWindow({
           : undefined}
         status={isTextingGroupThread ? null : (isCustomerChat ? 'Active' : (chat.conversationType === 'team' ? 'Team Chat' : 'Internal Chat'))}
         chat={chat}
+        hasSavedContact={hasSavedContact}
         mode={isTextingGroupThread ? 'texting-group' : 'default'}
         callStatus={callStatus}
         callLabel={getCallLabel()}

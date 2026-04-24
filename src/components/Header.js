@@ -18,6 +18,7 @@ function Header({
   subtitle,
   status,
   chat,
+  hasSavedContact,
   mode = 'default',
   onSwitchNumber,
   onBack,
@@ -44,7 +45,9 @@ function Header({
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
   const isTextingGroupMode = mode === 'texting-group';
   const assignedAgentId = chat?.assignedTo;
-  const hasPersistedContact = Boolean(chat?._id);
+  const hasPersistedContact = typeof hasSavedContact === 'boolean'
+    ? hasSavedContact
+    : Boolean(chat?._id);
   const assignedAgentName = chat?.isUnassigned
     ? 'Unassigned'
     : assignedAgentId

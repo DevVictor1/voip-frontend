@@ -1672,6 +1672,30 @@ function MessagesPage({
   const activeCustomerPhone = activeConversationType === 'customer'
     ? normalize(activeChat?.phone || activeConversationId)
     : '';
+  const activeSmsSavedContact = useMemo(() => {
+    if (!isSmsPage || activeConversationType !== 'customer') return null;
+
+    const activePhone = normalize(activeChat?.phone || activeCustomerPhone || '');
+    if (!activePhone) return null;
+
+    const contactFromId = activeCustomerContactId
+      ? contacts.find((contact) => contact?._id === activeCustomerContactId) || null
+      : null;
+
+    if (contactFromId) {
+      const idContactMatchesPhone = (Array.isArray(contactFromId.phones) ? contactFromId.phones : [])
+        .some((phone) => normalize(phone?.number) === activePhone);
+
+      if (idContactMatchesPhone) {
+        return contactFromId;
+      }
+    }
+
+    return contacts.find((contact) => {
+      const phones = Array.isArray(contact?.phones) ? contact.phones : [];
+      return phones.some((phone) => normalize(phone?.number) === activePhone);
+    }) || null;
+  }, [activeChat, activeConversationType, activeCustomerContactId, activeCustomerPhone, contacts, isSmsPage]);
   const canUseTextingGroups = isSmsPage && textingGroups.length > 0;
   const selectedTextingGroup = textingGroups.find(
     (group) => (group.groupId || group.id) === selectedTextingGroupId
@@ -2666,6 +2690,7 @@ function MessagesPage({
                 isSmsPage={isSmsPage}
                 isTextingGroupThread={smsMode === 'texting-group' && Boolean(activeChat?.textingGroupId)}
                 isDirectSmsThread={smsMode === 'direct'}
+                hasSavedContact={Boolean(activeSmsSavedContact?._id)}
                 selectedTextingGroup={smsMode === 'texting-group' ? selectedTextingGroup : null}
                 threadLoading={false}
                 showTeamDetailsAction={false}
