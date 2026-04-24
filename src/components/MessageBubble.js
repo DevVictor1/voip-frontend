@@ -95,8 +95,7 @@ function MessageBubble({
         className={`message-bubble ${message.direction}`}
         style={isSending ? { opacity: 0.6 } : undefined}
       >
-        {(message.conversationType === 'team' && message.direction !== 'outbound' && message.senderName)
-          || (!isTextingGroupMessage && message.conversationType === 'customer' && message.textingGroupId && message.senderName) ? (
+        {message.conversationType === 'team' && message.direction !== 'outbound' && message.senderName ? (
           <div className="message-author">{message.senderName}</div>
         ) : null}
 
