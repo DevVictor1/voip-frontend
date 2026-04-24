@@ -10,6 +10,7 @@ function MessageBubble({
   isTextingGroupThread = false,
   onReplyMessage,
   onSendAnotherMessage,
+  onAddUserToContacts,
 }) {
   const [copyState, setCopyState] = useState('idle');
   const isInternalMessage = message.conversationType === 'internal_dm' || message.conversationType === 'team';
@@ -131,6 +132,15 @@ function MessageBubble({
 
       {isTextingGroupMessage ? (
         <div className="message-inline-actions">
+          {message.direction !== 'outbound' ? (
+            <button
+              type="button"
+              className="message-inline-action"
+              onClick={() => onAddUserToContacts?.(message)}
+            >
+              Add user to contacts
+            </button>
+          ) : null}
           <button
             type="button"
             className="message-inline-action"

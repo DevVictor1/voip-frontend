@@ -20,6 +20,24 @@ const normalize = (phone) => {
   return phone.toString().replace(/\D/g, '').slice(-10);
 };
 
+const getContactDisplayName = (contact, fallbackPhone = '') => {
+  const fullName = [contact?.firstName, contact?.lastName].filter(Boolean).join(' ').trim();
+  return fullName || contact?.name || contact?.dba || fallbackPhone || 'Unknown contact';
+};
+
+const getPrimaryContactPhone = (contact) => {
+  const phones = Array.isArray(contact?.phones) ? contact.phones : [];
+  return phones.find((phone) => normalize(phone?.number))?.number || '';
+};
+
+const emptySmsContactForm = {
+  name: '',
+  phone: '',
+  business: '',
+  merchantId: '',
+  notes: '',
+};
+
 const buildConversationKey = (conversationType, conversationId) => {
   const rawId = String(conversationId || '');
   const safeId = conversationType === 'customer'
@@ -476,6 +494,9 @@ function MessagesPage({
   const [showDeleteTeamConfirm, setShowDeleteTeamConfirm] = useState(false);
   const [deletingTeam, setDeletingTeam] = useState(false);
   const [toast, setToast] = useState(null);
+  const [showSmsContactModal, setShowSmsContactModal] = useState(false);
+  const [smsContactForm, setSmsContactForm] = useState(emptySmsContactForm);
+  const [savingSmsContact, setSavingSmsContact] = useState(false);
   const teamMessagesCacheRef = useRef({});
   const activeTeamRequestRef = useRef('');
   const activeCustomerRequestRef = useRef('');
@@ -839,6 +860,129 @@ function MessagesPage({
       return next;
     });
   }, []);
+
+  const handleOpenSmsContactModal = useCallback((payload = {}) => {
+    const fallbackName = String(payload.name || payload.displayName || '').trim();
+
+    setSmsContactForm({
+      name: fallbackName && normalize(fallbackName) !== normalize(payload.phone || '')
+        ? fallbackName
+        : '',
+      phone: String(payload.phone || '').trim(),
+      business: String(payload.business || payload.dba || '').trim(),
+      merchantId: String(payload.merchantId || payload.mid || '').trim(),
+      notes: String(payload.notes || '').trim(),
+    });
+    setShowSmsContactModal(true);
+  }, []);
+
+  function applySavedContactToSmsState(contact) {
+    if (!contact?._id) return;
+
+    const contactPhone = normalize(getPrimaryContactPhone(contact));
+    const contactName = getContactDisplayName(contact, contactPhone);
+
+    setContacts((prev) => {
+      const existingIndex = prev.findIndex((item) => item?._id === contact._id);
+      if (existingIndex === -1) {
+        return [contact, ...prev];
+      }
+
+      const next = [...prev];
+      next[existingIndex] = {
+        ...next[existingIndex],
+        ...contact,
+      };
+      return next;
+    });
+
+    if (contactPhone) {
+      setChats((prev) => prev.map((item) => (
+        normalize(item.phone) === contactPhone
+          ? {
+              ...item,
+              _id: contact._id,
+              name: contactName,
+              assignedTo: contact.assignedTo ?? item.assignedTo ?? null,
+              isUnassigned: typeof contact.isUnassigned === 'boolean' ? contact.isUnassigned : item.isUnassigned,
+              assignmentStatus: contact.assignmentStatus || item.assignmentStatus || 'open',
+            }
+          : item
+      )));
+
+      setTextingGroupThreads((prev) => prev.map((item) => (
+        normalize(item.phone) === contactPhone
+          ? {
+              ...item,
+              _id: contact._id,
+              name: contactName,
+              dba: contact.dba || item.dba || '',
+              mid: contact.mid || item.mid || '',
+              assignedTo: contact.assignedTo ?? item.assignedTo ?? null,
+              isUnassigned: typeof contact.isUnassigned === 'boolean' ? contact.isUnassigned : item.isUnassigned,
+              assignmentStatus: contact.assignmentStatus || item.assignmentStatus || 'open',
+            }
+          : item
+      )));
+
+      if (activeConversationType === 'customer' && normalize(activeCustomerPhone) === contactPhone) {
+        setActiveCustomerContactId(contact._id);
+      }
+    }
+  }
+
+  const handleSaveSmsContact = async () => {
+    if (savingSmsContact) return;
+
+    try {
+      setSavingSmsContact(true);
+
+      const res = await fetch(`${BASE_URL}/api/contacts/upsert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: smsContactForm.name,
+          phone: smsContactForm.phone,
+          business: smsContactForm.business,
+          merchantId: smsContactForm.merchantId,
+          notes: smsContactForm.notes,
+        }),
+      });
+
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to save contact');
+      }
+
+      const savedContact = payload?.contact || null;
+      if (!savedContact) {
+        throw new Error('Contact save did not return a contact');
+      }
+
+      applySavedContactToSmsState(savedContact);
+      setShowSmsContactModal(false);
+      setSmsContactForm(emptySmsContactForm);
+      setToast({
+        type: 'success',
+        message: payload?.created ? 'Contact created in Directory' : 'Contact updated in Directory',
+      });
+
+      fetchContacts();
+
+      if (smsMode === 'texting-group' && selectedTextingGroupId) {
+        fetchTextingGroupThreads(selectedTextingGroupId);
+      }
+    } catch (error) {
+      console.error('Save SMS contact error:', error);
+      setToast({
+        type: 'error',
+        message: error.message || 'Failed to save contact',
+      });
+    } finally {
+      setSavingSmsContact(false);
+    }
+  };
 
   const handleAssignContact = async (contactId, userId) => {
     if (!contactId || !userId) return;
@@ -2500,6 +2644,7 @@ function MessagesPage({
               }}
                 onAssignContact={handleAssignContact}
                 onUpdateAssignmentStatus={handleUpdateAssignmentStatus}
+                onAddUserToContacts={(payload) => handleOpenSmsContactModal(payload)}
                 onCustomerMessageSent={(message) => {
                   if (smsMode !== 'direct') return;
                   if (message?.textingGroupId) return;
@@ -2529,6 +2674,7 @@ function MessagesPage({
             }}
             onAssignContact={handleAssignContact}
             onUpdateAssignmentStatus={handleUpdateAssignmentStatus}
+            onAddUserToContacts={(payload) => handleOpenSmsContactModal(payload)}
             assignableAgents={assignableAgents}
             onBack={() => setActiveChatId(null)}
             showBack={isChatOpen}
@@ -2541,6 +2687,80 @@ function MessagesPage({
         onClose={() => setShowModal(false)}
         onStart={handleStartChat}
       />
+
+      {showSmsContactModal ? (
+        <div className="directory-modal-overlay" onClick={() => !savingSmsContact && setShowSmsContactModal(false)}>
+          <div className="directory-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="directory-modal-header">
+              <div>
+                <h3>Add user to contacts</h3>
+                <p>Save this SMS number to the Directory clients list.</p>
+              </div>
+              <button
+                type="button"
+                className="directory-modal-close"
+                onClick={() => !savingSmsContact && setShowSmsContactModal(false)}
+                aria-label="Close add contact form"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="directory-modal-body">
+              <input
+                className="numbers-input"
+                placeholder="Client name"
+                value={smsContactForm.name}
+                onChange={(event) => setSmsContactForm((prev) => ({ ...prev, name: event.target.value }))}
+              />
+              <input
+                className="numbers-input"
+                placeholder="Phone number"
+                value={smsContactForm.phone}
+                onChange={(event) => setSmsContactForm((prev) => ({ ...prev, phone: event.target.value }))}
+              />
+              <input
+                className="numbers-input"
+                placeholder="Business name"
+                value={smsContactForm.business}
+                onChange={(event) => setSmsContactForm((prev) => ({ ...prev, business: event.target.value }))}
+              />
+              <input
+                className="numbers-input"
+                placeholder="Merchant ID"
+                value={smsContactForm.merchantId}
+                onChange={(event) => setSmsContactForm((prev) => ({ ...prev, merchantId: event.target.value }))}
+              />
+              <textarea
+                className="numbers-input numbers-textarea"
+                placeholder="Notes (optional)"
+                value={smsContactForm.notes}
+                onChange={(event) => setSmsContactForm((prev) => ({ ...prev, notes: event.target.value }))}
+                rows={4}
+              />
+            </div>
+
+            <div className="directory-modal-footer">
+              <button
+                type="button"
+                className="directory-client-toolbar-btn"
+                onClick={() => setShowSmsContactModal(false)}
+                disabled={savingSmsContact}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="directory-client-toolbar-btn is-accent"
+                onClick={handleSaveSmsContact}
+                disabled={savingSmsContact || !smsContactForm.phone.trim()}
+              >
+                {savingSmsContact ? 'Saving...' : 'Save contact'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showSmsModeChooser ? (
         <div className="messages-picker-overlay" onClick={closeSmsModeChooser}>

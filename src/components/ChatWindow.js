@@ -26,6 +26,7 @@ function ChatWindow({
   onSwitchNumber,
   onAssignContact,
   onUpdateAssignmentStatus,
+  onAddUserToContacts,
   onCustomerMessageSent,
   assignableAgents,
   onBack,
@@ -284,6 +285,22 @@ function ChatWindow({
     || (chat.firstName || chat.lastName
       ? `${chat.firstName || ''} ${chat.lastName || ''}`.trim()
       : chat.phone);
+  const handleAddUserToContacts = (message = null) => {
+    if (!isCustomerChat) return;
+
+    const customerPhone = String(
+      message
+        ? (message.direction === 'outbound' ? message.toFull || message.to : message.fromFull || message.from)
+        : (chat?.phone || '')
+    ).trim();
+
+    onAddUserToContacts?.({
+      phone: customerPhone || chat?.phone || '',
+      name: displayName,
+      dba: chat?.dba || '',
+      mid: chat?.mid || '',
+    });
+  };
   const smsSystemHints = isSmsPage && isCustomerChat && isTextingGroupThread ? [
     {
       key: 'received',
@@ -392,6 +409,7 @@ function ChatWindow({
         onSwitchNumber={onSwitchNumber}
         onAssignContact={onAssignContact}
         onUpdateAssignmentStatus={onUpdateAssignmentStatus}
+        onAddUserToContacts={!chat?._id && isCustomerChat ? handleAddUserToContacts : null}
         assignableAgents={assignableAgents}
         onBack={onBack}
         showBack={showBack}
@@ -439,6 +457,7 @@ function ChatWindow({
                   isTextingGroupThread={isTextingGroupThread}
                   onReplyMessage={handleReplyMessage}
                   onSendAnotherMessage={handleSendAnotherMessage}
+                  onAddUserToContacts={handleAddUserToContacts}
                 />
               );
             }

@@ -28,6 +28,7 @@ function Header({
   onOpenTeamDetails,
   onAssignContact,
   onUpdateAssignmentStatus,
+  onAddUserToContacts,
   assignableAgents = [],
 }) {
   const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
@@ -286,6 +287,16 @@ function Header({
       </div>
 
       <div className="header-actions">
+        {isCustomerChat && !hasPersistedContact && onAddUserToContacts ? (
+          <button
+            className="button-icon"
+            type="button"
+            onClick={() => onAddUserToContacts()}
+          >
+            Add user to contacts
+          </button>
+        ) : null}
+
         {!isTextingGroupMode && isCustomerChat && (
           <div ref={assignMenuRef} className="header-assign-menu">
             <button
