@@ -136,14 +136,16 @@ const matchesConversationSearch = (conversation, query) => {
   return haystack.includes(normalizedQuery);
 };
 
-const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
+const normalizeCustomerConversation = ({ contact = null, chat = null, includeTextingGroupContext = true }) => {
   const phones = contact?.phones || [];
   const normalizedPhones = phones.map((phone) => ({
     ...phone,
     number: normalize(phone.number),
   }));
   const primaryPhone = normalize(chat?.phone || phones[0]?.number || '');
-  const textingGroupId = chat?.textingGroupId || contact?.textingGroupId || '';
+  const textingGroupId = includeTextingGroupContext
+    ? (chat?.textingGroupId || contact?.textingGroupId || '')
+    : '';
   const conversationId = textingGroupId ? `${textingGroupId}|${primaryPhone}` : primaryPhone;
   const fullName = [contact?.firstName, contact?.lastName].filter(Boolean).join(' ').trim();
   const title = fullName || contact?.name || chat?.name || primaryPhone;
@@ -218,7 +220,11 @@ const buildDirectSmsConversationList = ({ contacts, chats }) => {
   contacts.forEach((contact) => {
     const contactPhones = (contact.phones || []).map((phone) => normalize(phone.number));
     const chat = (chats || []).find((item) => contactPhones.includes(normalize(item.phone)));
-    const normalizedConversation = normalizeCustomerConversation({ contact, chat });
+    const normalizedConversation = normalizeCustomerConversation({
+      contact,
+      chat,
+      includeTextingGroupContext: false,
+    });
 
     normalizedCustomers.push(normalizedConversation);
     contactPhones.forEach((phone) => matchedPhones.add(phone));
@@ -239,6 +245,7 @@ const buildDirectSmsConversationList = ({ contacts, chats }) => {
           phones: [{ number: phone, label: 'mobile' }],
           isUnassigned: true,
         },
+        includeTextingGroupContext: false,
       })
     );
   });
@@ -893,11 +900,17 @@ function MessagesPage({
 
   useEffect(() => {
     fetchConversations();
-    fetchTextingGroups();
     fetchContacts();
     fetchInternalConversations();
     fetchTeammates();
-  }, [fetchContacts, fetchConversations, fetchInternalConversations, fetchTeammates, fetchTextingGroups]);
+  }, [fetchContacts, fetchConversations, fetchInternalConversations, fetchTeammates]);
+
+  useEffect(() => {
+    if (!isSmsPage) return;
+    if (smsMode !== 'texting-group' && !showSmsModeChooser && location.state?.smsMode !== 'texting-group') return;
+
+    fetchTextingGroups();
+  }, [fetchTextingGroups, isSmsPage, location.state, showSmsModeChooser, smsMode]);
 
   useEffect(() => {
     if (!isSmsPage) return;
@@ -1430,7 +1443,9 @@ function MessagesPage({
   }
 
   const matchedActiveChat = conversationList.find((item) => item.key === activeChatId) || null;
-  const matchedTextingGroupThread = textingGroupThreads.find((item) => item.key === activeChatId) || null;
+  const matchedTextingGroupThread = smsMode === 'texting-group'
+    ? textingGroupThreads.find((item) => item.key === activeChatId) || null
+    : null;
   const activeChat = matchedActiveChat
     || matchedTextingGroupThread
     || (activeChatId?.startsWith('customer:')
@@ -1444,25 +1459,32 @@ function MessagesPage({
           const matchingChat = chats.find((item) => normalize(item.phone) === normalize(activePhone)) || null;
 
           if (persistedContact) {
+            const resolvedTextingGroupId = smsMode === 'texting-group'
+              ? (textingGroupId || persistedContact?.textingGroupId || '')
+              : '';
+
             return normalizeCustomerConversation({
               contact: persistedContact,
               chat: {
                 ...(matchingChat || {}),
                 phone: activePhone,
-                textingGroupId: textingGroupId || persistedContact?.textingGroupId || '',
+                textingGroupId: resolvedTextingGroupId,
               },
+              includeTextingGroupContext: smsMode === 'texting-group',
             });
           }
+
+          const resolvedTextingGroupId = smsMode === 'texting-group' ? textingGroupId : '';
 
           return {
             id: activeChatId,
             conversationType: 'customer',
-            conversationId: textingGroupId ? `${textingGroupId}|${activePhone}` : activePhone,
+            conversationId: resolvedTextingGroupId ? `${resolvedTextingGroupId}|${activePhone}` : activePhone,
             key: activeChatId,
             title: activePhone,
             name: activePhone,
             phone: activePhone,
-            textingGroupId: textingGroupId || null,
+            textingGroupId: resolvedTextingGroupId || null,
             phones: [],
             isInternal: false,
             isTeam: false,
@@ -1528,7 +1550,11 @@ function MessagesPage({
 
     const loadChat = async () => {
       if (activeConversationType === 'customer') {
-        const { textingGroupId, phone } = parseTextingGroupConversationId(activeConversationId || activeCustomerPhone);
+        const { textingGroupId: parsedTextingGroupId, phone: parsedPhone } = parseTextingGroupConversationId(
+          activeConversationId || activeCustomerPhone
+        );
+        const textingGroupId = smsMode === 'texting-group' ? parsedTextingGroupId : '';
+        const phone = normalize(parsedPhone || activeCustomerPhone || activeConversationId);
         const requestKey = buildConversationKey('customer', activeConversationId || activeCustomerPhone || phone);
         activeCustomerRequestRef.current = requestKey;
 
@@ -1609,6 +1635,7 @@ function MessagesPage({
     fetchInternalConversations,
     fetchInternalMessages,
     markChatRead,
+    smsMode,
   ]);
 
   useEffect(() => {
@@ -1681,6 +1708,10 @@ function MessagesPage({
       }
 
       if (msg.textingGroupId) {
+        if (smsMode !== 'texting-group') {
+          return;
+        }
+
         const groupConversationId = `${msg.textingGroupId}|${normalize(msg.conversationId || msg.from || msg.to)}`;
         const groupConversationKey = buildConversationKey('customer', groupConversationId);
         const isActiveTextingGroupThread = activeConversationType === 'customer'
@@ -1795,6 +1826,7 @@ function MessagesPage({
     fetchInternalConversations,
     markChatRead,
     selectedTextingGroupId,
+    smsMode,
     upsertDirectConversationPreview,
   ]);
 
@@ -1906,31 +1938,42 @@ function MessagesPage({
   const handleSelectChat = (conversation) => {
     if (!conversation) return;
 
+    const normalizedConversation = (
+      smsMode === 'direct' && (conversation.conversationType || 'customer') === 'customer'
+    )
+      ? {
+          ...conversation,
+          textingGroupId: null,
+          textingGroupName: null,
+          conversationId: normalize(conversation.phone || conversation.conversationId),
+        }
+      : conversation;
+
     const nextKey = buildConversationKey(
-      conversation.conversationType || 'customer',
-      conversation.conversationId || conversation.phone
+      normalizedConversation.conversationType || 'customer',
+      normalizedConversation.conversationId || normalizedConversation.phone
     );
 
-    if ((conversation.conversationType || 'customer') === 'customer') {
+    if ((normalizedConversation.conversationType || 'customer') === 'customer') {
       setActiveSection('customers');
-    } else if ((conversation.conversationType || '') === 'internal_dm') {
+    } else if ((normalizedConversation.conversationType || '') === 'internal_dm') {
       setActiveSection('internal');
-    } else if ((conversation.conversationType || '') === 'team') {
+    } else if ((normalizedConversation.conversationType || '') === 'team') {
       setActiveSection('teams');
     }
 
     setActiveChatId(nextKey);
     setActiveCustomerContactId(
-      (conversation.conversationType || 'customer') === 'customer'
-        ? (conversation._id || null)
+      (normalizedConversation.conversationType || 'customer') === 'customer'
+        ? (normalizedConversation._id || null)
         : null
     );
 
-    if ((conversation.conversationType || '') === 'customer') {
+    if ((normalizedConversation.conversationType || '') === 'customer') {
       activeCustomerRequestRef.current = nextKey;
       setMessages([]);
       setTeamThreadLoading(false);
-    } else if ((conversation.conversationType || '') === 'team') {
+    } else if ((normalizedConversation.conversationType || '') === 'team') {
       const cachedMessages = teamMessagesCacheRef.current[nextKey];
       activeTeamRequestRef.current = nextKey;
       setMessages(Array.isArray(cachedMessages) ? cachedMessages : []);
@@ -1941,13 +1984,13 @@ function MessagesPage({
       setTeamThreadLoading(false);
     }
 
-    markChatRead(conversation);
+    markChatRead(normalizedConversation);
 
-    if (isInternalChatPage && searchQuery.trim() && (conversation.conversationType || '') === 'internal_dm') {
+    if (isInternalChatPage && searchQuery.trim() && (normalizedConversation.conversationType || '') === 'internal_dm') {
       rememberInternalSearch({
-        agentId: conversation.agentId,
-        name: conversation.name || conversation.title || conversation.agentId,
-        role: conversation.subtitle || conversation.role || 'Teammate',
+        agentId: normalizedConversation.agentId,
+        name: normalizedConversation.name || normalizedConversation.title || normalizedConversation.agentId,
+        role: normalizedConversation.subtitle || normalizedConversation.role || 'Teammate',
       });
     }
   };
@@ -2187,15 +2230,17 @@ function MessagesPage({
               <button
                 type="button"
                 className={`sms-mode-tab${smsMode === 'texting-group' ? ' is-active' : ''}`}
-                onClick={() => {
-                  if (canUseTextingGroups) {
+                onClick={async () => {
+                  const availableGroups = textingGroups.length > 0 ? textingGroups : await fetchTextingGroups();
+
+                  if ((availableGroups || []).length > 0) {
                     setSmsMode('texting-group');
                     setActiveChatId(null);
                     setActiveCustomerContactId(null);
                     setMessages([]);
                   }
                 }}
-                disabled={!canUseTextingGroups}
+                disabled={textingGroupLoading}
                 title={canUseTextingGroups ? 'Open shared texting groups' : 'You do not belong to a texting group yet'}
               >
                 Texting Group
