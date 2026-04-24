@@ -34,6 +34,7 @@ function ChatWindow({
   const [callStatus, setCallStatus] = useState(null);
   const [currentCallSid, setCurrentCallSid] = useState(null);
   const [replyTarget, setReplyTarget] = useState(null);
+  const [composerFocusNonce, setComposerFocusNonce] = useState(0);
 
   const safeMessages = messages || [];
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
@@ -241,6 +242,11 @@ function ChatWindow({
     focusComposerForMessage();
   }, [focusComposerForMessage, isTextingGroupThread]);
 
+  const handleSendAnotherMessage = useCallback(() => {
+    setComposerFocusNonce((prev) => prev + 1);
+    focusComposerForMessage();
+  }, [focusComposerForMessage]);
+
   if (!chat) {
     const textingGroupEmptyTitle = selectedTextingGroup ? 'No shared threads found' : 'Select a texting group';
     const textingGroupEmptySubtitle = selectedTextingGroup
@@ -430,7 +436,7 @@ function ChatWindow({
                   onRetry={handleRetry}
                   isTextingGroupThread={isTextingGroupThread}
                   onReplyMessage={handleReplyMessage}
-                  onSendAnotherMessage={focusComposerForMessage}
+                  onSendAnotherMessage={handleSendAnotherMessage}
                 />
               );
             }
@@ -476,6 +482,7 @@ function ChatWindow({
         role={currentUserRole}
         teamName={chat.conversationType === 'team' ? (chat.teamName || chat.name || '') : ''}
         textingGroupId={chat?.textingGroupId || ''}
+        focusNonce={composerFocusNonce}
         allowAttachments={isCustomerChat}
         replyContext={isTextingGroupThread ? replyTarget : null}
         onClearReply={() => setReplyTarget(null)}

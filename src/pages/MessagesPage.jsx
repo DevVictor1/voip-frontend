@@ -53,6 +53,30 @@ const getCustomerMessagePhone = (message) => normalize(
   message?.conversationId || message?.from || message?.to || ''
 );
 
+const findMatchingOptimisticOutboundIndex = (messages, nextMessage) => {
+  if (!nextMessage || nextMessage.direction !== 'outbound') return -1;
+
+  const nextBody = String(nextMessage.body || '').trim();
+  const nextConversationId = String(nextMessage.conversationId || '');
+  const nextTextingGroupId = String(nextMessage.textingGroupId || '').trim().toLowerCase();
+  const nextCreatedAt = nextMessage.createdAt ? new Date(nextMessage.createdAt).getTime() : null;
+
+  return (messages || []).findIndex((item) => {
+    if (!item?._id || !String(item._id).startsWith('temp-')) return false;
+    if (item.status !== 'sending') return false;
+    if (item.direction !== 'outbound') return false;
+    if (String(item.conversationType || 'customer') !== String(nextMessage.conversationType || 'customer')) return false;
+    if (String(item.conversationId || '') !== nextConversationId) return false;
+    if (String(item.textingGroupId || '').trim().toLowerCase() !== nextTextingGroupId) return false;
+    if (String(item.body || '').trim() !== nextBody) return false;
+
+    if (!nextCreatedAt || !item.createdAt) return true;
+
+    const optimisticCreatedAt = new Date(item.createdAt).getTime();
+    return Math.abs(optimisticCreatedAt - nextCreatedAt) < 120000;
+  });
+};
+
 const mergeCustomerMessages = (existingMessages, fetchedMessages, phone) => {
   const normalizedPhone = normalize(phone);
   const nextMessages = Array.isArray(fetchedMessages) ? [...fetchedMessages] : [];
@@ -1549,6 +1573,14 @@ function MessagesPage({
                 || (msg.sid && item.sid === msg.sid)
             );
             if (exists) return prev;
+
+            const optimisticIndex = findMatchingOptimisticOutboundIndex(prev, msg);
+            if (optimisticIndex !== -1) {
+              const next = [...prev];
+              next[optimisticIndex] = msg;
+              return next;
+            }
+
             return [...prev, msg];
           });
 

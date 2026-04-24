@@ -43,6 +43,7 @@ function MessageInput({
   role = '',
   teamName = '',
   textingGroupId = '',
+  focusNonce = 0,
   allowAttachments = true,
   replyContext = null,
   onClearReply,
@@ -81,6 +82,8 @@ function MessageInput({
       if (!matchesChat || !matchesConversation || !matchesTextingGroup) return;
 
       textareaRef.current?.focus();
+      const nextValue = textareaRef.current?.value || '';
+      textareaRef.current?.setSelectionRange(nextValue.length, nextValue.length);
       onFocusInput?.();
     };
 
@@ -90,6 +93,18 @@ function MessageInput({
       window.removeEventListener('focusMessageComposer', handleComposerFocus);
     };
   }, [chatId, conversationType, onFocusInput, textingGroupId]);
+
+  useEffect(() => {
+    if (!focusNonce) return;
+
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.focus();
+    const nextValue = textarea.value || '';
+    textarea.setSelectionRange(nextValue.length, nextValue.length);
+    onFocusInput?.();
+  }, [focusNonce, onFocusInput]);
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -176,21 +191,24 @@ function MessageInput({
 
       if (setMessages) {
         setMessages((prev) => {
+          const existingResolvedIndex = prev.findIndex(
+            (m) =>
+              (resolvedMessage._id && m._id === resolvedMessage._id)
+              || (resolvedMessage.sid && m.sid === resolvedMessage.sid)
+          );
           const tempIndex = prev.findIndex((m) => m._id === tempId);
 
           if (tempIndex !== -1) {
+            if (existingResolvedIndex !== -1 && existingResolvedIndex !== tempIndex) {
+              return prev.filter((m) => m._id !== tempId);
+            }
+
             const next = [...prev];
             next[tempIndex] = resolvedMessage;
             return next;
           }
 
-          const exists = prev.find(
-            (m) =>
-              (resolvedMessage._id && m._id === resolvedMessage._id)
-              || (resolvedMessage.sid && m.sid === resolvedMessage.sid)
-          );
-
-          if (exists) return prev;
+          if (existingResolvedIndex !== -1) return prev;
 
           return [...prev, resolvedMessage];
         });
