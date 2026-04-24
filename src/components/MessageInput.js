@@ -35,6 +35,9 @@ function MessageInput({
   teamName = '',
   textingGroupId = '',
   allowAttachments = true,
+  replyContext = null,
+  onClearReply,
+  onSendSuccess,
   onMessageSent,
   setMessages,
   onFocusInput
@@ -181,9 +184,10 @@ function MessageInput({
 
           return [...prev, resolvedMessage];
         });
-      } else if (onMessageSent) {
-        onMessageSent(resolvedMessage);
       }
+
+      onMessageSent?.(resolvedMessage);
+      onSendSuccess?.(resolvedMessage);
     } catch (err) {
       console.error(err);
       if (setMessages) {
@@ -204,6 +208,26 @@ function MessageInput({
 
   return (
     <div className="message-input-container">
+      {replyContext ? (
+        <div className="message-reply-preview">
+          <div className="message-reply-copy">
+            <div className="message-reply-label">{replyContext.contextLabel || 'Replying to'}</div>
+            <div className="message-reply-sender">{replyContext.senderLabel || 'Message'}</div>
+            <div className="message-reply-text">
+              {replyContext.body || 'No message text'}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="message-reply-close"
+            onClick={() => onClearReply?.()}
+            aria-label="Cancel reply"
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
+
       {mediaUrl && (
         <div className="mms-preview">
           <button

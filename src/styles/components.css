@@ -893,10 +893,76 @@
   color: #334155;
 }
 
+.message-inline-action.is-success {
+  color: #16a34a;
+}
+
 .message-inline-action.is-disabled,
 .message-inline-action:disabled {
   color: #cbd5e1;
   cursor: default;
+}
+
+.message-reply-preview {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(191, 219, 254, 0.9);
+  border-radius: 14px;
+  background: rgba(239, 246, 255, 0.84);
+}
+
+.message-reply-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.message-reply-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.message-reply-sender {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.message-reply-text {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #475569;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-reply-close {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.message-reply-close:hover {
+  background: rgba(255, 255, 255, 0.82);
+  color: #334155;
 }
 
 .message-input {

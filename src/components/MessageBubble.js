@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 const formatSmsContextNumber = (primary, fallback) => {
   return String(primary || fallback || '').trim() || 'unknown number';
 };
@@ -9,6 +11,7 @@ function MessageBubble({
   onReplyMessage,
   onSendAnotherMessage,
 }) {
+  const [copyState, setCopyState] = useState('idle');
   const isInternalMessage = message.conversationType === 'internal_dm' || message.conversationType === 'team';
   const isTextingGroupMessage = Boolean(
     isTextingGroupThread
@@ -61,13 +64,28 @@ function MessageBubble({
     message.status === 'undelivered';
   const canCopyText = Boolean(message.body?.trim());
 
+  useEffect(() => {
+    if (copyState !== 'copied') return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setCopyState('idle');
+    }, 1500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [copyState]);
+
   const handleCopyText = async () => {
     if (!canCopyText || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
 
     try {
       await navigator.clipboard.writeText(message.body);
+      setCopyState('copied');
     } catch (error) {
       console.error('Copy text failed:', error);
+      setCopyState('error');
+      window.setTimeout(() => {
+        setCopyState('idle');
+      }, 1500);
     }
   };
 
@@ -123,11 +141,11 @@ function MessageBubble({
           </button>
           <button
             type="button"
-            className={`message-inline-action${!canCopyText ? ' is-disabled' : ''}`}
+            className={`message-inline-action${!canCopyText ? ' is-disabled' : ''}${copyState === 'copied' ? ' is-success' : ''}`}
             onClick={handleCopyText}
             disabled={!canCopyText}
           >
-            Copy text
+            {copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy text'}
           </button>
           {message.direction === 'outbound' ? (
             <button

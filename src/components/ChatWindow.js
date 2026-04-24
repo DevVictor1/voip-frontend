@@ -31,6 +31,7 @@ function ChatWindow({
   const [callLogs, setCallLogs] = useState([]);
   const [callStatus, setCallStatus] = useState(null);
   const [currentCallSid, setCurrentCallSid] = useState(null);
+  const [replyTarget, setReplyTarget] = useState(null);
 
   const safeMessages = messages || [];
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
@@ -199,6 +200,10 @@ function ChatWindow({
     scrollToBottom('auto');
   }, [chat?.conversationId, chat?.phone, scrollToBottom]);
 
+  useEffect(() => {
+    setReplyTarget(null);
+  }, [chat?.conversationId, chat?.phone, chat?.textingGroupId]);
+
   const focusComposerForMessage = useCallback(() => {
     if (typeof window === 'undefined') return;
 
@@ -210,6 +215,23 @@ function ChatWindow({
       },
     }));
   }, [chat?.conversationId, chat?.conversationType, chat?.phone, chat?.textingGroupId, isCustomerChat]);
+
+  const handleReplyMessage = useCallback((message) => {
+    if (!isTextingGroupThread || !message) return;
+
+    setReplyTarget({
+      id: message._id || message.sid || `${message.createdAt || Date.now()}`,
+      senderLabel: message.direction === 'outbound'
+        ? (message.senderName || message.senderId || 'Internal teammate')
+        : 'Customer SMS',
+      contextLabel: message.direction === 'outbound'
+        ? 'Replying to sent SMS'
+        : 'Replying to received SMS',
+      body: String(message.body || '').trim(),
+    });
+
+    focusComposerForMessage();
+  }, [focusComposerForMessage, isTextingGroupThread]);
 
   if (!chat) {
     return (
@@ -370,7 +392,7 @@ function ChatWindow({
                   message={item}
                   onRetry={handleRetry}
                   isTextingGroupThread={isTextingGroupThread}
-                  onReplyMessage={focusComposerForMessage}
+                  onReplyMessage={handleReplyMessage}
                   onSendAnotherMessage={focusComposerForMessage}
                 />
               );
@@ -417,11 +439,18 @@ function ChatWindow({
         teamName={chat.conversationType === 'team' ? (chat.teamName || chat.name || '') : ''}
         textingGroupId={chat?.textingGroupId || ''}
         allowAttachments={isCustomerChat}
+        replyContext={isTextingGroupThread ? replyTarget : null}
+        onClearReply={() => setReplyTarget(null)}
         setMessages={setMessages}
         onFocusInput={() => {
           window.setTimeout(() => {
             scrollToBottom('smooth');
           }, 160);
+        }}
+        onSendSuccess={() => {
+          if (isTextingGroupThread) {
+            setReplyTarget(null);
+          }
         }}
         onMessageSent={(msg) => {
           setMessages((prev) => {
