@@ -283,13 +283,11 @@ function ChatWindow({
     || (chat.firstName || chat.lastName
       ? `${chat.firstName || ''} ${chat.lastName || ''}`.trim()
       : chat.phone);
-  const smsSystemHints = isSmsPage && isCustomerChat && !isTextingGroupThread ? [
+  const smsSystemHints = isSmsPage && isCustomerChat && isTextingGroupThread ? [
     {
       key: 'received',
       title: `SMS received from ${chat?.phone || 'this number'}`,
-      body: isTextingGroupThread
-        ? `Shared replies from ${chat?.textingGroupName || 'this texting group'} will continue in this thread.`
-        : 'Messages from this contact will continue to appear in this thread.',
+      body: `Shared replies from ${chat?.textingGroupName || 'this texting group'} will continue in this thread.`,
     },
     ...(!chat?._id ? [{
       key: 'contact',
