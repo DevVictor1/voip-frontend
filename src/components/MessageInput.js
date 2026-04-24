@@ -73,6 +73,15 @@ function MessageInput({
   }, [text]);
 
   useEffect(() => {
+    setText('');
+    setMediaUrl('');
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [chatId, conversationType, textingGroupId]);
+
+  useEffect(() => {
     const handleComposerFocus = (event) => {
       const detail = event.detail || {};
       const matchesChat = String(detail.chatId || '') === String(chatId || '');

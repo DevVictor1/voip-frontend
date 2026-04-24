@@ -201,6 +201,44 @@ const normalizeCustomerConversation = ({ contact = null, chat = null }) => {
   };
 };
 
+const sortConversationsByUnreadAndTime = (conversations = []) => {
+  return [...conversations].sort((a, b) => {
+    if ((b.unreadCount || 0) !== (a.unreadCount || 0)) {
+      return (b.unreadCount || 0) - (a.unreadCount || 0);
+    }
+
+    return new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0);
+  });
+};
+
+const buildDirectSmsConversationList = ({ contacts, chats }) => {
+  const contactsByPhone = new Map();
+
+  contacts.forEach((contact) => {
+    (contact.phones || []).forEach((phone) => {
+      const normalizedPhone = normalize(phone.number);
+      if (!normalizedPhone || contactsByPhone.has(normalizedPhone)) return;
+      contactsByPhone.set(normalizedPhone, contact);
+    });
+  });
+
+  const normalizedChats = (chats || []).map((chat) => {
+    const phone = normalize(chat?.phone);
+    const matchedContact = phone ? contactsByPhone.get(phone) || null : null;
+
+    return normalizeCustomerConversation({
+      chat,
+      contact: matchedContact || {
+        name: chat?.name || phone,
+        phones: phone ? [{ number: phone, label: 'mobile' }] : [],
+        isUnassigned: true,
+      },
+    });
+  });
+
+  return sortConversationsByUnreadAndTime(normalizedChats);
+};
+
 const getDirectoryAgentMeta = (agentId, userDirectory = {}) => {
   const matchedUser = agentId ? userDirectory[agentId] : null;
   const fallbackMeta = getAgentMeta(agentId);
@@ -306,13 +344,7 @@ const buildConversationList = ({ contacts, chats, internalChats, currentUserId, 
     normalizeInternalConversation(conversation, currentUserId, userDirectory)
   );
 
-  return [...normalizedCustomers, ...normalizedInternal].sort((a, b) => {
-    if ((b.unreadCount || 0) !== (a.unreadCount || 0)) {
-      return (b.unreadCount || 0) - (a.unreadCount || 0);
-    }
-
-    return new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0);
-  });
+  return sortConversationsByUnreadAndTime([...normalizedCustomers, ...normalizedInternal]);
 };
 
 const VIEW_MODE_CONFIG = {
@@ -418,9 +450,15 @@ function MessagesPage({
   const [toast, setToast] = useState(null);
   const teamMessagesCacheRef = useRef({});
   const activeTeamRequestRef = useRef('');
+  const activeCustomerRequestRef = useRef('');
+  const messagesRef = useRef([]);
   const pendingDirectorySmsPhoneRef = useRef(
     normalize(location.state?.phone || '')
   );
+
+  useEffect(() => {
+    messagesRef.current = Array.isArray(messages) ? messages : [];
+  }, [messages]);
 
   useEffect(() => {
     setActiveSection(viewConfig.section);
@@ -497,7 +535,7 @@ function MessagesPage({
       const res = await fetch(`${BASE_URL}/api/sms/conversations`);
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setChats(data || []);
+      setChats(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Fetch conversations error:', err);
     }
@@ -608,22 +646,44 @@ function MessagesPage({
     }
   }, []);
 
-  const fetchCustomerMessages = useCallback(async (phone) => {
+  const fetchCustomerMessages = useCallback(async (phone, options = {}) => {
+    const { requestKey = '' } = options;
+
+    if (!phone) {
+      if (!requestKey || activeCustomerRequestRef.current === requestKey) {
+        setMessages([]);
+      }
+      return [];
+    }
+
     try {
       const res = await fetch(`${BASE_URL}/api/sms/messages/${phone}`);
       if (!res.ok) throw new Error();
 
       const data = await res.json();
-      setMessages((prev) => mergeCustomerMessages(prev, data || [], phone));
+      const nextMessages = mergeCustomerMessages(messagesRef.current, data || [], phone);
+
+      if (!requestKey || activeCustomerRequestRef.current === requestKey) {
+        setMessages(nextMessages);
+      }
+
+      return nextMessages;
     } catch (err) {
       console.error('Fetch customer messages error:', err);
-      setMessages([]);
+      if (!requestKey || activeCustomerRequestRef.current === requestKey) {
+        setMessages([]);
+      }
+      return [];
     }
   }, []);
 
-  const fetchTextingGroupMessages = useCallback(async (groupId, phone) => {
+  const fetchTextingGroupMessages = useCallback(async (groupId, phone, options = {}) => {
+    const { requestKey = '' } = options;
+
     if (!groupId || !phone) {
-      setMessages([]);
+      if (!requestKey || activeCustomerRequestRef.current === requestKey) {
+        setMessages([]);
+      }
       return [];
     }
 
@@ -638,11 +698,15 @@ function MessagesPage({
       if (!res.ok) throw new Error();
 
       const data = await res.json();
-      setMessages(data || []);
+      if (!requestKey || activeCustomerRequestRef.current === requestKey) {
+        setMessages(data || []);
+      }
       return data || [];
     } catch (err) {
       console.error('Fetch texting group messages error:', err);
-      setMessages([]);
+      if (!requestKey || activeCustomerRequestRef.current === requestKey) {
+        setMessages([]);
+      }
       return [];
     }
   }, [currentRole, currentUserId]);
@@ -1072,13 +1136,18 @@ function MessagesPage({
     }
   }, [currentUserId, fetchInternalConversations, rememberInternalSearch, startingDirectChat, upsertInternalConversation, workspaceUserDirectory]);
 
-  const conversationList = buildConversationList({
-    contacts,
-    chats,
-    internalChats,
-    currentUserId,
-    userDirectory: workspaceUserDirectory,
-  });
+  const conversationList = isSmsPage && smsMode === 'direct'
+    ? buildDirectSmsConversationList({
+        contacts,
+        chats,
+      })
+    : buildConversationList({
+        contacts,
+        chats,
+        internalChats,
+        currentUserId,
+        userDirectory: workspaceUserDirectory,
+      });
 
   const fetchTeamDetails = useCallback(async (conversationId) => {
     if (!conversationId) return null;
@@ -1401,24 +1470,31 @@ function MessagesPage({
     const loadChat = async () => {
       if (activeConversationType === 'customer') {
         const { textingGroupId, phone } = parseTextingGroupConversationId(activeConversationId || activeCustomerPhone);
+        const requestKey = buildConversationKey('customer', activeConversationId || activeCustomerPhone || phone);
+        activeCustomerRequestRef.current = requestKey;
 
         if (textingGroupId) {
-          await fetchTextingGroupMessages(textingGroupId, phone);
-          await fetch(`${BASE_URL}/api/sms/texting-groups/${encodeURIComponent(textingGroupId)}/read/${encodeURIComponent(phone)}`, {
+          await fetchTextingGroupMessages(textingGroupId, phone, { requestKey });
+          fetch(`${BASE_URL}/api/sms/texting-groups/${encodeURIComponent(textingGroupId)}/read/${encodeURIComponent(phone)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: currentUserId }),
+          }).catch((error) => {
+            console.error('Mark texting group thread read error:', error);
           });
           fetchTextingGroupThreads(textingGroupId);
           fetchTextingGroups();
         } else {
-          await fetchCustomerMessages(phone);
-          await fetch(`${BASE_URL}/api/sms/read/${phone}`, {
+          await fetchCustomerMessages(phone, { requestKey });
+          fetch(`${BASE_URL}/api/sms/read/${phone}`, {
             method: 'PUT',
+          }).catch((error) => {
+            console.error('Mark direct SMS thread read error:', error);
           });
           fetchConversations();
         }
       } else {
+        activeCustomerRequestRef.current = '';
         const requestKey = buildConversationKey(activeConversationType, activeConversationId);
         const isTeamThread = activeConversationType === 'team';
 
@@ -1811,11 +1887,19 @@ function MessagesPage({
         : null
     );
 
-    if ((conversation.conversationType || '') === 'team') {
+    if ((conversation.conversationType || '') === 'customer') {
+      activeCustomerRequestRef.current = nextKey;
+      setMessages([]);
+      setTeamThreadLoading(false);
+    } else if ((conversation.conversationType || '') === 'team') {
       const cachedMessages = teamMessagesCacheRef.current[nextKey];
       activeTeamRequestRef.current = nextKey;
       setMessages(Array.isArray(cachedMessages) ? cachedMessages : []);
       setTeamThreadLoading(!Array.isArray(cachedMessages));
+    } else {
+      activeCustomerRequestRef.current = '';
+      setMessages([]);
+      setTeamThreadLoading(false);
     }
 
     markChatRead(conversation);
