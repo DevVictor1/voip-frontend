@@ -2690,7 +2690,7 @@ function MessagesPage({
                 isSmsPage={isSmsPage}
                 isTextingGroupThread={smsMode === 'texting-group' && Boolean(activeChat?.textingGroupId)}
                 isDirectSmsThread={smsMode === 'direct'}
-                hasSavedContact={Boolean(activeSmsSavedContact?._id)}
+                hasSavedContact={Boolean(activeSmsSavedContact)}
                 selectedTextingGroup={smsMode === 'texting-group' ? selectedTextingGroup : null}
                 threadLoading={false}
                 showTeamDetailsAction={false}

@@ -18,7 +18,6 @@ function MessageBubble({
   const isTextingGroupMessage = Boolean(
     isTextingGroupThread
     && message.conversationType === 'customer'
-    && message.textingGroupId
   );
   const senderDisplayName = message.senderName || message.senderId || 'Internal teammate';
   const customerNumber = formatSmsContextNumber(
