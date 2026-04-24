@@ -1078,6 +1078,27 @@
   line-height: 1.5;
 }
 
+.directory-modal-feedback {
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.directory-modal-feedback.is-success {
+  background: rgba(236, 253, 245, 0.96);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  color: #047857;
+  font-weight: 600;
+}
+
+.directory-modal-feedback.is-error {
+  background: rgba(254, 242, 242, 0.98);
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .directory-modal-footer {
   display: flex;
   justify-content: flex-end;

@@ -497,10 +497,13 @@ function MessagesPage({
   const [showSmsContactModal, setShowSmsContactModal] = useState(false);
   const [smsContactForm, setSmsContactForm] = useState(emptySmsContactForm);
   const [savingSmsContact, setSavingSmsContact] = useState(false);
+  const [smsContactModalSuccess, setSmsContactModalSuccess] = useState('');
+  const [smsContactModalError, setSmsContactModalError] = useState('');
   const teamMessagesCacheRef = useRef({});
   const activeTeamRequestRef = useRef('');
   const activeCustomerRequestRef = useRef('');
   const messagesRef = useRef([]);
+  const smsContactSuccessTimeoutRef = useRef(null);
   const pendingDirectorySmsPhoneRef = useRef(
     normalize(location.state?.phone || '')
   );
@@ -508,6 +511,24 @@ function MessagesPage({
   useEffect(() => {
     messagesRef.current = Array.isArray(messages) ? messages : [];
   }, [messages]);
+
+  useEffect(() => () => {
+    if (smsContactSuccessTimeoutRef.current) {
+      window.clearTimeout(smsContactSuccessTimeoutRef.current);
+    }
+  }, []);
+
+  const closeSmsContactModal = useCallback(() => {
+    if (smsContactSuccessTimeoutRef.current) {
+      window.clearTimeout(smsContactSuccessTimeoutRef.current);
+      smsContactSuccessTimeoutRef.current = null;
+    }
+
+    setShowSmsContactModal(false);
+    setSmsContactForm(emptySmsContactForm);
+    setSmsContactModalSuccess('');
+    setSmsContactModalError('');
+  }, []);
 
   useEffect(() => {
     setActiveSection(viewConfig.section);
@@ -864,6 +885,11 @@ function MessagesPage({
   const handleOpenSmsContactModal = useCallback((payload = {}) => {
     const fallbackName = String(payload.name || payload.displayName || '').trim();
 
+    if (smsContactSuccessTimeoutRef.current) {
+      window.clearTimeout(smsContactSuccessTimeoutRef.current);
+      smsContactSuccessTimeoutRef.current = null;
+    }
+
     setSmsContactForm({
       name: fallbackName && normalize(fallbackName) !== normalize(payload.phone || '')
         ? fallbackName
@@ -873,6 +899,8 @@ function MessagesPage({
       merchantId: String(payload.merchantId || payload.mid || '').trim(),
       notes: String(payload.notes || '').trim(),
     });
+    setSmsContactModalSuccess('');
+    setSmsContactModalError('');
     setShowSmsContactModal(true);
   }, []);
 
@@ -936,6 +964,8 @@ function MessagesPage({
 
     try {
       setSavingSmsContact(true);
+      setSmsContactModalError('');
+      setSmsContactModalSuccess('');
 
       const res = await fetch(`${BASE_URL}/api/contacts/upsert`, {
         method: 'POST',
@@ -961,24 +991,26 @@ function MessagesPage({
       }
 
       applySavedContactToSmsState(savedContact);
-      setShowSmsContactModal(false);
-      setSmsContactForm(emptySmsContactForm);
-      setToast({
-        type: 'success',
-        message: payload?.created ? 'Contact created in Directory' : 'Contact updated in Directory',
-      });
+      setSmsContactModalSuccess(
+        payload?.created ? 'Contact saved successfully' : 'Contact updated successfully'
+      );
 
       fetchContacts();
 
       if (smsMode === 'texting-group' && selectedTextingGroupId) {
         fetchTextingGroupThreads(selectedTextingGroupId);
       }
+
+      if (smsContactSuccessTimeoutRef.current) {
+        window.clearTimeout(smsContactSuccessTimeoutRef.current);
+      }
+
+      smsContactSuccessTimeoutRef.current = window.setTimeout(() => {
+        closeSmsContactModal();
+      }, 1400);
     } catch (error) {
       console.error('Save SMS contact error:', error);
-      setToast({
-        type: 'error',
-        message: error.message || 'Failed to save contact',
-      });
+      setSmsContactModalError(error.message || 'Failed to save contact');
     } finally {
       setSavingSmsContact(false);
     }
@@ -2689,7 +2721,7 @@ function MessagesPage({
       />
 
       {showSmsContactModal ? (
-        <div className="directory-modal-overlay" onClick={() => !savingSmsContact && setShowSmsContactModal(false)}>
+        <div className="directory-modal-overlay" onClick={() => !savingSmsContact && closeSmsContactModal()}>
           <div className="directory-modal" onClick={(event) => event.stopPropagation()}>
             <div className="directory-modal-header">
               <div>
@@ -2699,7 +2731,7 @@ function MessagesPage({
               <button
                 type="button"
                 className="directory-modal-close"
-                onClick={() => !savingSmsContact && setShowSmsContactModal(false)}
+                onClick={() => !savingSmsContact && closeSmsContactModal()}
                 aria-label="Close add contact form"
               >
                 ×
@@ -2707,6 +2739,16 @@ function MessagesPage({
             </div>
 
             <div className="directory-modal-body">
+              {smsContactModalSuccess ? (
+                <div className="directory-modal-feedback is-success">
+                  {smsContactModalSuccess}
+                </div>
+              ) : null}
+              {smsContactModalError ? (
+                <div className="directory-modal-feedback is-error">
+                  {smsContactModalError}
+                </div>
+              ) : null}
               <input
                 className="numbers-input"
                 placeholder="Client name"
@@ -2744,7 +2786,7 @@ function MessagesPage({
               <button
                 type="button"
                 className="directory-client-toolbar-btn"
-                onClick={() => setShowSmsContactModal(false)}
+                onClick={closeSmsContactModal}
                 disabled={savingSmsContact}
               >
                 Cancel

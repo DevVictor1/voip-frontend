@@ -41,6 +41,7 @@ function ChatWindow({
 
   const safeMessages = messages || [];
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
+  const canAddUserToContacts = Boolean(onAddUserToContacts && isCustomerChat && !chat?._id);
   const textingGroupDisplayName = chat?.textingGroupName || selectedTextingGroup?.name || 'Selected texting group';
   const textingGroupAssignedNumber = chat?.assignedNumber || selectedTextingGroup?.assignedNumber || '';
   const textingGroupCustomerLabel = chat?.name
@@ -409,7 +410,7 @@ function ChatWindow({
         onSwitchNumber={onSwitchNumber}
         onAssignContact={onAssignContact}
         onUpdateAssignmentStatus={onUpdateAssignmentStatus}
-        onAddUserToContacts={!chat?._id && isCustomerChat ? handleAddUserToContacts : null}
+        onAddUserToContacts={!isTextingGroupThread && canAddUserToContacts ? handleAddUserToContacts : null}
         assignableAgents={assignableAgents}
         onBack={onBack}
         showBack={showBack}
@@ -455,6 +456,7 @@ function ChatWindow({
                   message={item}
                   onRetry={handleRetry}
                   isTextingGroupThread={isTextingGroupThread}
+                  showAddUserToContacts={canAddUserToContacts}
                   onReplyMessage={handleReplyMessage}
                   onSendAnotherMessage={handleSendAnotherMessage}
                   onAddUserToContacts={handleAddUserToContacts}

@@ -287,7 +287,7 @@ function Header({
       </div>
 
       <div className="header-actions">
-        {isCustomerChat && !hasPersistedContact && onAddUserToContacts ? (
+        {isCustomerChat && !isTextingGroupMode && !hasPersistedContact && onAddUserToContacts ? (
           <button
             className="button-icon"
             type="button"

@@ -8,6 +8,7 @@ function MessageBubble({
   message,
   onRetry,
   isTextingGroupThread = false,
+  showAddUserToContacts = false,
   onReplyMessage,
   onSendAnotherMessage,
   onAddUserToContacts,
@@ -111,7 +112,9 @@ function MessageBubble({
               </>
             ) : (
               <>
-                <div className="message-context-label">Add user to contacts</div>
+                <div className="message-context-label">
+                  {showAddUserToContacts ? 'Add user to contacts' : 'SMS received'}
+                </div>
                 <div className="message-context-copy">
                   SMS message received from {customerNumber} to {assignedNumber}
                 </div>
@@ -132,7 +135,7 @@ function MessageBubble({
 
       {isTextingGroupMessage ? (
         <div className="message-inline-actions">
-          {message.direction !== 'outbound' ? (
+          {message.direction !== 'outbound' && showAddUserToContacts ? (
             <button
               type="button"
               className="message-inline-action"
