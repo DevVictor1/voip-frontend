@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import './App.css';
 import MainLayout from './layout/MainLayout';
 import Dashboard from './pages/Dashboard';
-import CallLogs from './pages/CallLogs';
+import Calls from './pages/Calls';
 import Users from './pages/Users';
 import Messages from './pages/MessagesPage';
 import SettingsPage from './pages/SettingsPage';
@@ -502,7 +502,7 @@ function App() {
           />
           <Route
             path="/calls"
-            element={renderProtectedLayout(<CallLogs />)}
+            element={renderProtectedLayout(<Calls />)}
           />
           <Route
             path="/users"
