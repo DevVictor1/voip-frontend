@@ -500,7 +500,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
             <div>
               <h3 style={{ margin: 0 }}>User Management</h3>
               <div className="text-muted" style={helperTextStyle}>
-                Manage workspace users, communication identities, password resets, and account activation from Settings instead of Directory.
+                Manage team members, roles, and account access.
               </div>
             </div>
             <span className="tag">{loading ? 'Loading' : `${users.length} users`}</span>
@@ -646,7 +646,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                               ))}
                             </select>
                             <div className="text-muted" style={helperTextStyle}>
-                              Department represents the business team while preserving existing permissions.
+                              Choose the team for this user.
                             </div>
                           </div>
                           <div style={fieldGroupStyle}>
@@ -662,8 +662,8 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                             />
                             <div className="text-muted" style={helperTextStyle}>
                               {isEditingExistingAgentId
-                                ? 'Locked after creation to protect voice identity, routing, messaging, and socket presence continuity.'
-                                : 'Set carefully when the user does not already have a communication identity.'}
+                                ? 'This ID is locked after setup.'
+                                : 'Set an ID for calls and messaging.'}
                             </div>
                           </div>
                           <label style={checkboxStyle}>
@@ -708,7 +708,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                 <div className="section-card directory-settings-empty">
                   <h3 style={{ margin: 0 }}>Select a user</h3>
                   <div className="text-muted">
-                    Open a teammate from the list to edit account details, manage status, or reset a password.
+                    Select a team member to view details and update access.
                   </div>
                 </div>
               )}
@@ -721,7 +721,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
             <div className="directory-create-header-copy">
               <h3 style={{ margin: 0 }}>Create User</h3>
               <div className="text-muted directory-create-summary">
-                Add a new admin or agent from Settings without leaving the management area.
+                Add a new admin or agent.
               </div>
             </div>
             <div className="directory-create-header-actions">
@@ -772,7 +772,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                     ))}
                   </select>
                   <div className="text-muted" style={helperTextStyle}>
-                    Department is the business team the user belongs to.
+                    Choose the team for this user.
                   </div>
                 </div>
 
@@ -789,7 +789,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                     placeholder="Generated from name and department"
                   />
                   <div className="text-muted" style={helperTextStyle}>
-                    Generated automatically for calls, messaging, routing, and presence.
+                    Created automatically for calls and messaging.
                   </div>
                 </div>
 
@@ -811,7 +811,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
           ) : (
             <div className="directory-create-collapsed">
               <div className="directory-create-collapsed-copy">
-                User provisioning stays available here in Settings while Directory focuses on internal teammate lookup.
+                Add team members from Settings.
               </div>
             </div>
           )}
@@ -822,7 +822,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
             <div className="directory-import-copy">
               <h3 style={{ margin: 0 }}>Import Contacts</h3>
               <div className="text-muted directory-import-summary">
-                Keep contact import access available from Settings until the client-facing Directory section is built.
+                Upload or import client contacts.
               </div>
             </div>
             <div className="directory-import-actions">

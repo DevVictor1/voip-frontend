@@ -208,7 +208,7 @@ function NumbersPage({ embedded = false }) {
           <span className="tag">Stage 1</span>
         </div>
         <div className="numbers-section-copy">
-          Create an internal record for a line before or during provider migration.
+          Add a business number to your workspace.
         </div>
 
         <form className="numbers-form" onSubmit={handleCreate}>
@@ -284,7 +284,7 @@ function NumbersPage({ embedded = false }) {
           <span className="tag">{loading ? 'Loading' : `${numbers.length} records`}</span>
         </div>
         <div className="numbers-section-copy">
-          Review current ownership, capabilities, and porting progress in one place.
+          Review numbers, ownership, and status in one place.
         </div>
 
         {error ? <div className="text-muted">{error}</div> : null}
