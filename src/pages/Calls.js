@@ -3,14 +3,18 @@ import {
   BellOff,
   ChevronDown,
   Delete,
+  LoaderCircle,
   MessageSquare,
   Phone,
+  PhoneOff,
   Search,
   StickyNote,
   Video,
 } from 'lucide-react';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import BASE_URL from '../config/api';
+import socket from '../socket';
+import { disconnectCall, getDeviceStatus, startCall } from '../services/voice';
 
 const TABS = ['Keypad', 'Calls', 'Voicemail'];
 
@@ -29,15 +33,15 @@ const DIAL_PAD = [
   { digit: '#', letters: '' },
 ];
 
-const CALLER_IDS = [
-  '(770) 441-0190',
-  '(770) 441-0101',
-];
+const DEFAULT_CALLER_ID = '(260) 544-0829';
+const ACTIVE_CALL_STATES = ['connecting', 'ringing', 'in-call'];
 
 function Calls() {
   const [activeTab, setActiveTab] = useState('Keypad');
-  const [callerId, setCallerId] = useState(CALLER_IDS[0]);
+  const [callerIds, setCallerIds] = useState([DEFAULT_CALLER_ID]);
+  const [callerId, setCallerId] = useState(DEFAULT_CALLER_ID);
   const [dialValue, setDialValue] = useState('');
+  const [dialError, setDialError] = useState('');
   const [searchValue, setSearchValue] = useState('');
   const deferredSearchValue = useDeferredValue(searchValue);
   const [callFilter, setCallFilter] = useState('ALL');
@@ -45,51 +49,161 @@ function Calls() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedCallId, setSelectedCallId] = useState('');
+  const [deviceStatus, setDeviceStatus] = useState(() => getDeviceStatus());
+  const [keypadCallState, setKeypadCallState] = useState('idle');
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchCalls = async ({ silent = false } = {}) => {
-      if (!silent && isMounted) setLoading(true);
-
-      try {
-        const response = await fetch(`${BASE_URL}/api/calls/logs`, { method: 'GET' });
-        if (!response.ok) {
-          throw new Error('Failed request');
-        }
-
-        const payload = await response.json();
-        const normalized = Array.isArray(payload)
-          ? payload.map((call, index) => normalizeCall(call, index))
-          : [];
-
-        if (!isMounted) return;
-
-        setCalls(normalized);
-        setError('');
-        setSelectedCallId((current) => {
-          if (current && normalized.some((item) => item.id === current)) {
-            return current;
-          }
-          return normalized[0]?.id || '';
-        });
-      } catch (fetchError) {
-        if (!isMounted) return;
-        console.error('Failed to load call logs for Calls page:', fetchError);
-        setError('Failed to load call logs');
-      } finally {
-        if (isMounted) setLoading(false);
+  const refreshCallerIds = useCallback(async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/api/numbers`, { method: 'GET' });
+      if (!response.ok) {
+        throw new Error('Failed to fetch caller IDs');
       }
-    };
 
-    fetchCalls();
-    const intervalId = window.setInterval(() => fetchCalls({ silent: true }), 15000);
+      const payload = await response.json();
+      const numbers = Array.isArray(payload) ? payload : [];
+      const candidates = numbers
+        .filter((item) => item?.phoneNumber)
+        .filter((item) => {
+          const capabilities = String(item?.capabilities || '').toLowerCase();
+          return capabilities.includes('voice') || capabilities.includes('messaging');
+        })
+        .map((item) => formatPhone(item.phoneNumber))
+        .filter(Boolean);
+
+      if (!candidates.length) return;
+
+      setCallerIds((current) => dedupeCallerIds([...candidates, ...current]));
+      setCallerId((current) => current || candidates[0]);
+    } catch (fetchError) {
+      console.error('Failed to load caller ID options:', fetchError);
+    }
+  }, []);
+
+  const refreshCalls = useCallback(async ({ silent = false } = {}) => {
+    let isMounted = true;
+    if (!silent) setLoading(true);
+
+    try {
+      const response = await fetch(`${BASE_URL}/api/calls/logs`, { method: 'GET' });
+      if (!response.ok) {
+        throw new Error('Failed request');
+      }
+
+      const payload = await response.json();
+      const rawCalls = Array.isArray(payload) ? payload : [];
+      const normalized = rawCalls.map((call, index) => normalizeCall(call, index));
+
+      if (!isMounted) return;
+
+      setCalls(normalized);
+      setError('');
+      setSelectedCallId((current) => {
+        if (current && normalized.some((item) => item.id === current)) {
+          return current;
+        }
+        return normalized[0]?.id || '';
+      });
+
+      const callDerivedCallerIds = rawCalls
+        .map((call) => formatPhone(call?.from || ''))
+        .filter(Boolean);
+
+      if (callDerivedCallerIds.length) {
+        setCallerIds((current) => dedupeCallerIds([...current, ...callDerivedCallerIds]));
+        setCallerId((current) => current || callDerivedCallerIds[0]);
+      }
+    } catch (fetchError) {
+      if (!isMounted) return;
+      console.error('Failed to load call logs for Calls page:', fetchError);
+      setError('Failed to load call logs');
+    } finally {
+      if (isMounted) setLoading(false);
+    }
 
     return () => {
       isMounted = false;
-      window.clearInterval(intervalId);
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      await Promise.all([
+        refreshCalls(),
+        refreshCallerIds(),
+      ]);
+    };
+
+    load();
+
+    const intervalId = window.setInterval(() => {
+      if (!cancelled) {
+        refreshCalls({ silent: true });
+      }
+    }, 15000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [refreshCalls, refreshCallerIds]);
+
+  useEffect(() => {
+    const handleDeviceStatus = (event) => {
+      setDeviceStatus(event.detail?.status || 'offline');
+    };
+
+    const handleCallState = (event) => {
+      const nextState = event.detail?.state || 'idle';
+      setKeypadCallState(nextState);
+
+      if (nextState === 'failed') {
+        setDialError('Unable to start the call. Check the number and try again.');
+      }
+    };
+
+    const handleCallEnded = () => {
+      setKeypadCallState((current) => (current === 'failed' || current === 'missed' ? current : 'ended'));
+    };
+
+    window.addEventListener('voiceDeviceStatus', handleDeviceStatus);
+    window.addEventListener('voiceCallState', handleCallState);
+    window.addEventListener('callEnded', handleCallEnded);
+
+    return () => {
+      window.removeEventListener('voiceDeviceStatus', handleDeviceStatus);
+      window.removeEventListener('voiceCallState', handleCallState);
+      window.removeEventListener('callEnded', handleCallEnded);
+    };
+  }, []);
+
+  useEffect(() => {
+    let refreshTimeoutId = null;
+
+    const handleSocketCallStatus = () => {
+      refreshCalls({ silent: true });
+    };
+
+    const handleEndedRefresh = () => {
+      refreshCalls({ silent: true });
+      window.clearTimeout(refreshTimeoutId);
+      refreshTimeoutId = window.setTimeout(() => {
+        refreshCalls({ silent: true });
+      }, 2000);
+    };
+
+    socket.on('callStatus', handleSocketCallStatus);
+    socket.on('callEnded', handleEndedRefresh);
+    window.addEventListener('callEnded', handleEndedRefresh);
+
+    return () => {
+      socket.off('callStatus', handleSocketCallStatus);
+      socket.off('callEnded', handleEndedRefresh);
+      window.removeEventListener('callEnded', handleEndedRefresh);
+      window.clearTimeout(refreshTimeoutId);
+    };
+  }, [refreshCalls]);
 
   const filteredCalls = useMemo(() => {
     const query = deferredSearchValue.trim().toLowerCase();
@@ -129,17 +243,54 @@ function Calls() {
   }, [selectedCall, selectedCallId]);
 
   const handleDigitPress = (digit) => {
+    setDialError('');
     setDialValue((current) => `${current}${digit}`);
   };
 
   const handleBackspace = () => {
+    setDialError('');
     setDialValue((current) => current.slice(0, -1));
   };
 
-  const handleCallPlaceholder = (source) => {
-    const target = dialValue.trim() || selectedCall?.displayNumber || selectedCall?.displayName || 'unknown target';
-    console.log(`[Calls UI] Placeholder ${source} action for`, target);
+  const handleDialChange = (event) => {
+    setDialError('');
+    setDialValue(event.target.value);
   };
+
+  const handleStartCall = async () => {
+    if (ACTIVE_CALL_STATES.includes(keypadCallState)) return;
+
+    const target = formatOutboundPhone(dialValue);
+
+    if (!dialValue.trim()) {
+      setDialError('Enter a phone number to place a call.');
+      return;
+    }
+
+    if (!target) {
+      setDialError('Enter a valid phone number.');
+      return;
+    }
+
+    setDialError('');
+
+    try {
+      await startCall(target);
+      setDialValue(target);
+    } catch (callError) {
+      console.error('Keypad call failed:', callError);
+      setDialError('Unable to start the call. Check the number and try again.');
+    }
+  };
+
+  const handleHangUp = () => {
+    disconnectCall();
+    setKeypadCallState('ended');
+  };
+
+  const statusTone = getKeypadStatusTone({ deviceStatus, callState: keypadCallState });
+  const statusLabel = getKeypadStatusLabel({ deviceStatus, callState: keypadCallState });
+  const isCallBusy = ACTIVE_CALL_STATES.includes(keypadCallState);
 
   return (
     <div className="calls-page">
@@ -171,7 +322,7 @@ function Calls() {
               <label className="calls-caller-id">
                 <span>My caller ID:</span>
                 <select value={callerId} onChange={(event) => setCallerId(event.target.value)}>
-                  {CALLER_IDS.map((value) => (
+                  {callerIds.map((value) => (
                     <option key={value} value={value}>
                       {value}
                     </option>
@@ -182,15 +333,15 @@ function Calls() {
             </div>
 
             <div className="calls-dial-input-wrap">
-              <input
-                className="calls-dial-input"
-                type="text"
-                inputMode="tel"
-                placeholder="Enter a name or number"
-                value={dialValue}
-                onChange={(event) => setDialValue(event.target.value)}
-                aria-label="Enter a name or number"
-              />
+                <input
+                  className="calls-dial-input"
+                  type="text"
+                  inputMode="tel"
+                  placeholder="Enter a name or number"
+                  value={dialValue}
+                  onChange={handleDialChange}
+                  aria-label="Enter a name or number"
+                />
               <button
                 type="button"
                 className="calls-dial-backspace"
@@ -216,20 +367,46 @@ function Calls() {
               ))}
             </div>
 
+            <div className={`calls-keypad-status is-${statusTone}`}>
+              <span className={`calls-keypad-status-dot is-${statusTone}`} />
+              <span>{statusLabel}</span>
+              {keypadCallState === 'connecting' ? <LoaderCircle size={14} className="calls-keypad-spinner" /> : null}
+            </div>
+
+            {dialError ? (
+              <div className="calls-keypad-error" role="alert">
+                {dialError}
+              </div>
+            ) : null}
+
             <div className="calls-keypad-footer">
               <div className="calls-notes-indicator">
                 <BellOff size={15} />
                 <span>Notes off</span>
               </div>
 
-              <button
-                type="button"
-                className="calls-call-button"
-                onClick={() => handleCallPlaceholder('dial')}
-                aria-label="Start placeholder call"
-              >
-                <Phone size={22} />
-              </button>
+              <div className="calls-keypad-actions">
+                <button
+                  type="button"
+                  className="calls-call-button"
+                  onClick={handleStartCall}
+                  aria-label="Start call"
+                  disabled={isCallBusy || deviceStatus === 'initializing'}
+                >
+                  <Phone size={22} />
+                </button>
+
+                {isCallBusy ? (
+                  <button
+                    type="button"
+                    className="calls-hangup-button"
+                    onClick={handleHangUp}
+                    aria-label="Hang up"
+                  >
+                    <PhoneOff size={18} />
+                  </button>
+                ) : null}
+              </div>
             </div>
           </section>
         ) : null}
@@ -330,8 +507,12 @@ function Calls() {
                       <button
                         type="button"
                         className="calls-detail-action"
-                        title="Call placeholder"
-                        onClick={() => handleCallPlaceholder('details')}
+                        title="Call this number"
+                        onClick={() => {
+                          setActiveTab('Keypad');
+                          setDialError('');
+                          setDialValue(selectedCall.displayNumber);
+                        }}
                       >
                         <Phone size={16} />
                       </button>
@@ -526,3 +707,45 @@ function startCase(value) {
 }
 
 export default Calls;
+
+function dedupeCallerIds(values = []) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function formatOutboundPhone(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (/[*#A-Za-z]/.test(text)) return '';
+  if (text.startsWith('+') && /^\+\d{8,15}$/.test(text)) return text;
+
+  const digits = text.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length === 11 && digits.startsWith('0')) return `+234${digits.slice(1)}`;
+  if (digits.length === 10 && /^[789]/.test(digits)) return `+234${digits}`;
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  if (digits.length >= 8 && digits.length <= 15) return `+${digits}`;
+  return '';
+}
+
+function getKeypadStatusTone({ deviceStatus, callState }) {
+  if (callState === 'failed' || deviceStatus === 'error') return 'failed';
+  if (ACTIVE_CALL_STATES.includes(callState)) return 'active';
+  if (callState === 'ended') return 'ended';
+  if (deviceStatus === 'ready') return 'ready';
+  if (deviceStatus === 'initializing') return 'connecting';
+  return 'idle';
+}
+
+function getKeypadStatusLabel({ deviceStatus, callState }) {
+  if (callState === 'connecting') return 'Connecting';
+  if (callState === 'ringing') return 'Calling';
+  if (callState === 'in-call') return 'Calling';
+  if (callState === 'failed') return 'Failed';
+  if (callState === 'missed') return 'Failed';
+  if (callState === 'ended') return 'Ended';
+  if (deviceStatus === 'ready') return 'Ready';
+  if (deviceStatus === 'initializing') return 'Connecting';
+  if (deviceStatus === 'error') return 'Failed';
+  return 'Ready';
+}

@@ -523,12 +523,101 @@
   padding-top: 4px;
 }
 
+.calls-keypad-status {
+  display: inline-flex;
+  align-items: center;
+  justify-self: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.calls-keypad-status.is-ready {
+  color: #166534;
+  background: rgba(220, 252, 231, 0.78);
+  border-color: rgba(134, 239, 172, 0.9);
+}
+
+.calls-keypad-status.is-active,
+.calls-keypad-status.is-connecting {
+  color: #1d4ed8;
+  background: rgba(219, 234, 254, 0.78);
+  border-color: rgba(147, 197, 253, 0.92);
+}
+
+.calls-keypad-status.is-failed {
+  color: #b91c1c;
+  background: rgba(254, 226, 226, 0.84);
+  border-color: rgba(252, 165, 165, 0.92);
+}
+
+.calls-keypad-status.is-ended {
+  color: #92400e;
+  background: rgba(254, 243, 199, 0.84);
+  border-color: rgba(253, 230, 138, 0.92);
+}
+
+.calls-keypad-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.calls-keypad-status-dot.is-ready {
+  background: #16a34a;
+}
+
+.calls-keypad-status-dot.is-active,
+.calls-keypad-status-dot.is-connecting {
+  background: #2563eb;
+}
+
+.calls-keypad-status-dot.is-failed {
+  background: #dc2626;
+}
+
+.calls-keypad-status-dot.is-ended {
+  background: #d97706;
+}
+
+.calls-keypad-spinner {
+  animation: calls-spin 0.9s linear infinite;
+}
+
+.calls-keypad-error {
+  justify-self: stretch;
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(254, 242, 242, 0.92);
+  border: 1px solid rgba(252, 165, 165, 0.9);
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
 .calls-notes-indicator {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: #64748b;
   font-size: 12px;
+}
+
+.calls-keypad-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .calls-call-button {
@@ -546,9 +635,36 @@
   transition: transform 0.18s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
-.calls-call-button:hover {
+.calls-call-button:hover:not(:disabled) {
   transform: translateY(-2px) scale(1.01);
   filter: saturate(1.05);
+}
+
+.calls-call-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+  box-shadow: 0 10px 18px rgba(148, 163, 184, 0.22);
+  filter: grayscale(0.1);
+}
+
+.calls-hangup-button {
+  width: 52px;
+  height: 52px;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 14px 24px rgba(239, 68, 68, 0.26);
+  transition: transform 0.18s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.calls-hangup-button:hover {
+  transform: translateY(-1px);
+  filter: saturate(1.04);
 }
 
 .calls-history-view {
@@ -914,6 +1030,16 @@
 
   .calls-detail-name {
     font-size: 22px;
+  }
+}
+
+@keyframes calls-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
   }
 }
 
