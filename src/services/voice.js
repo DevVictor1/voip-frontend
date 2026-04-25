@@ -29,6 +29,19 @@ const emitCallState = (state, extra = {}) => {
   }
 };
 
+const emitOutgoingCallMeta = (phone) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('voiceOutgoingCall', {
+        detail: {
+          phone,
+          direction: 'outgoing',
+        },
+      })
+    );
+  }
+};
+
 const destroyExistingDevice = () => {
   if (!device) return;
 
@@ -189,6 +202,7 @@ export const startCall = async (phone) => {
   }
 
   try {
+    emitOutgoingCallMeta(phone);
     emitCallState('connecting');
 
     const conn = await device.connect({
@@ -199,7 +213,16 @@ export const startCall = async (phone) => {
     attachConnectionListeners(conn, 'outgoing');
 
     window.dispatchEvent(
-      new CustomEvent('callAccepted', { detail: conn })
+      new CustomEvent('callAccepted', {
+        detail: {
+          connection: conn,
+          party: {
+            name: phone,
+            number: phone,
+            direction: 'outgoing',
+          },
+        },
+      })
     );
 
     console.log('Outgoing call started');

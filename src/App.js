@@ -7,6 +7,7 @@ import Calls from './pages/Calls';
 import Users from './pages/Users';
 import Messages from './pages/MessagesPage';
 import SettingsPage from './pages/SettingsPage';
+import CallExperienceOverlay from './components/CallExperienceOverlay';
 import IncomingCallPopup from './components/IncomingCallPopup';
 import socket from './socket';
 import {
@@ -42,10 +43,10 @@ function App() {
   const [authError, setAuthError] = useState('');
   const [connection, setConnection] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
-  const [onHold, setOnHold] = useState(false);
   const [deviceStatus, setDeviceStatus] = useState(() => getDeviceStatus());
   const [callState, setCallState] = useState('idle');
   const [callNotice, setCallNotice] = useState(null);
+  const [callParticipant, setCallParticipant] = useState(null);
   const [userRole, setUserRole] = useState(() => getEffectiveRole(getStoredAuthUser()));
   const [agentStatus, setAgentStatus] = useState(() => {
     if (typeof window === 'undefined') return 'online';
@@ -177,15 +178,20 @@ function App() {
 
   useEffect(() => {
     const handler = (e) => {
-      const conn = e.detail;
+      const payload = e.detail;
+      const conn = payload?.connection || payload;
       setConnection(conn);
-      setCallState('in-call');
       setCallNotice(null);
+      if (payload?.party) {
+        setCallParticipant(normalizeCallParticipant(payload.party));
+        if (payload.party.direction === 'incoming') {
+          setCallState('connecting');
+        }
+      }
 
       conn.on('disconnect', () => {
         setConnection(null);
         setIsMuted(false);
-        setOnHold(false);
       });
     };
 
@@ -213,7 +219,6 @@ function App() {
     const handleCallEnded = () => {
       setConnection(null);
       setIsMuted(false);
-      setOnHold(false);
     };
 
     window.addEventListener('voiceDeviceStatus', handleDeviceStatus);
@@ -233,31 +238,54 @@ function App() {
     const timeoutId = window.setTimeout(() => {
       setCallNotice(null);
       setCallState('idle');
+      setCallParticipant(null);
     }, 2500);
 
     return () => window.clearTimeout(timeoutId);
   }, [callNotice]);
 
   useEffect(() => {
-    socket.on('incomingCall', () => {
+    const handleIncomingCall = (data) => {
       setCallState('incoming');
-    });
+      setCallParticipant(normalizeCallParticipant({
+        name: [data?.contact?.firstName, data?.contact?.lastName].filter(Boolean).join(' ').trim(),
+        number: data?.from || '',
+        label: data?.contact?.dba || '',
+        direction: 'incoming',
+      }));
+    };
 
-    socket.on('callStatus', (data) => {
+    const handleSocketCallStatus = (data) => {
       const mappedStatus = mapCallStatus(data?.status);
       if (mappedStatus) {
         setCallState(mappedStatus);
       }
-    });
+    };
 
-    socket.on('callEnded', () => {
+    const handleSocketCallEnded = () => {
       setCallState((prev) => (prev === 'failed' || prev === 'missed' ? prev : 'ended'));
-    });
+    };
+
+    const handleOutgoingMeta = (event) => {
+      setCallParticipant(normalizeCallParticipant({
+        name: event.detail?.phone || '',
+        number: event.detail?.phone || '',
+        label: 'Outbound call',
+        direction: 'outgoing',
+      }));
+      setCallNotice(null);
+    };
+
+    socket.on('incomingCall', handleIncomingCall);
+    socket.on('callStatus', handleSocketCallStatus);
+    socket.on('callEnded', handleSocketCallEnded);
+    window.addEventListener('voiceOutgoingCall', handleOutgoingMeta);
 
     return () => {
-      socket.off('incomingCall');
-      socket.off('callStatus');
-      socket.off('callEnded');
+      socket.off('incomingCall', handleIncomingCall);
+      socket.off('callStatus', handleSocketCallStatus);
+      socket.off('callEnded', handleSocketCallEnded);
+      window.removeEventListener('voiceOutgoingCall', handleOutgoingMeta);
     };
   }, []);
 
@@ -274,20 +302,6 @@ function App() {
       unmuteCall();
     }
     setIsMuted(!isMuted);
-  };
-
-  const toggleHold = () => {
-    if (!connection) return;
-
-    if (!onHold) {
-      connection.mute(true);
-      console.log('Call on hold (simulated)');
-    } else {
-      connection.mute(false);
-      console.log('Call resumed');
-    }
-
-    setOnHold(!onHold);
   };
 
   const toggleAgentStatus = () => {
@@ -357,9 +371,9 @@ function App() {
     setAuthError('');
     setConnection(null);
     setIsMuted(false);
-    setOnHold(false);
     setCallState('idle');
     setCallNotice(null);
+    setCallParticipant(null);
     setUserRole('admin');
     setAgentId('web_user');
   };
@@ -406,31 +420,15 @@ function App() {
         </div>
       ) : null}
 
-      {isAuthenticated && connection && (
-        <div style={callStyle}>
-          <div style={{ fontWeight: 'bold', marginBottom: '10px' }}>
-            {getCallLabel(callState)}
-          </div>
-
-          <div style={callMetaStyle}>
-            Device: {getDeviceLabel(deviceStatus)}
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={toggleMute} style={btn}>
-              {isMuted ? 'Unmute' : 'Mute'}
-            </button>
-
-            <button onClick={toggleHold} style={btn}>
-              {onHold ? 'Resume' : 'Hold'}
-            </button>
-
-            <button onClick={hangUp} style={endBtn}>
-              End
-            </button>
-          </div>
-        </div>
-      )}
+      {isAuthenticated && shouldRenderCallOverlay({ callState, connection, callParticipant }) ? (
+        <CallExperienceOverlay
+          callState={callState}
+          participant={callParticipant}
+          isMuted={isMuted}
+          onToggleMute={toggleMute}
+          onHangUp={hangUp}
+        />
+      ) : null}
 
       <BrowserRouter>
         <Routes>
@@ -539,40 +537,6 @@ function App() {
   );
 }
 
-const getDeviceLabel = (status) => {
-  switch (status) {
-    case 'initializing':
-      return 'Connecting';
-    case 'ready':
-      return 'Ready';
-    case 'error':
-      return 'Error';
-    default:
-      return 'Offline';
-  }
-};
-
-const getCallLabel = (state) => {
-  switch (state) {
-    case 'incoming':
-      return 'Incoming call';
-    case 'ringing':
-      return 'Ringing';
-    case 'connecting':
-      return 'Connecting';
-    case 'in-call':
-      return 'In Call';
-    case 'missed':
-      return 'Missed call';
-    case 'failed':
-      return 'Call failed';
-    case 'ended':
-      return 'Call ended';
-    default:
-      return 'In Call';
-  }
-};
-
 const getCallNotice = (state) => {
   switch (state) {
     case 'missed':
@@ -607,39 +571,6 @@ const mapCallStatus = (status) => {
   }
 };
 
-const callStyle = {
-  position: 'fixed',
-  bottom: '20px',
-  right: '20px',
-  background: 'linear-gradient(135deg, #1e1e1e, #2a2a2a)',
-  color: '#fff',
-  padding: '20px',
-  borderRadius: '12px',
-  zIndex: 9999,
-  boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-  minWidth: '220px',
-};
-
-const callMetaStyle = {
-  fontSize: '12px',
-  color: 'rgba(255,255,255,0.75)',
-  marginBottom: '12px',
-};
-
-const btn = {
-  padding: '8px 12px',
-  borderRadius: '6px',
-  border: 'none',
-  background: '#333',
-  color: '#fff',
-  cursor: 'pointer',
-};
-
-const endBtn = {
-  ...btn,
-  background: '#e53935',
-};
-
 const noticeStyle = {
   position: 'fixed',
   right: '20px',
@@ -665,3 +596,37 @@ const authLoadingStyle = {
 };
 
 export default App;
+
+function shouldRenderCallOverlay({ callState, connection, callParticipant }) {
+  if (callState === 'in-call') return Boolean(connection);
+  if (['connecting', 'ringing'].includes(callState)) return Boolean(callParticipant);
+  return false;
+}
+
+function normalizeCallParticipant(party) {
+  const name = String(party?.name || '').trim();
+  const number = String(party?.number || '').trim();
+  const label = String(party?.label || '').trim();
+
+  return {
+    name: name || formatPhone(number) || 'Unknown caller',
+    number: formatPhone(number),
+    label,
+    direction: party?.direction === 'incoming' ? 'incoming' : 'outgoing',
+  };
+}
+
+function formatPhone(value) {
+  const text = String(value || '').trim();
+  const digits = text.replace(/\D/g, '');
+
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  if (digits.length === 11 && digits.startsWith('1')) {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+
+  return text;
+}

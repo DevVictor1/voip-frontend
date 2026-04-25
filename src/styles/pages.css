@@ -461,6 +461,13 @@
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
+.calls-dial-helper {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .calls-dial-backspace {
   width: 52px;
   border: 1px solid rgba(203, 213, 225, 0.95);

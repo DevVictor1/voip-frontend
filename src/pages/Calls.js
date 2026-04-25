@@ -65,9 +65,10 @@ function Calls() {
         .filter((item) => item?.phoneNumber)
         .filter((item) => {
           const capabilities = String(item?.capabilities || '').toLowerCase();
-          return capabilities.includes('voice') || capabilities.includes('messaging');
+          return capabilities.includes('voice');
         })
         .map((item) => formatPhone(item.phoneNumber))
+        .filter(isBusinessCallerId)
         .filter(Boolean);
 
       if (!candidates.length) return;
@@ -103,15 +104,6 @@ function Calls() {
         }
         return normalized[0]?.id || '';
       });
-
-      const callDerivedCallerIds = rawCalls
-        .map((call) => formatPhone(call?.from || ''))
-        .filter(Boolean);
-
-      if (callDerivedCallerIds.length) {
-        setCallerIds((current) => dedupeCallerIds([...current, ...callDerivedCallerIds]));
-        setCallerId((current) => current || callDerivedCallerIds[0]);
-      }
     } catch (fetchError) {
       if (!isMounted) return;
       console.error('Failed to load call logs for Calls page:', fetchError);
@@ -254,7 +246,7 @@ function Calls() {
 
   const handleDialChange = (event) => {
     setDialError('');
-    setDialValue(event.target.value);
+    setDialValue(sanitizeDialInput(event.target.value));
   };
 
   const handleStartCall = async () => {
@@ -336,7 +328,7 @@ function Calls() {
                 <input
                   className="calls-dial-input"
                   type="text"
-                  inputMode="tel"
+                  inputMode="text"
                   placeholder="Enter a name or number"
                   value={dialValue}
                   onChange={handleDialChange}
@@ -351,6 +343,8 @@ function Calls() {
                 <Delete size={18} />
               </button>
             </div>
+
+            <div className="calls-dial-helper">Type + for international numbers</div>
 
             <div className="calls-dial-pad">
               {DIAL_PAD.map((key) => (
@@ -712,6 +706,10 @@ function dedupeCallerIds(values = []) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function sanitizeDialInput(value) {
+  return String(value || '').replace(/[^0-9*#+()\-\s]/g, '');
+}
+
 function formatOutboundPhone(value) {
   const text = String(value || '').trim();
   if (!text) return '';
@@ -726,6 +724,11 @@ function formatOutboundPhone(value) {
   if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
   if (digits.length >= 8 && digits.length <= 15) return `+${digits}`;
   return '';
+}
+
+function isBusinessCallerId(value) {
+  const normalized = formatOutboundPhone(value);
+  return normalized.startsWith('+1');
 }
 
 function getKeypadStatusTone({ deviceStatus, callState }) {
