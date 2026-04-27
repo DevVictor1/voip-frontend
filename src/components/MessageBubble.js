@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { ChevronDown, Copy, Download, Reply } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const formatSmsContextNumber = (primary, fallback) => {
   return String(primary || fallback || '').trim() || 'unknown number';
@@ -14,6 +15,9 @@ function MessageBubble({
   onAddUserToContacts,
 }) {
   const [copyState, setCopyState] = useState('idle');
+  const [menuState, setMenuState] = useState({ open: false, mode: 'anchored', x: 0, y: 0 });
+  const bubbleShellRef = useRef(null);
+  const menuRef = useRef(null);
   const isInternalMessage = message.conversationType === 'internal_dm' || message.conversationType === 'team';
   const isTextingGroupMessage = Boolean(
     isTextingGroupThread
@@ -64,6 +68,19 @@ function MessageBubble({
     message.status === 'failed' ||
     message.status === 'undelivered';
   const canCopyText = Boolean(message.body?.trim());
+  const canReply = Boolean(onReplyMessage && isTextingGroupThread);
+  const canDownloadMedia = Boolean(message.media?.[0]);
+  const canSendAnotherSms = Boolean(onSendAnotherMessage && isTextingGroupMessage && message.direction === 'outbound');
+  const canOpenMenu = canReply || canCopyText || canDownloadMedia || canSendAnotherSms;
+
+  const menuStyle = useMemo(() => {
+    if (!menuState.open || menuState.mode !== 'context') return undefined;
+
+    return {
+      left: `${menuState.x}px`,
+      top: `${menuState.y}px`,
+    };
+  }, [menuState]);
 
   useEffect(() => {
     if (copyState !== 'copied') return undefined;
@@ -75,12 +92,44 @@ function MessageBubble({
     return () => window.clearTimeout(timeoutId);
   }, [copyState]);
 
+  useEffect(() => {
+    if (!menuState.open) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (
+        menuRef.current?.contains(event.target)
+        || bubbleShellRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+
+      setMenuState((current) => ({ ...current, open: false }));
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setMenuState((current) => ({ ...current, open: false }));
+      }
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [menuState.open]);
+
   const handleCopyText = async () => {
     if (!canCopyText || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
 
     try {
       await navigator.clipboard.writeText(message.body);
       setCopyState('copied');
+      window.setTimeout(() => {
+        setMenuState((current) => ({ ...current, open: false }));
+      }, 700);
     } catch (error) {
       console.error('Copy text failed:', error);
       setCopyState('error');
@@ -90,83 +139,189 @@ function MessageBubble({
     }
   };
 
+  const openAnchoredMenu = () => {
+    if (!canOpenMenu) return;
+
+    setMenuState((current) => ({
+      open: !current.open || current.mode !== 'anchored',
+      mode: 'anchored',
+      x: 0,
+      y: 0,
+    }));
+  };
+
+  const openContextMenu = (event) => {
+    if (!canOpenMenu) return;
+
+    event.preventDefault();
+
+    const bounds = bubbleShellRef.current?.getBoundingClientRect();
+    if (!bounds) {
+      setMenuState({ open: true, mode: 'anchored', x: 0, y: 0 });
+      return;
+    }
+
+    const menuWidth = 196;
+    const menuHeight = 180;
+    const padding = 10;
+    const nextX = Math.min(
+      Math.max(event.clientX - bounds.left, padding),
+      Math.max(padding, bounds.width - menuWidth - padding)
+    );
+    const nextY = Math.min(
+      Math.max(event.clientY - bounds.top, padding),
+      Math.max(padding, bounds.height - menuHeight - padding)
+    );
+
+    setMenuState({
+      open: true,
+      mode: 'context',
+      x: nextX,
+      y: nextY,
+    });
+  };
+
+  const closeMenu = () => {
+    setMenuState((current) => ({ ...current, open: false }));
+  };
+
+  const handleReply = () => {
+    onReplyMessage?.(message);
+    closeMenu();
+  };
+
+  const handleSendAnotherSms = () => {
+    onSendAnotherMessage?.(message);
+    closeMenu();
+  };
+
   return (
     <div className={`message-row ${message.direction}`}>
       <div
-        className={`message-bubble ${message.direction}`}
-        style={isSending ? { opacity: 0.6 } : undefined}
+        ref={bubbleShellRef}
+        className={`message-bubble-shell ${message.direction}${menuState.open ? ' is-menu-open' : ''}`}
+        onContextMenu={openContextMenu}
       >
-        {message.conversationType === 'team' && message.direction !== 'outbound' && message.senderName ? (
-          <div className="message-author">{message.senderName}</div>
+        {canOpenMenu ? (
+          <button
+            type="button"
+            className={`message-menu-trigger ${menuState.open ? 'is-open' : ''}`}
+            onClick={openAnchoredMenu}
+            aria-haspopup="menu"
+            aria-expanded={menuState.open}
+            aria-label="Open message actions"
+          >
+            <ChevronDown size={14} />
+          </button>
         ) : null}
 
-        {isTextingGroupMessage ? (
-          <div className="message-context-block">
-            {message.direction === 'outbound' ? (
-              <>
-                <div className="message-author">{senderDisplayName}</div>
-                <div className="message-context-copy">
-                  SMS message sent to {customerNumber} from {assignedNumber}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="message-context-label">
-                  {showAddUserToContacts ? 'Add user to contacts' : 'SMS received'}
-                </div>
-                <div className="message-context-copy">
-                  SMS message received from {customerNumber} to {assignedNumber}
-                </div>
-              </>
-            )}
+        <div
+          className={`message-bubble ${message.direction}${canOpenMenu ? ' has-menu' : ''}`}
+          style={isSending ? { opacity: 0.6 } : undefined}
+        >
+          {message.conversationType === 'team' && message.direction !== 'outbound' && message.senderName ? (
+            <div className="message-author">{message.senderName}</div>
+          ) : null}
+
+          {isTextingGroupMessage ? (
+            <div className="message-context-block">
+              {message.direction === 'outbound' ? (
+                <>
+                  <div className="message-author">{senderDisplayName}</div>
+                  <div className="message-context-copy">
+                    SMS message sent to {customerNumber} from {assignedNumber}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="message-context-label">
+                    {showAddUserToContacts ? 'Add user to contacts' : 'SMS received'}
+                  </div>
+                  <div className="message-context-copy">
+                    SMS message received from {customerNumber} to {assignedNumber}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : null}
+
+          {message.media?.length > 0 && (
+            <img
+              src={message.media[0]}
+              alt="MMS"
+              style={{ maxWidth: '200px', borderRadius: '8px', marginBottom: '6px' }}
+            />
+          )}
+          {message.body}
+        </div>
+
+        {menuState.open ? (
+          <div
+            ref={menuRef}
+            className={`message-actions-menu ${message.direction} ${menuState.mode === 'anchored' ? 'is-anchored' : 'is-context'}`}
+            style={menuStyle}
+            role="menu"
+          >
+            {canReply ? (
+              <button
+                type="button"
+                className="message-actions-menu-item"
+                onClick={handleReply}
+                role="menuitem"
+              >
+                <Reply size={14} />
+                <span>Reply</span>
+              </button>
+            ) : null}
+            {canCopyText ? (
+              <button
+                type="button"
+                className={`message-actions-menu-item${copyState === 'copied' ? ' is-success' : ''}`}
+                onClick={handleCopyText}
+                role="menuitem"
+              >
+                <Copy size={14} />
+                <span>{copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy text'}</span>
+              </button>
+            ) : null}
+            {canDownloadMedia ? (
+              <a
+                className="message-actions-menu-item"
+                href={message.media[0]}
+                download
+                target="_blank"
+                rel="noreferrer"
+                onClick={closeMenu}
+                role="menuitem"
+              >
+                <Download size={14} />
+                <span>Download</span>
+              </a>
+            ) : null}
+            {canSendAnotherSms ? (
+              <button
+                type="button"
+                className="message-actions-menu-item"
+                onClick={handleSendAnotherSms}
+                role="menuitem"
+              >
+                <Reply size={14} />
+                <span>Send another SMS</span>
+              </button>
+            ) : null}
           </div>
         ) : null}
-
-        {message.media?.length > 0 && (
-          <img
-            src={message.media[0]}
-            alt="MMS"
-            style={{ maxWidth: '200px', borderRadius: '8px', marginBottom: '6px' }}
-          />
-        )}
-        {message.body}
       </div>
 
-      {isTextingGroupMessage ? (
+      {isTextingGroupMessage && message.direction !== 'outbound' && showAddUserToContacts ? (
         <div className="message-inline-actions">
-          {message.direction !== 'outbound' && showAddUserToContacts ? (
-            <button
-              type="button"
-              className="message-inline-action"
-              onClick={() => onAddUserToContacts?.(message)}
-            >
-              Add user to contacts
-            </button>
-          ) : null}
           <button
             type="button"
             className="message-inline-action"
-            onClick={() => onReplyMessage?.(message)}
+            onClick={() => onAddUserToContacts?.(message)}
           >
-            Reply
+            Add user to contacts
           </button>
-          <button
-            type="button"
-            className={`message-inline-action${!canCopyText ? ' is-disabled' : ''}${copyState === 'copied' ? ' is-success' : ''}`}
-            onClick={handleCopyText}
-            disabled={!canCopyText}
-          >
-            {copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy text'}
-          </button>
-          {message.direction === 'outbound' ? (
-            <button
-              type="button"
-              className="message-inline-action"
-              onClick={() => onSendAnotherMessage?.(message)}
-            >
-              Send another SMS message
-            </button>
-          ) : null}
         </div>
       ) : null}
 
