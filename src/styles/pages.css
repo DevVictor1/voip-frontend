@@ -2174,6 +2174,12 @@
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
+.dashboard-list-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+}
+
 .dashboard-header {
   display: flex;
   justify-content: space-between;
@@ -2227,6 +2233,103 @@
 
 .dashboard-page > * {
   min-width: 0;
+}
+
+.dashboard-section-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dashboard-section-card .section-header {
+  flex: 0 0 auto;
+  margin-bottom: 14px;
+}
+
+.dashboard-section-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.dashboard-table-scroll,
+.dashboard-agent-status-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+}
+
+.dashboard-table-scroll {
+  max-height: 360px;
+}
+
+.dashboard-table {
+  min-width: 100%;
+}
+
+.dashboard-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+
+.dashboard-agent-status-scroll {
+  max-height: 396px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-agent-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.dashboard-agent-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.dashboard-agent-status-dot.is-online {
+  background: #2e7d32;
+  box-shadow: 0 0 0 4px rgba(46, 125, 50, 0.12);
+}
+
+.dashboard-agent-status-dot.is-offline {
+  background: #9e9e9e;
+  box-shadow: 0 0 0 4px rgba(158, 158, 158, 0.12);
+}
+
+.dashboard-agent-status-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.dashboard-agent-status-badge {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  flex: 0 0 auto;
+}
+
+.dashboard-agent-status-badge.is-online {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.dashboard-agent-status-badge.is-offline {
+  background: #f2f2f2;
+  color: #616161;
 }
 
 @keyframes pulse {
@@ -2331,6 +2434,11 @@
     padding: 16px;
   }
 
+  .dashboard-table-scroll,
+  .dashboard-agent-status-scroll {
+    max-height: 320px;
+  }
+
   .dashboard-page .table th,
   .dashboard-page .table td {
     padding: 10px 6px;
@@ -2344,6 +2452,11 @@
 
   .section-card {
     padding: 16px;
+  }
+
+  .dashboard-table-scroll,
+  .dashboard-agent-status-scroll {
+    max-height: none;
   }
 
   .table th,

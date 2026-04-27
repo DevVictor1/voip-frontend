@@ -67,20 +67,34 @@ function AgentStatusList({ agents = [] }) {
   );
 
   return (
-    <div style={card}>
-      <div style={header}>Agent Status</div>
+    <div className="section-card dashboard-section-card dashboard-agent-status-card">
+      <div className="section-header dashboard-agent-status-header">
+        <h3 className="dashboard-section-title">Agent Status</h3>
+      </div>
       {items.length === 0 ? (
-        <div style={empty}>No agents found</div>
+        <div className="text-muted">No agents found</div>
       ) : (
-        <div style={list}>
+        <div className="dashboard-agent-status-scroll">
           {items.map((item) => (
-            <div key={item.agentId} style={row}>
-              <span style={item.status === 'online' ? dotOnline : dotOffline} />
-              <span style={name}>{item.label}</span>
+            <div key={item.agentId} className="dashboard-agent-status-row">
+              <span
+                className={
+                  item.status === 'online'
+                    ? 'dashboard-agent-status-dot is-online'
+                    : 'dashboard-agent-status-dot is-offline'
+                }
+              />
+              <span className="dashboard-agent-status-name">{item.label}</span>
               {item.role ? (
                 <span className="agent-badge">{item.role}</span>
               ) : null}
-              <span style={item.status === 'online' ? badgeOnline : badgeOffline}>
+              <span
+                className={
+                  item.status === 'online'
+                    ? 'dashboard-agent-status-badge is-online'
+                    : 'dashboard-agent-status-badge is-offline'
+                }
+              >
                 {item.status === 'online' ? 'Online' : 'Offline'}
               </span>
             </div>
@@ -90,77 +104,5 @@ function AgentStatusList({ agents = [] }) {
     </div>
   );
 }
-
-const card = {
-  background: '#fff',
-  borderRadius: '12px',
-  border: '1px solid #e9edf2',
-  padding: '16px',
-  boxShadow: '0 8px 20px rgba(16, 24, 40, 0.06)'
-};
-
-const header = {
-  fontWeight: 600,
-  marginBottom: '12px'
-};
-
-const list = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '10px'
-};
-
-const row = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
-  padding: '8px 10px',
-  borderRadius: '10px',
-  background: '#f8fafc'
-};
-
-const dotOnline = {
-  width: '10px',
-  height: '10px',
-  borderRadius: '50%',
-  background: '#2e7d32',
-  boxShadow: '0 0 0 4px rgba(46,125,50,0.12)'
-};
-
-const dotOffline = {
-  width: '10px',
-  height: '10px',
-  borderRadius: '50%',
-  background: '#9e9e9e',
-  boxShadow: '0 0 0 4px rgba(158,158,158,0.12)'
-};
-
-const name = {
-  fontWeight: 600,
-  flex: 1
-};
-
-const badgeOnline = {
-  fontSize: '12px',
-  padding: '4px 8px',
-  borderRadius: '999px',
-  background: '#e8f5e9',
-  color: '#2e7d32',
-  fontWeight: 600
-};
-
-const badgeOffline = {
-  fontSize: '12px',
-  padding: '4px 8px',
-  borderRadius: '999px',
-  background: '#f2f2f2',
-  color: '#616161',
-  fontWeight: 600
-};
-
-const empty = {
-  color: '#6b7280',
-  fontSize: '14px'
-};
 
 export default AgentStatusList;

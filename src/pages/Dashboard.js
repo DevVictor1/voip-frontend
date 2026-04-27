@@ -218,11 +218,11 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '24px' }}>
+      <div className="dashboard-list-grid">
         <AgentStatusList agents={agents} />
       </div>
 
-      <div className="section-card">
+      <div className="section-card dashboard-section-card">
         <div className="section-header">
           <h3 style={{ margin: 0 }}>Live Agent State</h3>
           <span className="tag">{liveAgentState.length} users</span>
@@ -230,42 +230,44 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
         {liveAgentState.length === 0 ? (
           <div className="text-muted">No live communication users found.</div>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Department</th>
-                <th>Agent ID</th>
-                <th>Active</th>
-                <th>Presence</th>
-                <th>Voice</th>
-                <th>Stored Status</th>
-                <th>Calls</th>
-                <th>Assignable</th>
-              </tr>
-            </thead>
-            <tbody>
-              {liveAgentState.map((user) => (
-                <tr key={user.id}>
-                  <td>{user.name || 'Unknown'}</td>
-                  <td>{user.role || 'user'}</td>
-                  <td>{user.department || 'None'}</td>
-                  <td>{user.agentId || 'None'}</td>
-                  <td>{user.isActive ? 'Yes' : 'No'}</td>
-                  <td>{user.connected ? `${formatPresenceStatus(user.presenceStatus)} online` : 'Offline'}</td>
-                  <td>{user.voiceReady ? 'Ready' : 'Not Ready'}</td>
-                  <td>{formatPresenceStatus(user.status)}</td>
-                  <td>{`${user.activeCallCount || 0} / ${user.maxConcurrentCalls || 1}`}</td>
-                  <td>{user.isAssignable ? 'Yes' : 'No'}</td>
+          <div className="dashboard-table-scroll">
+            <table className="table dashboard-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Department</th>
+                  <th>Agent ID</th>
+                  <th>Active</th>
+                  <th>Presence</th>
+                  <th>Voice</th>
+                  <th>Stored Status</th>
+                  <th>Calls</th>
+                  <th>Assignable</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {liveAgentState.map((user) => (
+                  <tr key={user.id}>
+                    <td>{user.name || 'Unknown'}</td>
+                    <td>{user.role || 'user'}</td>
+                    <td>{user.department || 'None'}</td>
+                    <td>{user.agentId || 'None'}</td>
+                    <td>{user.isActive ? 'Yes' : 'No'}</td>
+                    <td>{user.connected ? `${formatPresenceStatus(user.presenceStatus)} online` : 'Offline'}</td>
+                    <td>{user.voiceReady ? 'Ready' : 'Not Ready'}</td>
+                    <td>{formatPresenceStatus(user.status)}</td>
+                    <td>{`${user.activeCallCount || 0} / ${user.maxConcurrentCalls || 1}`}</td>
+                    <td>{user.isAssignable ? 'Yes' : 'No'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      <div className="section-card">
+      <div className="section-card dashboard-section-card">
         <div className="section-header">
           <h3 style={{ margin: 0 }}>Recent Calls</h3>
           <span className="tag">Realtime</span>
@@ -273,28 +275,30 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
         {recentCalls.length === 0 ? (
           <div className="text-muted">No recent calls yet</div>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Contact</th>
-                <th>Number</th>
-                <th>Duration</th>
-                <th>Direction</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentCalls.map((call) => (
-                <tr key={call.id}>
-                  <td>{call.displayName}</td>
-                  <td>{call.displayNumber}</td>
-                  <td>{call.durationLabel}</td>
-                  <td>{call.directionLabel}</td>
-                  <td>{call.rawStatusLabel}</td>
+          <div className="dashboard-table-scroll">
+            <table className="table dashboard-table">
+              <thead>
+                <tr>
+                  <th>Contact</th>
+                  <th>Number</th>
+                  <th>Duration</th>
+                  <th>Direction</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recentCalls.map((call) => (
+                  <tr key={call.id}>
+                    <td>{call.displayName}</td>
+                    <td>{call.displayNumber}</td>
+                    <td>{call.durationLabel}</td>
+                    <td>{call.directionLabel}</td>
+                    <td>{call.rawStatusLabel}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
