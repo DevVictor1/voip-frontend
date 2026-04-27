@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import { stats, calls } from '../data/mockData';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { stats } from '../data/mockData';
 import AgentStatusList from '../components/AgentStatusList';
 import AgentSelector from '../components/AgentSelector';
 import BASE_URL from '../config/api';
 import { fetchAgentStatusRequest, fetchUsersRequest, getStoredAuthToken } from '../services/auth';
+import socket from '../socket';
+import { fetchCallLogs } from '../utils/callLogs';
 
 function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
   const [statValues, setStatValues] = useState({
@@ -15,6 +17,17 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [agents, setAgents] = useState([]);
   const [liveAgentState, setLiveAgentState] = useState([]);
+  const [recentCalls, setRecentCalls] = useState([]);
+
+  const refreshRecentCalls = useCallback(async () => {
+    try {
+      const normalized = await fetchCallLogs();
+      setRecentCalls(normalized.slice(0, 5));
+    } catch (error) {
+      console.error('Dashboard recent calls error:', error);
+      setRecentCalls([]);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchAgents = async () => {
@@ -97,6 +110,49 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
 
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let refreshTimeoutId = null;
+
+    const loadRecentCalls = async () => {
+      if (cancelled) return;
+      await refreshRecentCalls();
+    };
+
+    loadRecentCalls();
+
+    const intervalId = window.setInterval(() => {
+      if (!cancelled) {
+        refreshRecentCalls();
+      }
+    }, 15000);
+
+    const handleSocketCallStatus = () => {
+      refreshRecentCalls();
+    };
+
+    const handleEndedRefresh = () => {
+      refreshRecentCalls();
+      window.clearTimeout(refreshTimeoutId);
+      refreshTimeoutId = window.setTimeout(() => {
+        refreshRecentCalls();
+      }, 2000);
+    };
+
+    socket.on('callStatus', handleSocketCallStatus);
+    socket.on('callEnded', handleEndedRefresh);
+    window.addEventListener('callEnded', handleEndedRefresh);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      socket.off('callStatus', handleSocketCallStatus);
+      socket.off('callEnded', handleEndedRefresh);
+      window.removeEventListener('callEnded', handleEndedRefresh);
+      window.clearTimeout(refreshTimeoutId);
+    };
+  }, [refreshRecentCalls]);
 
   const lastUpdatedLabel = useMemo(() => {
     if (!lastUpdated) return 'Updated recently';
@@ -214,28 +270,32 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
           <h3 style={{ margin: 0 }}>Recent Calls</h3>
           <span className="tag">Realtime</span>
         </div>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Contact</th>
-              <th>Number</th>
-              <th>Duration</th>
-              <th>Direction</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {calls.map((call) => (
-              <tr key={call.id}>
-                <td>{call.contact}</td>
-                <td>{call.number}</td>
-                <td>{call.duration}</td>
-                <td>{call.direction}</td>
-                <td>{call.status}</td>
+        {recentCalls.length === 0 ? (
+          <div className="text-muted">No recent calls yet</div>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Contact</th>
+                <th>Number</th>
+                <th>Duration</th>
+                <th>Direction</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {recentCalls.map((call) => (
+                <tr key={call.id}>
+                  <td>{call.displayName}</td>
+                  <td>{call.displayNumber}</td>
+                  <td>{call.durationLabel}</td>
+                  <td>{call.directionLabel}</td>
+                  <td>{call.rawStatusLabel}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

@@ -131,36 +131,6 @@ export const stats = [
   { label: 'Missed Calls', value: '21' }
 ];
 
-export const calls = [
-  {
-    id: 'c1',
-    contact: 'Smith & Co. Dental',
-    number: '+1 (555) 213-8841',
-    duration: '04:32',
-    direction: 'Inbound',
-    time: '1:58 PM',
-    status: 'Answered'
-  },
-  {
-    id: 'c2',
-    contact: 'Brightline Logistics',
-    number: '+1 555-430-9921',
-    duration: '02:11',
-    direction: 'Outbound',
-    time: '1:12 PM',
-    status: 'Answered'
-  },
-  {
-    id: 'c3',
-    contact: 'Harbor Legal Group',
-    number: '+1 (555) 301-6650',
-    duration: '00:45',
-    direction: 'Inbound',
-    time: '11:43 AM',
-    status: 'Missed'
-  }
-];
-
 export const users = [
   {
     id: 'u1',
