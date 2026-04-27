@@ -1144,9 +1144,19 @@
   color: #86efac;
 }
 
+.message-actions-menu-item.is-danger {
+  color: #fecaca;
+}
+
 .message-meta {
   font-size: 10.5px;
   color: var(--text-muted);
+}
+
+.message-edited-indicator {
+  margin-left: 6px;
+  font-size: 10.5px;
+  color: #64748b;
 }
 
 .message-status-indicator {
@@ -1230,6 +1240,64 @@
 .message-inline-action:disabled {
   color: #cbd5e1;
   cursor: default;
+}
+
+.message-deleted-copy {
+  font-style: italic;
+  color: #64748b;
+}
+
+.message-edit-block {
+  display: grid;
+  gap: 8px;
+}
+
+.message-edit-input {
+  width: 100%;
+  min-height: 74px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 12px;
+  padding: 10px 12px;
+  resize: vertical;
+  font: inherit;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.message-edit-input:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, 0.5);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.message-edit-error {
+  font-size: 11px;
+  color: #b91c1c;
+}
+
+.message-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.message-edit-button {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.message-edit-button.is-cancel {
+  background: rgba(226, 232, 240, 0.86);
+  color: #475569;
+}
+
+.message-edit-button.is-save {
+  background: #2563eb;
+  color: #fff;
 }
 
 .message-reply-preview {

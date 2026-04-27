@@ -2095,6 +2095,45 @@ function MessagesPage({
     return () => socket.off('internalMessageStatus', handleInternalMessageStatus);
   }, []);
 
+  useEffect(() => {
+    const applyMutation = (payload) => {
+      if (!payload?._id || !payload?.conversationId || !payload?.conversationType) {
+        return;
+      }
+
+      const conversationKey = buildConversationKey(payload.conversationType, payload.conversationId);
+      const normalizedPayload = {
+        ...payload,
+        direction: payload.senderId === currentUserId ? 'outbound' : 'inbound',
+      };
+
+      if (conversationKey === activeChatId) {
+        setMessages((prev) => prev.map((item) => (
+          item._id === payload._id ? { ...item, ...normalizedPayload } : item
+        )));
+      }
+
+      if (payload.conversationType === 'team') {
+        const cachedThread = teamMessagesCacheRef.current[conversationKey];
+        if (Array.isArray(cachedThread)) {
+          teamMessagesCacheRef.current[conversationKey] = cachedThread.map((item) => (
+            item._id === payload._id ? { ...item, ...normalizedPayload } : item
+          ));
+        }
+      }
+
+      fetchInternalConversations();
+    };
+
+    socket.on('internalMessageUpdated', applyMutation);
+    socket.on('internalMessageDeleted', applyMutation);
+
+    return () => {
+      socket.off('internalMessageUpdated', applyMutation);
+      socket.off('internalMessageDeleted', applyMutation);
+    };
+  }, [activeChatId, currentUserId, fetchInternalConversations]);
+
   const handleStartChat = (phone) => {
     const normalized = normalize(phone);
     setSmsMode('direct');

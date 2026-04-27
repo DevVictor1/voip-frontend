@@ -1,4 +1,4 @@
-import { ChevronDown, Copy, Download, Reply } from 'lucide-react';
+import { ChevronDown, Copy, Download, Pencil, Reply, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const formatSmsContextNumber = (primary, fallback) => {
@@ -13,9 +13,17 @@ function MessageBubble({
   onReplyMessage,
   onSendAnotherMessage,
   onAddUserToContacts,
+  currentUserId = '',
+  isInternalThread = false,
+  onEditMessage,
+  onDeleteMessage,
 }) {
   const [copyState, setCopyState] = useState('idle');
   const [menuState, setMenuState] = useState({ open: false, mode: 'anchored', x: 0, y: 0 });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const [editError, setEditError] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const bubbleShellRef = useRef(null);
   const menuRef = useRef(null);
   const isInternalMessage = message.conversationType === 'internal_dm' || message.conversationType === 'team';
@@ -67,11 +75,21 @@ function MessageBubble({
   const isFailed =
     message.status === 'failed' ||
     message.status === 'undelivered';
-  const canCopyText = Boolean(message.body?.trim());
+  const isDeleted = Boolean(message.isDeleted);
+  const isOwnInternalMessage = Boolean(
+    isInternalThread
+    && isInternalMessage
+    && message.senderId
+    && currentUserId
+    && message.senderId === currentUserId
+  );
+  const canCopyText = Boolean(message.body?.trim()) && !isDeleted;
   const canReply = Boolean(onReplyMessage);
   const canDownloadMedia = Boolean(message.media?.[0]);
   const canSendAnotherSms = Boolean(onSendAnotherMessage && isTextingGroupMessage && message.direction === 'outbound');
-  const canOpenMenu = canReply || canCopyText || canDownloadMedia || canSendAnotherSms;
+  const canEdit = Boolean(isOwnInternalMessage && !isDeleted && !isSending && onEditMessage);
+  const canDelete = Boolean(isOwnInternalMessage && !isDeleted && !isSending && onDeleteMessage);
+  const canOpenMenu = !isDeleted && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete);
 
   const menuStyle = useMemo(() => {
     if (!menuState.open || menuState.mode !== 'context') return undefined;
@@ -120,6 +138,13 @@ function MessageBubble({
       window.removeEventListener('keydown', handleEscape);
     };
   }, [menuState.open]);
+
+  useEffect(() => {
+    setIsEditing(false);
+    setEditValue('');
+    setEditError('');
+    setIsSavingEdit(false);
+  }, [message._id, message.body, message.isDeleted]);
 
   const handleCopyText = async () => {
     if (!canCopyText || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
@@ -195,6 +220,44 @@ function MessageBubble({
     closeMenu();
   };
 
+  const beginEdit = () => {
+    setEditValue(String(message.body || ''));
+    setEditError('');
+    setIsEditing(true);
+    closeMenu();
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditValue('');
+    setEditError('');
+    setIsSavingEdit(false);
+  };
+
+  const saveEdit = async () => {
+    const nextBody = String(editValue || '').trim();
+    if (!nextBody) {
+      setEditError('Message cannot be empty.');
+      return;
+    }
+
+    if (nextBody === String(message.body || '').trim()) {
+      cancelEdit();
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setEditError('');
+
+    try {
+      await onEditMessage?.(message, nextBody);
+      cancelEdit();
+    } catch (error) {
+      setEditError(error?.message || 'Unable to save changes.');
+      setIsSavingEdit(false);
+    }
+  };
+
   return (
     <div className={`message-row ${message.direction}`}>
       <div
@@ -245,14 +308,52 @@ function MessageBubble({
             </div>
           ) : null}
 
-          {message.media?.length > 0 && (
-            <img
-              src={message.media[0]}
-              alt="MMS"
-              style={{ maxWidth: '200px', borderRadius: '8px', marginBottom: '6px' }}
-            />
+          {isDeleted ? (
+            <div className="message-deleted-copy">This message was deleted</div>
+          ) : isEditing ? (
+            <div className="message-edit-block">
+              <textarea
+                className="message-edit-input"
+                value={editValue}
+                onChange={(event) => {
+                  setEditValue(event.target.value);
+                  if (editError) setEditError('');
+                }}
+                rows={3}
+                autoFocus
+              />
+              {editError ? <div className="message-edit-error">{editError}</div> : null}
+              <div className="message-edit-actions">
+                <button
+                  type="button"
+                  className="message-edit-button is-cancel"
+                  onClick={cancelEdit}
+                  disabled={isSavingEdit}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="message-edit-button is-save"
+                  onClick={saveEdit}
+                  disabled={isSavingEdit}
+                >
+                  {isSavingEdit ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {message.media?.length > 0 && (
+                <img
+                  src={message.media[0]}
+                  alt="MMS"
+                  style={{ maxWidth: '200px', borderRadius: '8px', marginBottom: '6px' }}
+                />
+              )}
+              {message.body}
+            </>
           )}
-          {message.body}
         </div>
 
         {menuState.open ? (
@@ -309,6 +410,31 @@ function MessageBubble({
                 <span>Send another SMS</span>
               </button>
             ) : null}
+            {canEdit ? (
+              <button
+                type="button"
+                className="message-actions-menu-item"
+                onClick={beginEdit}
+                role="menuitem"
+              >
+                <Pencil size={14} />
+                <span>Edit</span>
+              </button>
+            ) : null}
+            {canDelete ? (
+              <button
+                type="button"
+                className="message-actions-menu-item is-danger"
+                onClick={() => {
+                  onDeleteMessage?.(message);
+                  closeMenu();
+                }}
+                role="menuitem"
+              >
+                <Trash2 size={14} />
+                <span>Delete</span>
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -330,6 +456,12 @@ function MessageBubble({
           hour: '2-digit',
           minute: '2-digit',
         })}
+
+        {!isDeleted && message.editedAt ? (
+          <span className="message-edited-indicator">
+            edited
+          </span>
+        ) : null}
 
         {isFailed ? (
           <span style={{ marginLeft: '6px', fontSize: '12px' }}>

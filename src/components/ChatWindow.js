@@ -39,9 +39,12 @@ function ChatWindow({
   const [currentCallSid, setCurrentCallSid] = useState(null);
   const [replyTarget, setReplyTarget] = useState(null);
   const [composerFocusNonce, setComposerFocusNonce] = useState(0);
+  const [pendingDeleteMessage, setPendingDeleteMessage] = useState(null);
+  const [deletingMessageId, setDeletingMessageId] = useState('');
 
   const safeMessages = messages || [];
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
+  const isInternalThread = chat?.conversationType === 'internal_dm' || chat?.conversationType === 'team';
   const canAddUserToContacts = Boolean(onAddUserToContacts && isCustomerChat && !hasSavedContact);
   const textingGroupDisplayName = chat?.textingGroupName || selectedTextingGroup?.name || 'Selected texting group';
   const textingGroupAssignedNumber = chat?.assignedNumber || selectedTextingGroup?.assignedNumber || '';
@@ -218,6 +221,11 @@ function ChatWindow({
     setReplyTarget(null);
   }, [chat?.conversationId, chat?.phone, chat?.textingGroupId]);
 
+  useEffect(() => {
+    setPendingDeleteMessage(null);
+    setDeletingMessageId('');
+  }, [chat?.conversationId, chat?.phone, chat?.textingGroupId]);
+
   const focusComposerForMessage = useCallback(() => {
     if (typeof window === 'undefined') return;
 
@@ -262,6 +270,67 @@ function ChatWindow({
     setComposerFocusNonce((prev) => prev + 1);
     focusComposerForMessage();
   }, [focusComposerForMessage]);
+
+  const handleEditMessage = useCallback(async (message, nextBody) => {
+    if (!isInternalThread || !message?._id) {
+      throw new Error('Editing is only available for internal messages');
+    }
+
+    const response = await fetch(`${BASE_URL}/api/messages/message/${encodeURIComponent(message._id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: currentUserId,
+        role: currentUserRole,
+        body: nextBody,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Failed to edit message');
+    }
+
+    setMessages((prev) => prev.map((item) => (
+      item._id === payload._id ? { ...item, ...payload } : item
+    )));
+
+    return payload;
+  }, [currentUserId, currentUserRole, isInternalThread, setMessages]);
+
+  const requestDeleteMessage = useCallback((message) => {
+    if (!isInternalThread || !message?._id) return;
+    setPendingDeleteMessage(message);
+  }, [isInternalThread]);
+
+  const confirmDeleteMessage = useCallback(async () => {
+    if (!pendingDeleteMessage?._id || !isInternalThread) return;
+
+    setDeletingMessageId(pendingDeleteMessage._id);
+
+    try {
+      const response = await fetch(`${BASE_URL}/api/messages/message/${encodeURIComponent(pendingDeleteMessage._id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          role: currentUserRole,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to delete message');
+      }
+
+      setMessages((prev) => prev.map((item) => (
+        item._id === payload._id ? { ...item, ...payload } : item
+      )));
+      setPendingDeleteMessage(null);
+    } finally {
+      setDeletingMessageId('');
+    }
+  }, [currentUserId, currentUserRole, isInternalThread, pendingDeleteMessage, setMessages]);
 
   if (!chat) {
     const textingGroupEmptyTitle = selectedTextingGroup ? 'No shared threads found' : 'Select a texting group';
@@ -473,6 +542,10 @@ function ChatWindow({
                   onReplyMessage={handleReplyMessage}
                   onSendAnotherMessage={handleSendAnotherMessage}
                   onAddUserToContacts={handleAddUserToContacts}
+                  currentUserId={currentUserId}
+                  isInternalThread={isInternalThread}
+                  onEditMessage={handleEditMessage}
+                  onDeleteMessage={requestDeleteMessage}
                 />
               );
             }
@@ -553,6 +626,48 @@ function ChatWindow({
           });
         }}
       />
+
+      {pendingDeleteMessage ? (
+        <div
+          className="messages-picker-overlay"
+          onClick={() => !deletingMessageId && setPendingDeleteMessage(null)}
+        >
+          <div
+            className="messages-picker-modal internal-teams-confirm-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="messages-picker-header">
+              <h3>Delete Message</h3>
+              <p>Delete this message?</p>
+            </div>
+
+            <div className="internal-teams-confirm-body">
+              <div className="internal-teams-confirm-warning">
+                The message will stay in the conversation as “This message was deleted”.
+              </div>
+            </div>
+
+            <div className="messages-picker-footer internal-teams-confirm-footer">
+              <button
+                type="button"
+                className="messages-picker-cancel"
+                onClick={() => setPendingDeleteMessage(null)}
+                disabled={Boolean(deletingMessageId)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="internal-teams-delete-btn"
+                onClick={confirmDeleteMessage}
+                disabled={Boolean(deletingMessageId)}
+              >
+                {deletingMessageId ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
