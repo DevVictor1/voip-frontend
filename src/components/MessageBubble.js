@@ -68,7 +68,7 @@ function MessageBubble({
     message.status === 'failed' ||
     message.status === 'undelivered';
   const canCopyText = Boolean(message.body?.trim());
-  const canReply = Boolean(onReplyMessage && isTextingGroupThread);
+  const canReply = Boolean(onReplyMessage);
   const canDownloadMedia = Boolean(message.media?.[0]);
   const canSendAnotherSms = Boolean(onSendAnotherMessage && isTextingGroupMessage && message.direction === 'outbound');
   const canOpenMenu = canReply || canCopyText || canDownloadMedia || canSendAnotherSms;

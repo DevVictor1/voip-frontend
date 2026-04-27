@@ -231,21 +231,32 @@ function ChatWindow({
   }, [chat?.conversationId, chat?.conversationType, chat?.phone, chat?.textingGroupId, isCustomerChat]);
 
   const handleReplyMessage = useCallback((message) => {
-    if (!isTextingGroupThread || !message) return;
+    if (!message) return;
+
+    const conversationType = chat?.conversationType || 'customer';
+    const isTeamChat = conversationType === 'team';
+    const isCustomerSms = conversationType === 'customer';
+    const isOutbound = message.direction === 'outbound';
+
+    const senderLabel = isCustomerSms
+      ? (isOutbound ? (message.senderName || message.senderId || 'Internal teammate') : 'Customer SMS')
+      : (isOutbound ? 'You' : (message.senderName || message.senderId || (isTeamChat ? 'Teammate' : 'Contact')));
+
+    const contextLabel = isCustomerSms
+      ? (isTextingGroupThread
+        ? (isOutbound ? 'Replying to sent SMS' : 'Replying to received SMS')
+        : (isOutbound ? 'Replying to sent message' : 'Replying to received message'))
+      : (isTeamChat ? 'Replying in team chat' : 'Replying in internal chat');
 
     setReplyTarget({
       id: message._id || message.sid || `${message.createdAt || Date.now()}`,
-      senderLabel: message.direction === 'outbound'
-        ? (message.senderName || message.senderId || 'Internal teammate')
-        : 'Customer SMS',
-      contextLabel: message.direction === 'outbound'
-        ? 'Replying to sent SMS'
-        : 'Replying to received SMS',
+      senderLabel,
+      contextLabel,
       body: String(message.body || '').trim(),
     });
 
     focusComposerForMessage();
-  }, [focusComposerForMessage, isTextingGroupThread]);
+  }, [chat?.conversationType, focusComposerForMessage, isTextingGroupThread]);
 
   const handleSendAnotherMessage = useCallback(() => {
     setComposerFocusNonce((prev) => prev + 1);
@@ -509,7 +520,7 @@ function ChatWindow({
         textingGroupId={chat?.textingGroupId || ''}
         focusNonce={composerFocusNonce}
         allowAttachments={isCustomerChat}
-        replyContext={isTextingGroupThread ? replyTarget : null}
+        replyContext={replyTarget}
         onClearReply={() => setReplyTarget(null)}
         setMessages={setMessages}
         onFocusInput={() => {
@@ -518,7 +529,7 @@ function ChatWindow({
           }, 160);
         }}
         onSendSuccess={(savedMessage) => {
-          if (isTextingGroupThread) {
+          if (replyTarget) {
             setReplyTarget(null);
           }
 
