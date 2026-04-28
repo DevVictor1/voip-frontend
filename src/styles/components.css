@@ -1213,6 +1213,14 @@
   color: #64748b;
 }
 
+.message-pinned-indicator {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  font-size: 10px;
+  line-height: 1;
+}
+
 .message-status-indicator {
   display: inline-flex;
   align-items: center;

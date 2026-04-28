@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Phone } from 'lucide-react';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
@@ -34,8 +34,11 @@ function ChatWindow({
   showBack
 }) {
   const bottomRef = useRef(null);
+  const messageListRef = useRef(null);
   const messageRefs = useRef({});
   const highlightTimeoutRef = useRef(null);
+  const suppressAutoScrollUntilRef = useRef(0);
+  const isNearBottomRef = useRef(true);
   const [callLogs, setCallLogs] = useState([]);
   const [callStatus, setCallStatus] = useState(null);
   const [currentCallSid, setCurrentCallSid] = useState(null);
@@ -45,7 +48,7 @@ function ChatWindow({
   const [deletingMessageId, setDeletingMessageId] = useState('');
   const [highlightedMessageId, setHighlightedMessageId] = useState('');
 
-  const safeMessages = messages || [];
+  const safeMessages = useMemo(() => messages || [], [messages]);
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
   const isInternalThread = chat?.conversationType === 'internal_dm' || chat?.conversationType === 'team';
   const canAddUserToContacts = Boolean(onAddUserToContacts && isCustomerChat && !hasSavedContact);
@@ -200,16 +203,45 @@ function ChatWindow({
     };
   }, [fetchCalls, isCustomerChat]);
 
-  const mergedTimeline = [
+  const mergedTimeline = useMemo(() => [
     ...safeMessages.map((message) => ({ ...message, type: 'message' })),
     ...(isCustomerChat ? callLogs.map((call) => ({ ...call, type: 'call' })) : [])
-  ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)), [callLogs, isCustomerChat, safeMessages]);
 
-  const scrollToBottom = useCallback((behavior = 'smooth') => {
+  const isNearBottom = useCallback(() => {
+    const node = messageListRef.current;
+    if (!node) return true;
+    const remaining = node.scrollHeight - node.scrollTop - node.clientHeight;
+    return remaining <= 72;
+  }, []);
+
+  const scrollToBottom = useCallback((behavior = 'smooth', options = {}) => {
+    const { force = false } = options;
+    if (!force) {
+      if (Date.now() < suppressAutoScrollUntilRef.current) return;
+      if (!isNearBottomRef.current) return;
+    }
+
     window.requestAnimationFrame(() => {
       bottomRef.current?.scrollIntoView({ behavior, block: 'end' });
     });
   }, []);
+
+  useEffect(() => {
+    const node = messageListRef.current;
+    if (!node) return undefined;
+
+    const handleScroll = () => {
+      isNearBottomRef.current = isNearBottom();
+    };
+
+    handleScroll();
+    node.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      node.removeEventListener('scroll', handleScroll);
+    };
+  }, [isNearBottom]);
 
   useEffect(() => {
     scrollToBottom('smooth');
@@ -217,7 +249,8 @@ function ChatWindow({
 
   useEffect(() => {
     if (!chat?.conversationId && !chat?.phone) return;
-    scrollToBottom('auto');
+    scrollToBottom('auto', { force: true });
+    isNearBottomRef.current = true;
   }, [chat?.conversationId, chat?.phone, scrollToBottom]);
 
   useEffect(() => {
@@ -390,15 +423,28 @@ function ChatWindow({
     const pinnedMessageId = latestPinnedMessage?._id;
     if (!pinnedMessageId) return;
 
-    const targetNode = messageRefs.current[pinnedMessageId];
-    if (!targetNode) return;
+    suppressAutoScrollUntilRef.current = Date.now() + 1800;
+    isNearBottomRef.current = false;
 
-    targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    setHighlightedMessageId(pinnedMessageId);
-    window.clearTimeout(highlightTimeoutRef.current);
-    highlightTimeoutRef.current = window.setTimeout(() => {
-      setHighlightedMessageId((current) => (current === pinnedMessageId ? '' : current));
-    }, 1800);
+    const runScroll = () => {
+      const targetNode = messageRefs.current[pinnedMessageId]
+        || (typeof document !== 'undefined'
+          ? document.querySelector(`[data-message-id="${pinnedMessageId}"]`)
+          : null);
+
+      if (!targetNode) return;
+
+      targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedMessageId(pinnedMessageId);
+      window.clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = window.setTimeout(() => {
+        setHighlightedMessageId((current) => (current === pinnedMessageId ? '' : current));
+      }, 1800);
+    };
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(runScroll);
+    });
   }, [latestPinnedMessage?._id]);
 
   if (!chat) {
@@ -580,7 +626,7 @@ function ChatWindow({
 
       <div className="chat-messages-container">
         <div className="chat-thread-backdrop" />
-        <div className="message-list">
+        <div ref={messageListRef} className="message-list">
           {threadLoading && safeMessages.length === 0 ? (
             <div className="chat-thread-loading">
               <div className="chat-thread-loading-title">Loading conversation…</div>

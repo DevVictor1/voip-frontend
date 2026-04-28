@@ -93,6 +93,7 @@ function MessageBubble({
   const canEdit = Boolean(isOwnInternalMessage && !isDeleted && !isSending && onEditMessage);
   const canDelete = Boolean(isOwnInternalMessage && !isDeleted && !isSending && onDeleteMessage);
   const canTogglePin = Boolean(isInternalThread && isInternalMessage && !isDeleted && !isSending && onTogglePinMessage);
+  const showPinnedIndicator = Boolean(isInternalThread && isInternalMessage && message.isPinned && !isDeleted);
   const canOpenMenu = !isDeleted && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete || canTogglePin);
 
   const menuStyle = useMemo(() => {
@@ -484,6 +485,12 @@ function MessageBubble({
         {!isDeleted && message.editedAt ? (
           <span className="message-edited-indicator">
             edited
+          </span>
+        ) : null}
+
+        {showPinnedIndicator ? (
+          <span className="message-pinned-indicator" aria-label="Pinned message">
+            📌
           </span>
         ) : null}
 
