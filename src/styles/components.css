@@ -1067,11 +1067,21 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  width: fit-content;
+  max-width: 64%;
   min-width: 0;
 }
 
+.message-bubble-shell.inbound {
+  align-self: flex-start;
+}
+
+.message-bubble-shell.outbound {
+  align-self: flex-end;
+}
+
 .message-bubble {
-  max-width: 64%;
+  max-width: 100%;
   padding: 10px 13px;
   border-radius: 15px;
   font-size: 14px;
