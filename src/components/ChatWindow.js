@@ -47,6 +47,7 @@ function ChatWindow({
   const [pendingDeleteMessage, setPendingDeleteMessage] = useState(null);
   const [deletingMessageId, setDeletingMessageId] = useState('');
   const [highlightedMessageId, setHighlightedMessageId] = useState('');
+  const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
 
   const safeMessages = useMemo(() => messages || [], [messages]);
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
@@ -264,6 +265,7 @@ function ChatWindow({
 
   useEffect(() => {
     setHighlightedMessageId('');
+    setCurrentPinnedIndex(0);
     messageRefs.current = {};
     window.clearTimeout(highlightTimeoutRef.current);
   }, [chat?.conversationId, chat?.phone, chat?.textingGroupId]);
@@ -405,22 +407,37 @@ function ChatWindow({
     }
   }, [currentUserId, currentUserRole, isInternalThread, pendingDeleteMessage, setMessages]);
 
-  const pinnedMessages = isInternalThread
-    ? safeMessages.filter((item) => item?.isPinned)
-    : [];
+  const pinnedMessages = useMemo(() => (
+    isInternalThread
+      ? [...safeMessages]
+        .filter((item) => item?.isPinned && !item?.isDeleted)
+        .sort((left, right) => {
+          const leftTime = new Date(left?.pinnedAt || left?.updatedAt || left?.createdAt || 0).getTime();
+          const rightTime = new Date(right?.pinnedAt || right?.updatedAt || right?.createdAt || 0).getTime();
+          return rightTime - leftTime;
+        })
+      : []
+  ), [isInternalThread, safeMessages]);
 
-  const latestPinnedMessage = pinnedMessages.sort((left, right) => {
-    const leftTime = new Date(left?.pinnedAt || left?.updatedAt || left?.createdAt || 0).getTime();
-    const rightTime = new Date(right?.pinnedAt || right?.updatedAt || right?.createdAt || 0).getTime();
-    return rightTime - leftTime;
-  })[0] || null;
+  useEffect(() => {
+    if (pinnedMessages.length === 0) {
+      setCurrentPinnedIndex(0);
+      return;
+    }
 
-  const pinnedPreview = latestPinnedMessage
-    ? (latestPinnedMessage.isDeleted ? 'This message was deleted' : (String(latestPinnedMessage.body || '').trim() || 'Pinned message'))
+    setCurrentPinnedIndex((prev) => (prev >= pinnedMessages.length ? 0 : prev));
+  }, [pinnedMessages]);
+
+  const pinnedCount = pinnedMessages.length;
+  const activePinnedMessage = pinnedCount > 0
+    ? pinnedMessages[currentPinnedIndex] || pinnedMessages[0]
+    : null;
+  const pinnedPreview = activePinnedMessage
+    ? (String(activePinnedMessage.body || '').trim() || 'Pinned message')
     : '';
 
   const scrollToPinnedMessage = useCallback(() => {
-    const pinnedMessageId = latestPinnedMessage?._id;
+    const pinnedMessageId = activePinnedMessage?._id;
     if (!pinnedMessageId) return;
 
     suppressAutoScrollUntilRef.current = Date.now() + 1800;
@@ -436,6 +453,10 @@ function ChatWindow({
 
       targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setHighlightedMessageId(pinnedMessageId);
+      setCurrentPinnedIndex((prev) => {
+        if (pinnedCount <= 1) return 0;
+        return (prev + 1) % pinnedCount;
+      });
       window.clearTimeout(highlightTimeoutRef.current);
       highlightTimeoutRef.current = window.setTimeout(() => {
         setHighlightedMessageId((current) => (current === pinnedMessageId ? '' : current));
@@ -445,7 +466,7 @@ function ChatWindow({
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(runScroll);
     });
-  }, [latestPinnedMessage?._id]);
+  }, [activePinnedMessage?._id, pinnedCount]);
 
   if (!chat) {
     const textingGroupEmptyTitle = selectedTextingGroup ? 'No shared threads found' : 'Select a texting group';
@@ -613,13 +634,15 @@ function ChatWindow({
         showBack={showBack}
       />
 
-      {latestPinnedMessage ? (
+      {activePinnedMessage ? (
         <button
           type="button"
           className="chat-pinned-bar"
           onClick={scrollToPinnedMessage}
         >
-          <span className="chat-pinned-label">📌 Pinned:</span>
+          <span className="chat-pinned-label">
+            {pinnedCount > 1 ? `📌 ${currentPinnedIndex + 1}/${pinnedCount} Pinned:` : '📌 Pinned:'}
+          </span>
           <span className="chat-pinned-preview">{pinnedPreview}</span>
         </button>
       ) : null}
