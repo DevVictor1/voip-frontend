@@ -969,6 +969,46 @@
   min-height: 0;
 }
 
+.chat-pinned-bar {
+  min-height: 40px;
+  max-height: 40px;
+  border: none;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  background: rgba(248, 250, 252, 0.96);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  color: #0f172a;
+  flex: 0 0 auto;
+}
+
+.chat-pinned-bar:hover,
+.chat-pinned-bar:focus-visible {
+  background: rgba(241, 245, 249, 0.98);
+  outline: none;
+}
+
+.chat-pinned-label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.chat-pinned-preview {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: 12px;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .message-list {
   padding: 18px 20px 16px;
   display: flex;
@@ -1017,6 +1057,10 @@
 
 .message-row.outbound {
   align-items: flex-end;
+}
+
+.message-row.is-highlighted .message-bubble {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.22), 0 8px 22px rgba(59, 130, 246, 0.18);
 }
 
 .message-bubble-shell {

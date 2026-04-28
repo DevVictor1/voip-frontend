@@ -1,4 +1,4 @@
-import { ChevronDown, Copy, Download, Pencil, Reply, Trash2 } from 'lucide-react';
+import { ChevronDown, Copy, Download, Pencil, Pin, PinOff, Reply, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const formatSmsContextNumber = (primary, fallback) => {
@@ -17,6 +17,9 @@ function MessageBubble({
   isInternalThread = false,
   onEditMessage,
   onDeleteMessage,
+  onTogglePinMessage,
+  isHighlighted = false,
+  messageElementRef = null,
 }) {
   const [copyState, setCopyState] = useState('idle');
   const [menuState, setMenuState] = useState({ open: false, mode: 'anchored', x: 0, y: 0 });
@@ -89,7 +92,8 @@ function MessageBubble({
   const canSendAnotherSms = Boolean(onSendAnotherMessage && isTextingGroupMessage && message.direction === 'outbound');
   const canEdit = Boolean(isOwnInternalMessage && !isDeleted && !isSending && onEditMessage);
   const canDelete = Boolean(isOwnInternalMessage && !isDeleted && !isSending && onDeleteMessage);
-  const canOpenMenu = !isDeleted && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete);
+  const canTogglePin = Boolean(isInternalThread && isInternalMessage && !isDeleted && !isSending && onTogglePinMessage);
+  const canOpenMenu = !isDeleted && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete || canTogglePin);
 
   const menuStyle = useMemo(() => {
     if (!menuState.open || menuState.mode !== 'context') return undefined;
@@ -220,6 +224,11 @@ function MessageBubble({
     closeMenu();
   };
 
+  const handleTogglePin = () => {
+    onTogglePinMessage?.(message);
+    closeMenu();
+  };
+
   const beginEdit = () => {
     setEditValue(String(message.body || ''));
     setEditError('');
@@ -259,7 +268,11 @@ function MessageBubble({
   };
 
   return (
-    <div className={`message-row ${message.direction}`}>
+    <div
+      ref={messageElementRef}
+      className={`message-row ${message.direction}${isHighlighted ? ' is-highlighted' : ''}`}
+      data-message-id={message._id || ''}
+    >
       <div
         ref={bubbleShellRef}
         className={`message-bubble-shell ${message.direction}${menuState.open ? ' is-menu-open' : ''}`}
@@ -408,6 +421,17 @@ function MessageBubble({
               >
                 <Reply size={14} />
                 <span>Send another SMS</span>
+              </button>
+            ) : null}
+            {canTogglePin ? (
+              <button
+                type="button"
+                className="message-actions-menu-item"
+                onClick={handleTogglePin}
+                role="menuitem"
+              >
+                {message.isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+                <span>{message.isPinned ? 'Unpin message' : 'Pin message'}</span>
               </button>
             ) : null}
             {canEdit ? (

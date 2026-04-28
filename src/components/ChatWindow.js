@@ -34,6 +34,8 @@ function ChatWindow({
   showBack
 }) {
   const bottomRef = useRef(null);
+  const messageRefs = useRef({});
+  const highlightTimeoutRef = useRef(null);
   const [callLogs, setCallLogs] = useState([]);
   const [callStatus, setCallStatus] = useState(null);
   const [currentCallSid, setCurrentCallSid] = useState(null);
@@ -41,6 +43,7 @@ function ChatWindow({
   const [composerFocusNonce, setComposerFocusNonce] = useState(0);
   const [pendingDeleteMessage, setPendingDeleteMessage] = useState(null);
   const [deletingMessageId, setDeletingMessageId] = useState('');
+  const [highlightedMessageId, setHighlightedMessageId] = useState('');
 
   const safeMessages = messages || [];
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
@@ -226,6 +229,16 @@ function ChatWindow({
     setDeletingMessageId('');
   }, [chat?.conversationId, chat?.phone, chat?.textingGroupId]);
 
+  useEffect(() => {
+    setHighlightedMessageId('');
+    messageRefs.current = {};
+    window.clearTimeout(highlightTimeoutRef.current);
+  }, [chat?.conversationId, chat?.phone, chat?.textingGroupId]);
+
+  useEffect(() => () => {
+    window.clearTimeout(highlightTimeoutRef.current);
+  }, []);
+
   const focusComposerForMessage = useCallback(() => {
     if (typeof window === 'undefined') return;
 
@@ -298,6 +311,33 @@ function ChatWindow({
     return payload;
   }, [currentUserId, currentUserRole, isInternalThread, setMessages]);
 
+  const handleTogglePinMessage = useCallback(async (message) => {
+    if (!isInternalThread || !message?._id) {
+      throw new Error('Pinning is only available for internal messages');
+    }
+
+    const response = await fetch(`${BASE_URL}/api/messages/message/${encodeURIComponent(message._id)}/pin`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: currentUserId,
+        role: currentUserRole,
+        pinned: !Boolean(message.isPinned),
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Failed to update pinned message');
+    }
+
+    setMessages((prev) => prev.map((item) => (
+      item._id === payload._id ? { ...item, ...payload } : item
+    )));
+
+    return payload;
+  }, [currentUserId, currentUserRole, isInternalThread, setMessages]);
+
   const requestDeleteMessage = useCallback((message) => {
     if (!isInternalThread || !message?._id) return;
     setPendingDeleteMessage(message);
@@ -331,6 +371,35 @@ function ChatWindow({
       setDeletingMessageId('');
     }
   }, [currentUserId, currentUserRole, isInternalThread, pendingDeleteMessage, setMessages]);
+
+  const pinnedMessages = isInternalThread
+    ? safeMessages.filter((item) => item?.isPinned)
+    : [];
+
+  const latestPinnedMessage = pinnedMessages.sort((left, right) => {
+    const leftTime = new Date(left?.pinnedAt || left?.updatedAt || left?.createdAt || 0).getTime();
+    const rightTime = new Date(right?.pinnedAt || right?.updatedAt || right?.createdAt || 0).getTime();
+    return rightTime - leftTime;
+  })[0] || null;
+
+  const pinnedPreview = latestPinnedMessage
+    ? (latestPinnedMessage.isDeleted ? 'This message was deleted' : (String(latestPinnedMessage.body || '').trim() || 'Pinned message'))
+    : '';
+
+  const scrollToPinnedMessage = useCallback(() => {
+    const pinnedMessageId = latestPinnedMessage?._id;
+    if (!pinnedMessageId) return;
+
+    const targetNode = messageRefs.current[pinnedMessageId];
+    if (!targetNode) return;
+
+    targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedMessageId(pinnedMessageId);
+    window.clearTimeout(highlightTimeoutRef.current);
+    highlightTimeoutRef.current = window.setTimeout(() => {
+      setHighlightedMessageId((current) => (current === pinnedMessageId ? '' : current));
+    }, 1800);
+  }, [latestPinnedMessage?._id]);
 
   if (!chat) {
     const textingGroupEmptyTitle = selectedTextingGroup ? 'No shared threads found' : 'Select a texting group';
@@ -498,6 +567,17 @@ function ChatWindow({
         showBack={showBack}
       />
 
+      {latestPinnedMessage ? (
+        <button
+          type="button"
+          className="chat-pinned-bar"
+          onClick={scrollToPinnedMessage}
+        >
+          <span className="chat-pinned-label">📌 Pinned:</span>
+          <span className="chat-pinned-preview">{pinnedPreview}</span>
+        </button>
+      ) : null}
+
       <div className="chat-messages-container">
         <div className="chat-thread-backdrop" />
         <div className="message-list">
@@ -544,8 +624,18 @@ function ChatWindow({
                   onAddUserToContacts={handleAddUserToContacts}
                   currentUserId={currentUserId}
                   isInternalThread={isInternalThread}
+                  onTogglePinMessage={handleTogglePinMessage}
                   onEditMessage={handleEditMessage}
                   onDeleteMessage={requestDeleteMessage}
+                  isHighlighted={highlightedMessageId === item._id}
+                  messageElementRef={(node) => {
+                    if (!item._id) return;
+                    if (node) {
+                      messageRefs.current[item._id] = node;
+                    } else {
+                      delete messageRefs.current[item._id];
+                    }
+                  }}
                 />
               );
             }
