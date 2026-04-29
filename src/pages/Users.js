@@ -124,6 +124,9 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
   }, [searchQuery, searchableUsers]);
 
   const departmentGroups = useMemo(() => buildDepartmentGroups(filteredUsers), [filteredUsers]);
+  const activeAdminCount = useMemo(() => (
+    users.filter((user) => user?.role === 'admin' && user?.isActive !== false).length
+  ), [users]);
 
   const clientDirectory = useMemo(() => {
     return buildClientDirectory({ contacts, chats: clientChats });
@@ -397,8 +400,15 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
 
   const handleDeleteUser = async (userId) => {
     if (!userId) return;
+    const user = users.find((item) => item.id === userId);
+
     if (userId === currentUserId) {
-      setError('You cannot delete your own account');
+      setError('You cannot delete your own account.');
+      return;
+    }
+
+    if (user?.role === 'admin' && user?.isActive !== false && activeAdminCount <= 1) {
+      setError('This account can\'t be deleted because at least one admin must remain.');
       return;
     }
 
@@ -577,7 +587,8 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                                 type="button"
                                 style={dangerButtonStyle}
                                 onClick={() => handleDeleteUser(user.id)}
-                                disabled={deletingId === user.id || user.id === currentUserId}
+                                disabled={deletingId === user.id || !canDeleteUser(user, currentUserId, activeAdminCount)}
+                                title={getDeleteRestrictionMessage(user, currentUserId, activeAdminCount)}
                               >
                                 {deletingId === user.id ? 'Deleting...' : 'Delete'}
                               </button>
@@ -1472,6 +1483,26 @@ function buildDepartmentGroups(users = []) {
 
       return left.label.localeCompare(right.label);
     });
+}
+
+function canDeleteUser(user, currentUserId, activeAdminCount) {
+  return !getDeleteRestrictionMessage(user, currentUserId, activeAdminCount);
+}
+
+function getDeleteRestrictionMessage(user, currentUserId, activeAdminCount) {
+  if (!user?.id) {
+    return '';
+  }
+
+  if (user.id === currentUserId) {
+    return 'You cannot delete your own account.';
+  }
+
+  if (user.role === 'admin' && user.isActive !== false && activeAdminCount <= 1) {
+    return 'This account can\'t be deleted because at least one admin must remain.';
+  }
+
+  return '';
 }
 
 function resolveDepartmentSortOrder(departmentKey) {
