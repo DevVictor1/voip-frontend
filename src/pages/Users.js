@@ -408,7 +408,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
     }
 
     if (user?.role === 'admin' && user?.isActive !== false && activeAdminCount <= 1) {
-      setError('This account can\'t be deleted because at least one admin must remain.');
+      setError('At least one admin must remain.');
       return;
     }
 
@@ -537,64 +537,75 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                       </div>
 
                       <div className="user-grid directory-user-grid">
-                        {group.users.map((user) => (
-                          <div
-                            key={user.id}
-                            className="user-card directory-user-card"
-                            style={selectedUserId === user.id ? activeCardStyle : undefined}
-                          >
-                            <div className="avatar-stack directory-user-identity">
-                              <div className="avatar-circle directory-avatar-circle">
-                                {getInitials(user.name)}
-                              </div>
-                              <div className="directory-identity-copy">
-                                <h4>{user.name}</h4>
-                                <div className="user-role">{formatRole(user.role)}</div>
-                              </div>
-                            </div>
+                        {group.users.map((user) => {
+                          const deleteRestrictionMessage = getDeleteRestrictionMessage(user, currentUserId, activeAdminCount);
+                          const isDeleteBlocked = Boolean(deleteRestrictionMessage);
 
-                            <div className="directory-user-tags">
-                              <span className="tag">{user.isActive ? 'Active' : 'Inactive'}</span>
-                              <span className="tag">{getDepartmentLabel(user.department) || group.label}</span>
-                            </div>
+                          return (
+                            <div
+                              key={user.id}
+                              className="user-card directory-user-card"
+                              style={selectedUserId === user.id ? activeCardStyle : undefined}
+                            >
+                              <div className="avatar-stack directory-user-identity">
+                                <div className="avatar-circle directory-avatar-circle">
+                                  {getInitials(user.name)}
+                                </div>
+                                <div className="directory-identity-copy">
+                                  <h4>{user.name}</h4>
+                                  <div className="user-role">{formatRole(user.role)}</div>
+                                </div>
+                              </div>
 
-                            <div className="text-muted directory-user-email">{user.email}</div>
+                              <div className="directory-user-tags">
+                                <span className="tag">{user.isActive ? 'Active' : 'Inactive'}</span>
+                                <span className="tag">{getDepartmentLabel(user.department) || group.label}</span>
+                              </div>
 
-                            <div className="directory-user-meta">
-                              <div className="directory-meta-item">
-                                <span className="directory-meta-label">Role</span>
-                                <strong>{formatRole(user.role)}</strong>
-                              </div>
-                              <div className="directory-meta-item">
-                                <span className="directory-meta-label">Department</span>
-                                <strong>{getDepartmentLabel(user.department) || 'Unassigned / Global'}</strong>
-                              </div>
-                              <div className="directory-meta-item">
-                                <span className="directory-meta-label">Agent ID</span>
-                                <strong>{user.agentId || 'Not assigned'}</strong>
-                              </div>
-                              <div className="directory-meta-item">
-                                <span className="directory-meta-label">Status</span>
-                                <strong>{user.isActive ? 'Active' : 'Inactive'}</strong>
-                              </div>
-                            </div>
+                              <div className="text-muted directory-user-email">{user.email}</div>
 
-                            <div className="directory-card-actions" style={actionsStyle}>
-                              <button type="button" style={secondaryButtonStyle} onClick={() => openUserDetails(user.id)}>
-                                {selectedUserId === user.id ? 'Hide details' : 'Manage user'}
-                              </button>
-                              <button
-                                type="button"
-                                style={dangerButtonStyle}
-                                onClick={() => handleDeleteUser(user.id)}
-                                disabled={deletingId === user.id || !canDeleteUser(user, currentUserId, activeAdminCount)}
-                                title={getDeleteRestrictionMessage(user, currentUserId, activeAdminCount)}
-                              >
-                                {deletingId === user.id ? 'Deleting...' : 'Delete'}
-                              </button>
+                              <div className="directory-user-meta">
+                                <div className="directory-meta-item">
+                                  <span className="directory-meta-label">Role</span>
+                                  <strong>{formatRole(user.role)}</strong>
+                                </div>
+                                <div className="directory-meta-item">
+                                  <span className="directory-meta-label">Department</span>
+                                  <strong>{getDepartmentLabel(user.department) || 'Unassigned / Global'}</strong>
+                                </div>
+                                <div className="directory-meta-item">
+                                  <span className="directory-meta-label">Agent ID</span>
+                                  <strong>{user.agentId || 'Not assigned'}</strong>
+                                </div>
+                                <div className="directory-meta-item">
+                                  <span className="directory-meta-label">Status</span>
+                                  <strong>{user.isActive ? 'Active' : 'Inactive'}</strong>
+                                </div>
+                              </div>
+
+                              <div className="directory-card-actions" style={actionsStyle}>
+                                <button type="button" style={secondaryButtonStyle} onClick={() => openUserDetails(user.id)}>
+                                  {selectedUserId === user.id ? 'Hide details' : 'Manage user'}
+                                </button>
+                                <button
+                                  type="button"
+                                  style={isDeleteBlocked ? blockedDangerButtonStyle : dangerButtonStyle}
+                                  onClick={() => handleDeleteUser(user.id)}
+                                  disabled={deletingId === user.id}
+                                  aria-disabled={isDeleteBlocked}
+                                  title={deleteRestrictionMessage}
+                                >
+                                  {deletingId === user.id ? 'Deleting...' : 'Delete'}
+                                </button>
+                              </div>
+                              {isDeleteBlocked ? (
+                                <div className="text-muted" style={helperTextStyle}>
+                                  {deleteRestrictionMessage}
+                                </div>
+                              ) : null}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </section>
                   ))}
@@ -1485,10 +1496,6 @@ function buildDepartmentGroups(users = []) {
     });
 }
 
-function canDeleteUser(user, currentUserId, activeAdminCount) {
-  return !getDeleteRestrictionMessage(user, currentUserId, activeAdminCount);
-}
-
 function getDeleteRestrictionMessage(user, currentUserId, activeAdminCount) {
   if (!user?.id) {
     return '';
@@ -1499,7 +1506,7 @@ function getDeleteRestrictionMessage(user, currentUserId, activeAdminCount) {
   }
 
   if (user.role === 'admin' && user.isActive !== false && activeAdminCount <= 1) {
-    return 'This account can\'t be deleted because at least one admin must remain.';
+    return 'At least one admin must remain.';
   }
 
   return '';
@@ -1686,6 +1693,11 @@ const dangerButtonStyle = {
   ...secondaryButtonStyle,
   borderColor: 'rgba(185, 28, 28, 0.18)',
   color: '#b91c1c',
+};
+
+const blockedDangerButtonStyle = {
+  ...dangerButtonStyle,
+  opacity: 0.6,
 };
 
 const activeCardStyle = {
