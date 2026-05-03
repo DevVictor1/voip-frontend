@@ -41,12 +41,7 @@ function AgentStatusList({ agents = [] }) {
 
   const items = useMemo(
     () => {
-      const knownIds = new Set([
-        ...Object.keys(statuses || {}),
-        ...Object.keys(agentDirectory),
-      ]);
-
-      return Array.from(knownIds)
+      return Object.keys(agentDirectory)
         .sort((a, b) => a.localeCompare(b))
         .map((agentId) => {
           const liveAgent = agentDirectory[agentId];
