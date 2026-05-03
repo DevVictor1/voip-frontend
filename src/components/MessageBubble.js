@@ -362,10 +362,10 @@ function MessageBubble({
                 <img
                   src={message.media[0]}
                   alt="MMS"
-                  style={{ maxWidth: '200px', borderRadius: '8px', marginBottom: '6px' }}
+                  className="message-media-preview"
                 />
               )}
-              {message.body}
+              <div className="message-body">{message.body}</div>
             </>
           )}
         </div>

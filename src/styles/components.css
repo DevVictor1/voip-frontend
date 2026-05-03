@@ -1049,6 +1049,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 
 .message-row.inbound {
@@ -1068,7 +1069,7 @@
   display: flex;
   flex-direction: column;
   width: fit-content;
-  max-width: 64%;
+  max-width: min(70%, 720px);
   min-width: 0;
 }
 
@@ -1082,21 +1083,23 @@
 
 .message-bubble {
   max-width: 100%;
-  padding: 10px 13px;
-  border-radius: 15px;
+  min-width: 0;
+  padding: 12px 15px;
+  border-radius: 20px;
   font-size: 14px;
-  line-height: 1.45;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  line-height: 1.5;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
 .message-bubble.has-menu {
-  padding-right: 34px;
+  padding-right: 38px;
 }
 
 .message-bubble.inbound {
   background: rgba(255, 255, 255, 0.94);
   align-self: flex-start;
   border: 1px solid rgba(226, 232, 240, 0.84);
+  border-top-left-radius: 12px;
 }
 
 .message-bubble.outbound {
@@ -1104,6 +1107,22 @@
   color: #0f172a;
   border: 1px solid rgba(187, 247, 208, 0.72);
   align-self: flex-end;
+  border-top-right-radius: 12px;
+}
+
+.message-body {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.message-media-preview {
+  display: block;
+  max-width: min(220px, 100%);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
 .message-menu-trigger {
@@ -1203,6 +1222,10 @@
 }
 
 .message-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
   font-size: 10.5px;
   color: var(--text-muted);
 }
@@ -1269,6 +1292,9 @@
   font-size: 11px;
   line-height: 1.45;
   color: #94a3b8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .message-inline-actions {
@@ -1307,6 +1333,9 @@
 .message-deleted-copy {
   font-style: italic;
   color: #64748b;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .message-edit-block {
@@ -1324,6 +1353,9 @@
   font: inherit;
   color: inherit;
   background: rgba(255, 255, 255, 0.88);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .message-edit-input:focus {
@@ -1636,8 +1668,8 @@
     padding: 16px;
   }
 
-  .message-bubble {
-    max-width: 85%;
+  .message-bubble-shell {
+    max-width: 88%;
   }
 
   .message-input {
@@ -1753,9 +1785,18 @@
     padding: 14px;
   }
 
-  .message-bubble {
+  .message-bubble-shell {
     max-width: 92%;
+  }
+
+  .message-bubble {
     font-size: 13px;
+    padding: 11px 13px;
+    border-radius: 18px;
+  }
+
+  .message-bubble.has-menu {
+    padding-right: 36px;
   }
 
   .message-actions-menu {
