@@ -730,7 +730,7 @@ function ChatWindow({
                   {item.recordingSid && (
                     <audio controls className="call-event-audio">
                       <source
-                        src={`${process.env.REACT_APP_API_URL}/api/recordings/${item.recordingSid}`}
+                        src={`${BASE_URL}/api/recordings/${item.recordingSid}`}
                         type="audio/mpeg"
                       />
                     </audio>

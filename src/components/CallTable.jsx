@@ -1,4 +1,5 @@
 import { AlertTriangle, ArrowUpRight, PhoneIncoming, PhoneOutgoing } from 'lucide-react';
+import BASE_URL from '../config/api';
 
 const STATUS_LABELS = {
   initiated: 'Initiated',
@@ -176,7 +177,7 @@ function CallTable({ calls, loading, error, onRetry }) {
   <div style={{ marginTop: '5px' }}>
     <audio controls style={{ width: '160px' }}>
       <source
-        src={`${process.env.REACT_APP_API_URL}/api/recordings/${call.recordingSid}`}
+        src={`${BASE_URL}/api/recordings/${call.recordingSid}`}
         type="audio/mpeg"
       />
     </audio>
