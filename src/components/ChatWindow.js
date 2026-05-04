@@ -1292,7 +1292,10 @@ function ChatWindow({
               )}
             </div>
 
-            <div className="messages-picker-footer">
+            <div className="messages-picker-footer chat-forward-footer">
+              <div className="chat-forward-footer-count">
+                {selectedForwardTargetKeys.length} selected
+              </div>
               <button
                 type="button"
                 className="messages-picker-cancel"
