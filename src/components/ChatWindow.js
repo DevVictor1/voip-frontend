@@ -563,14 +563,41 @@ function ChatWindow({
   }, []);
 
   const handlePreviousSearchMatch = useCallback(() => {
-    if (searchMatches.length <= 1) return;
+    if (searchMatches.length === 0) return;
+    if (searchMatches.length === 1) {
+      scrollToSearchMatch(searchMatches[0]);
+      return;
+    }
     setCurrentSearchIndex((prev) => (prev - 1 + searchMatches.length) % searchMatches.length);
-  }, [searchMatches.length]);
+  }, [scrollToSearchMatch, searchMatches]);
 
   const handleNextSearchMatch = useCallback(() => {
-    if (searchMatches.length <= 1) return;
+    if (searchMatches.length === 0) return;
+    if (searchMatches.length === 1) {
+      scrollToSearchMatch(searchMatches[0]);
+      return;
+    }
     setCurrentSearchIndex((prev) => (prev + 1) % searchMatches.length);
-  }, [searchMatches.length]);
+  }, [scrollToSearchMatch, searchMatches]);
+
+  const handleSearchInputKeyDown = useCallback((event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      handleCloseSearch();
+      return;
+    }
+
+    if (event.key !== 'Enter') return;
+
+    event.preventDefault();
+
+    if (event.shiftKey) {
+      handlePreviousSearchMatch();
+      return;
+    }
+
+    handleNextSearchMatch();
+  }, [handleCloseSearch, handleNextSearchMatch, handlePreviousSearchMatch]);
 
   if (!chat) {
     const textingGroupEmptyTitle = selectedTextingGroup ? 'No shared threads found' : 'Select a texting group';
@@ -752,6 +779,7 @@ function ChatWindow({
                 setSearchQuery(event.target.value);
                 setCurrentSearchIndex(0);
               }}
+              onKeyDown={handleSearchInputKeyDown}
               placeholder="Search this conversation"
               aria-label="Search messages in this conversation"
             />
