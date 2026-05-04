@@ -14,6 +14,7 @@ import {
   getStoredAuthToken,
   getStoredAuthUser,
 } from '../services/auth';
+import { resolveEffectiveAvailabilityStatus } from '../utils/presence';
 
 const normalize = (phone) => {
   if (!phone) return '';
@@ -347,6 +348,10 @@ const normalizeInternalConversation = (conversation, currentUserId, userDirector
     agentId: conversationType === 'internal_dm'
       ? (otherParticipant || conversation?.agentId || null)
       : (conversation?.agentId || null),
+    availabilityStatus: otherAgent?.availabilityStatus || 'online',
+    connected: typeof otherAgent?.connected === 'boolean' ? otherAgent.connected : undefined,
+    presenceStatus: otherAgent?.presenceStatus || 'offline',
+    effectiveAvailabilityStatus: otherAgent?.effectiveAvailabilityStatus || resolveEffectiveAvailabilityStatus(otherAgent || {}),
     isInternal: true,
     isTeam: conversationType === 'team',
     sourceType: conversationType,
@@ -1082,6 +1087,55 @@ function MessagesPage({
   }, [fetchContacts, fetchConversations, fetchInternalConversations, fetchTeammates]);
 
   useEffect(() => {
+    const handlePresenceStatus = (payload) => {
+      const userId = String(payload?.userId || '').trim();
+      const presenceStatus = String(payload?.status || '').trim().toLowerCase();
+      if (!userId || !presenceStatus) return;
+
+      setTeammates((prev) => prev.map((user) => {
+        if (user?.agentId !== userId) return user;
+
+        const connected = presenceStatus !== 'offline';
+        return {
+          ...user,
+          connected,
+          presenceStatus,
+          effectiveAvailabilityStatus: connected
+            ? resolveEffectiveAvailabilityStatus({ ...user, connected, presenceStatus })
+            : 'offline',
+        };
+      }));
+    };
+
+    const handleAvailabilityStatus = (payload) => {
+      const userId = String(payload?.userId || '').trim();
+      const availabilityStatus = String(payload?.availabilityStatus || '').trim().toLowerCase();
+      if (!userId || !availabilityStatus) return;
+
+      setTeammates((prev) => prev.map((user) => {
+        if (user?.agentId !== userId) return user;
+
+        return {
+          ...user,
+          availabilityStatus,
+          effectiveAvailabilityStatus: resolveEffectiveAvailabilityStatus({
+            ...user,
+            availabilityStatus,
+          }),
+        };
+      }));
+    };
+
+    socket.on('agentStatus', handlePresenceStatus);
+    socket.on('agentAvailabilityStatus', handleAvailabilityStatus);
+
+    return () => {
+      socket.off('agentStatus', handlePresenceStatus);
+      socket.off('agentAvailabilityStatus', handleAvailabilityStatus);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isSmsPage) return;
     if (smsMode !== 'texting-group' && !showSmsModeChooser && location.state?.smsMode !== 'texting-group') return;
 
@@ -1136,6 +1190,10 @@ function MessagesPage({
           agentId: user.agentId,
           name: user.name || user.agentId,
           role: secondaryParts.join(' - ') || 'Teammate',
+          availabilityStatus: user.availabilityStatus || 'online',
+          connected: typeof user.connected === 'boolean' ? user.connected : undefined,
+          presenceStatus: user.presenceStatus || 'offline',
+          effectiveAvailabilityStatus: user.effectiveAvailabilityStatus || resolveEffectiveAvailabilityStatus(user),
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name)),
@@ -2274,6 +2332,14 @@ function MessagesPage({
       name: existingMember?.name || teammate?.name || agentId,
       role: existingMember?.role || teammate?.role || 'Teammate',
       department: existingMember?.department || '',
+      availabilityStatus: existingMember?.availabilityStatus || teammate?.availabilityStatus || 'online',
+      connected: typeof existingMember?.connected === 'boolean'
+        ? existingMember.connected
+        : teammate?.connected,
+      presenceStatus: existingMember?.presenceStatus || teammate?.presenceStatus || 'offline',
+      effectiveAvailabilityStatus: existingMember?.effectiveAvailabilityStatus
+        || teammate?.effectiveAvailabilityStatus
+        || resolveEffectiveAvailabilityStatus(existingMember || teammate || {}),
       isCurrentUser: existingMember?.isCurrentUser || agentId === currentUserId,
     };
   });
@@ -3103,11 +3169,17 @@ function MessagesPage({
                           <div key={member.agentId} className="internal-teams-details-member-row">
                             <div className="internal-teams-details-member-copy">
                               <div className="internal-teams-details-member-name">
+                                <span
+                                  className={`presence-dot is-${member.effectiveAvailabilityStatus || 'offline'}`}
+                                  aria-hidden="true"
+                                />
                                 {member.name}
                                 {member.isCurrentUser ? <span className="internal-teams-member-self">You</span> : null}
                               </div>
                               <div className="internal-teams-details-member-meta">
-                                {member.department || member.role || member.agentId}
+                                {[member.department || member.role || member.agentId, member.effectiveAvailabilityStatus ? `${member.effectiveAvailabilityStatus.charAt(0).toUpperCase()}${member.effectiveAvailabilityStatus.slice(1)}` : '']
+                                  .filter(Boolean)
+                                  .join(' • ')}
                               </div>
                             </div>
                             {canRemove ? (
@@ -3157,8 +3229,18 @@ function MessagesPage({
                             disabled={!teamDetailsData.canManage || teamDetailsSaving}
                           >
                             <span className="internal-teams-member-copy">
-                              <span className="internal-teams-member-name">{agent.name}</span>
-                              <span className="internal-teams-member-role">{agent.role}</span>
+                              <span className="internal-teams-member-name">
+                                <span
+                                  className={`presence-dot is-${agent.effectiveAvailabilityStatus || 'offline'}`}
+                                  aria-hidden="true"
+                                />
+                                {agent.name}
+                              </span>
+                              <span className="internal-teams-member-role">
+                                {[agent.role, agent.effectiveAvailabilityStatus ? `${agent.effectiveAvailabilityStatus.charAt(0).toUpperCase()}${agent.effectiveAvailabilityStatus.slice(1)}` : '']
+                                  .filter(Boolean)
+                                  .join(' • ')}
+                              </span>
                             </span>
                             <span className="internal-teams-member-check" aria-hidden="true">
                               Add

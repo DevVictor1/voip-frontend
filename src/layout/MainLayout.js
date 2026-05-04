@@ -1,6 +1,7 @@
 import Sidebar from '../components/Sidebar';
 import DeviceStatusControl from '../components/DeviceStatusControl';
 import { formatAgentLabel, getAgentMeta } from '../config/agents';
+import { formatAvailabilityStatus, getAvailabilityStatusClass } from '../utils/presence';
 
 function MainLayout({
   children,
@@ -14,7 +15,9 @@ function MainLayout({
   agentId,
   agentStatus,
   onRetryVoice,
-  onToggleAgentStatus,
+  availabilityStatus,
+  availabilityOptions = [],
+  onAvailabilityStatusChange,
 }) {
   const agentMeta = getAgentMeta(agentId);
   const roleLabel = userRole === 'agent' ? 'Agent' : 'Admin';
@@ -50,14 +53,23 @@ function MainLayout({
                 onRetry={onRetryVoice}
               />
 
-              <button
-                type="button"
-                className={`availability-pill ${agentStatus === 'online' ? 'availability-pill-online' : 'availability-pill-offline'}`}
-                onClick={onToggleAgentStatus}
-              >
-                <span className="availability-pill-label">Availability</span>
-                <span>{agentStatus === 'online' ? 'Online' : 'Offline'}</span>
-              </button>
+              <label className={`availability-pill availability-pill-select ${getAvailabilityStatusClass(agentStatus)}`}>
+                <span className={`availability-pill-dot ${getAvailabilityStatusClass(agentStatus)}`} aria-hidden="true" />
+                <span className="availability-pill-label">Status</span>
+                <select
+                  className="availability-pill-select-input"
+                  value={availabilityStatus}
+                  onChange={(event) => onAvailabilityStatusChange?.(event.target.value)}
+                  aria-label="Update your availability status"
+                >
+                  {availabilityOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="availability-pill-value">{formatAvailabilityStatus(agentStatus)}</span>
+              </label>
 
               <button type="button" onClick={onLogout} style={logoutButtonStyle}>
                 Logout

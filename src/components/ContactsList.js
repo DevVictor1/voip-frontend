@@ -1,5 +1,6 @@
 import { Users, X } from 'lucide-react';
 import BASE_URL from '../config/api';
+import { formatAvailabilityStatus, resolveEffectiveAvailabilityStatus } from '../utils/presence';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 
@@ -132,6 +133,7 @@ function ContactsList({
         ? `${item.lastMessageSenderName || 'Teammate'}: ${item.lastMessage}`
         : (item.lastMessage || item.previewFallback || 'No messages yet');
       const timestamp = formatTimestamp(item.lastMessageAt || item.updatedAt);
+      const effectiveAvailabilityStatus = resolveEffectiveAvailabilityStatus(item);
 
       return (
         <div
@@ -167,6 +169,13 @@ function ContactsList({
                     <div className={`contact-name${(isSmsList || isSmsGroupThreadList || isInternalTeamsList) && hasUnread ? ' is-unread' : ''}`}>
                       {displayName}
                     </div>
+                    {isInternalChatList && item.conversationType === 'internal_dm' ? (
+                      <span
+                        className={`presence-dot contact-presence-dot is-${effectiveAvailabilityStatus}`}
+                        title={formatAvailabilityStatus(effectiveAvailabilityStatus)}
+                        aria-label={formatAvailabilityStatus(effectiveAvailabilityStatus)}
+                      />
+                    ) : null}
                   </div>
                   {timestamp ? (
                     <div className={`contact-time${hasUnread ? ' is-unread' : ''}`}>

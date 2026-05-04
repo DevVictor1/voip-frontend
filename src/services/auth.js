@@ -186,6 +186,25 @@ export const fetchAgentStatusRequest = async (token) => {
   return payload;
 };
 
+export const updateMyAvailabilityStatusRequest = async (token, availabilityStatus) => {
+  const response = await fetch(`${BASE_URL}/api/auth/me/availability-status`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ availabilityStatus }),
+  });
+
+  const payload = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to update availability status');
+  }
+
+  return payload;
+};
+
 export const createUserRequest = async (token, userData) => {
   const response = await fetch(`${BASE_URL}/api/auth/users`, {
     method: 'POST',

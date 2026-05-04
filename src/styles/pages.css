@@ -2745,6 +2745,38 @@
   background: #8b5cf6;
 }
 
+.presence-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.presence-dot.is-online {
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+}
+
+.presence-dot.is-offline {
+  background: #94a3b8;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.12);
+}
+
+.presence-dot.is-busy {
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+.presence-dot.is-meeting {
+  background: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+
+.presence-dot.is-break {
+  background: #f59e0b;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.12);
+}
+
 .contact-time {
   flex-shrink: 0;
   color: #94a3b8;
@@ -2759,6 +2791,10 @@
 
 .contact-card.has-unread .contact-name {
   font-weight: 700;
+}
+
+.contact-presence-dot {
+  margin-left: 4px;
 }
 
 .contact-meta {
@@ -3897,6 +3933,9 @@
 }
 
 .internal-teams-member-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
   font-weight: 700;
   color: #0f172a;

@@ -32,7 +32,9 @@ import {
   getStoredAuthUser,
   loginRequest,
   storeAuthSession,
+  updateMyAvailabilityStatusRequest,
 } from './services/auth';
+import { AVAILABILITY_STATUS_OPTIONS, normalizeAvailabilityStatus, resolveEffectiveAvailabilityStatus } from './utils/presence';
 
 function App() {
   const lastRegisteredSocketIdentityRef = useRef(null);
@@ -48,10 +50,8 @@ function App() {
   const [callNotice, setCallNotice] = useState(null);
   const [callParticipant, setCallParticipant] = useState(null);
   const [userRole, setUserRole] = useState(() => getEffectiveRole(getStoredAuthUser()));
-  const [agentStatus, setAgentStatus] = useState(() => {
-    if (typeof window === 'undefined') return 'online';
-    return window.localStorage?.getItem('agentStatus') || 'online';
-  });
+  const [agentStatus, setAgentStatus] = useState('offline');
+  const [availabilityStatus, setAvailabilityStatus] = useState(() => normalizeAvailabilityStatus(getStoredAuthUser()?.availabilityStatus || 'online'));
   const [agentId, setAgentId] = useState(() => getEffectiveAgentId(getStoredAuthUser()));
 
   const isAuthenticated = Boolean(authToken && authUser);
@@ -110,6 +110,7 @@ function App() {
 
     setUserRole(authUser.role === 'agent' ? 'agent' : 'admin');
     setAgentId(authUser.agentId || '');
+    setAvailabilityStatus(normalizeAvailabilityStatus(authUser.availabilityStatus || 'online'));
   }, [authUser]);
 
   useEffect(() => {
@@ -120,12 +121,13 @@ function App() {
     if (!socket || !userId) return;
 
     const registerIdentity = () => {
+      setAgentStatus('online');
       socket.emit('registerUser', {
         userId,
-        status: agentStatus,
+        status: 'online',
         voiceReady: isVoiceReady,
       });
-      socket.emit('agentStatus', { userId, status: agentStatus });
+      socket.emit('agentStatus', { userId, status: 'online' });
       socket.emit('voiceReady', {
         userId,
         voiceReady: isVoiceReady,
@@ -133,7 +135,7 @@ function App() {
       });
       lastRegisteredSocketIdentityRef.current = userId;
       console.log('Registered socket user:', userId, {
-        agentStatus,
+        agentStatus: 'online',
         deviceStatus,
         voiceReady: isVoiceReady,
       });
@@ -148,7 +150,12 @@ function App() {
       socket.disconnect();
     }
 
+    const handleDisconnect = () => {
+      setAgentStatus('offline');
+    };
+
     socket.on('connect', registerIdentity);
+    socket.on('disconnect', handleDisconnect);
 
     if (socket.connected) {
       registerIdentity();
@@ -158,8 +165,9 @@ function App() {
 
     return () => {
       socket.off('connect', registerIdentity);
+      socket.off('disconnect', handleDisconnect);
     };
-  }, [agentStatus, deviceStatus, isAuthenticated, isVoiceReady, workspaceAgentId]);
+  }, [deviceStatus, isAuthenticated, isVoiceReady, workspaceAgentId]);
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;
@@ -304,15 +312,21 @@ function App() {
     setIsMuted(!isMuted);
   };
 
-  const toggleAgentStatus = () => {
-    if (!isAuthenticated) return;
+  const handleAvailabilityStatusChange = async (nextStatus) => {
+    if (!isAuthenticated || !authToken) return;
 
-    const userId = workspaceAgentId;
-    const nextStatus = agentStatus === 'online' ? 'offline' : 'online';
-    setAgentStatus(nextStatus);
-    window.localStorage?.setItem('agentStatus', nextStatus);
-    if (socket && userId) {
-      socket.emit('agentStatus', { userId, status: nextStatus });
+    const normalizedStatus = normalizeAvailabilityStatus(nextStatus);
+
+    try {
+      const payload = await updateMyAvailabilityStatusRequest(authToken, normalizedStatus);
+      const nextUser = payload?.user || null;
+      if (!nextUser) return;
+
+      storeAuthSession({ token: authToken, user: nextUser });
+      setAuthUser(nextUser);
+      setAvailabilityStatus(normalizeAvailabilityStatus(nextUser.availabilityStatus || normalizedStatus));
+    } catch (error) {
+      console.error('Update availability status failed:', error);
     }
   };
 
@@ -351,6 +365,7 @@ function App() {
       setAuthToken(token);
       setAuthUser(user);
       setUserRole(user?.role === 'agent' ? 'agent' : 'admin');
+      setAvailabilityStatus(normalizeAvailabilityStatus(user?.availabilityStatus || 'online'));
       setAgentId(user?.agentId || '');
     } catch (error) {
       setAuthError(error.message || 'Login failed');
@@ -372,10 +387,12 @@ function App() {
     setConnection(null);
     setIsMuted(false);
     setCallState('idle');
-    setCallNotice(null);
-    setCallParticipant(null);
-    setUserRole('admin');
-    setAgentId('web_user');
+      setCallNotice(null);
+      setCallParticipant(null);
+      setUserRole('admin');
+      setAgentStatus('offline');
+      setAvailabilityStatus('online');
+      setAgentId('web_user');
   };
 
   const renderProtectedLayout = (children, { adminOnly = false } = {}) => {
@@ -401,9 +418,14 @@ function App() {
         deviceStatus={deviceStatus}
         callState={callState}
         agentId={workspaceAgentId}
-        agentStatus={agentStatus}
+        agentStatus={resolveEffectiveAvailabilityStatus({
+          connected: agentStatus === 'online',
+          availabilityStatus,
+        })}
         onRetryVoice={handleRetryVoice}
-        onToggleAgentStatus={toggleAgentStatus}
+        availabilityStatus={availabilityStatus}
+        availabilityOptions={AVAILABILITY_STATUS_OPTIONS}
+        onAvailabilityStatusChange={handleAvailabilityStatusChange}
       >
         {children}
       </MainLayout>
