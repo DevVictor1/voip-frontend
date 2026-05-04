@@ -1140,14 +1140,23 @@
   flex-direction: column;
   gap: 3px;
   min-width: 0;
+  position: relative;
+  z-index: 0;
 }
 
 .message-row.inbound {
   align-items: flex-start;
+  padding-right: 40px;
 }
 
 .message-row.outbound {
   align-items: flex-end;
+  padding-left: 40px;
+}
+
+.message-row:hover,
+.message-row:focus-within {
+  z-index: 8;
 }
 
 .message-row.is-highlighted .message-bubble {
@@ -1170,6 +1179,7 @@
   width: fit-content;
   max-width: min(70%, 720px);
   min-width: 0;
+  overflow: visible;
 }
 
 .message-bubble-shell.inbound {
@@ -1298,11 +1308,11 @@
 }
 
 .message-reaction-trigger.inbound {
-  left: -30px;
+  right: -32px;
 }
 
 .message-reaction-trigger.outbound {
-  right: -30px;
+  left: -32px;
 }
 
 .message-bubble-shell:hover .message-menu-trigger,
@@ -1312,8 +1322,10 @@
   pointer-events: auto;
 }
 
-.message-bubble-shell:hover .message-reaction-trigger,
+.message-row:hover .message-reaction-trigger,
+.message-row:focus-within .message-reaction-trigger,
 .message-reaction-trigger.is-open,
+.message-reaction-trigger:hover,
 .message-reaction-trigger:focus-visible {
   opacity: 1;
   pointer-events: auto;
@@ -1368,7 +1380,7 @@
 
 .message-reaction-picker {
   position: absolute;
-  top: -46px;
+  top: calc(100% + 8px);
   padding: 6px;
   border-radius: 999px;
   border: 1px solid rgba(226, 232, 240, 0.96);
@@ -1382,11 +1394,11 @@
 }
 
 .message-reaction-picker.inbound {
-  left: 0;
+  right: 0;
 }
 
 .message-reaction-picker.outbound {
-  right: 0;
+  left: 0;
 }
 
 .message-reaction-option {
@@ -1961,6 +1973,14 @@
     max-width: 88%;
   }
 
+  .message-row.inbound {
+    padding-right: 36px;
+  }
+
+  .message-row.outbound {
+    padding-left: 36px;
+  }
+
   .message-input {
     padding: 12px 14px;
     flex-direction: column;
@@ -2005,7 +2025,7 @@
   }
 
   .message-reaction-picker {
-    top: -42px;
+    top: calc(100% + 8px);
     max-width: calc(100vw - 32px);
   }
 }
@@ -2096,6 +2116,14 @@
 
   .message-reactions {
     max-width: 92%;
+  }
+
+  .message-row.inbound {
+    padding-right: 32px;
+  }
+
+  .message-row.outbound {
+    padding-left: 32px;
   }
 
   .message-bubble {
