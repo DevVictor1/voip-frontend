@@ -39,6 +39,7 @@ function ChatWindow({
   const highlightTimeoutRef = useRef(null);
   const suppressAutoScrollUntilRef = useRef(0);
   const isNearBottomRef = useRef(true);
+  const searchInputRef = useRef(null);
   const [callLogs, setCallLogs] = useState([]);
   const [callStatus, setCallStatus] = useState(null);
   const [currentCallSid, setCurrentCallSid] = useState(null);
@@ -48,6 +49,9 @@ function ChatWindow({
   const [deletingMessageId, setDeletingMessageId] = useState('');
   const [highlightedMessageId, setHighlightedMessageId] = useState('');
   const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
 
   const safeMessages = useMemo(() => messages || [], [messages]);
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
@@ -266,6 +270,9 @@ function ChatWindow({
   useEffect(() => {
     setHighlightedMessageId('');
     setCurrentPinnedIndex(0);
+    setCurrentSearchIndex(0);
+    setSearchQuery('');
+    setIsSearchOpen(false);
     messageRefs.current = {};
     window.clearTimeout(highlightTimeoutRef.current);
   }, [chat?.conversationId, chat?.phone, chat?.textingGroupId]);
@@ -273,6 +280,14 @@ function ChatWindow({
   useEffect(() => () => {
     window.clearTimeout(highlightTimeoutRef.current);
   }, []);
+
+  useEffect(() => {
+    if (!isSearchOpen) return;
+    window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    });
+  }, [isSearchOpen]);
 
   const focusComposerForMessage = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -468,6 +483,95 @@ function ChatWindow({
     });
   }, [activePinnedMessage?._id, pinnedCount]);
 
+  const normalizedSearchQuery = useMemo(
+    () => searchQuery.trim().toLowerCase(),
+    [searchQuery]
+  );
+
+  const searchMatches = useMemo(() => {
+    if (!isInternalThread || !normalizedSearchQuery) return [];
+
+    return safeMessages
+      .filter((item) => item?._id && !item?.isDeleted)
+      .filter((item) => String(item.body || '').toLowerCase().includes(normalizedSearchQuery))
+      .map((item) => item._id);
+  }, [isInternalThread, normalizedSearchQuery, safeMessages]);
+
+  useEffect(() => {
+    if (searchMatches.length === 0) {
+      setCurrentSearchIndex(0);
+      return;
+    }
+
+    setCurrentSearchIndex((prev) => (prev >= searchMatches.length ? 0 : prev));
+  }, [searchMatches]);
+
+  const scrollToSearchMatch = useCallback((messageId) => {
+    if (!messageId) return;
+
+    suppressAutoScrollUntilRef.current = Date.now() + 1800;
+    isNearBottomRef.current = false;
+
+    const runScroll = () => {
+      const targetNode = messageRefs.current[messageId]
+        || (typeof document !== 'undefined'
+          ? document.querySelector(`[data-message-id="${messageId}"]`)
+          : null);
+
+      if (!targetNode) return;
+
+      targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedMessageId(messageId);
+      window.clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = window.setTimeout(() => {
+        setHighlightedMessageId((current) => (current === messageId ? '' : current));
+      }, 1800);
+    };
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(runScroll);
+    });
+  }, []);
+
+  const activeSearchMessageId = searchMatches.length > 0
+    ? searchMatches[currentSearchIndex] || searchMatches[0]
+    : '';
+
+  useEffect(() => {
+    if (!isSearchOpen || !activeSearchMessageId) return;
+    scrollToSearchMatch(activeSearchMessageId);
+  }, [activeSearchMessageId, isSearchOpen, scrollToSearchMatch]);
+
+  const handleToggleSearch = useCallback(() => {
+    if (!isInternalThread) return;
+
+    setIsSearchOpen((prev) => {
+      if (prev) {
+        setSearchQuery('');
+        setCurrentSearchIndex(0);
+        return false;
+      }
+
+      return true;
+    });
+  }, [isInternalThread]);
+
+  const handleCloseSearch = useCallback(() => {
+    setIsSearchOpen(false);
+    setSearchQuery('');
+    setCurrentSearchIndex(0);
+  }, []);
+
+  const handlePreviousSearchMatch = useCallback(() => {
+    if (searchMatches.length <= 1) return;
+    setCurrentSearchIndex((prev) => (prev - 1 + searchMatches.length) % searchMatches.length);
+  }, [searchMatches.length]);
+
+  const handleNextSearchMatch = useCallback(() => {
+    if (searchMatches.length <= 1) return;
+    setCurrentSearchIndex((prev) => (prev + 1) % searchMatches.length);
+  }, [searchMatches.length]);
+
   if (!chat) {
     const textingGroupEmptyTitle = selectedTextingGroup ? 'No shared threads found' : 'Select a texting group';
     const textingGroupEmptySubtitle = selectedTextingGroup
@@ -632,7 +736,62 @@ function ChatWindow({
         assignableAgents={assignableAgents}
         onBack={onBack}
         showBack={showBack}
+        onToggleSearch={isInternalThread ? handleToggleSearch : null}
+        isSearchOpen={isSearchOpen}
       />
+
+      {isInternalThread && isSearchOpen ? (
+        <div className="chat-search-bar">
+          <div className="chat-search-input-shell">
+            <input
+              ref={searchInputRef}
+              type="search"
+              className="chat-search-input"
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setCurrentSearchIndex(0);
+              }}
+              placeholder="Search this conversation"
+              aria-label="Search messages in this conversation"
+            />
+          </div>
+
+          <div className="chat-search-toolbar">
+            <span className={`chat-search-count${normalizedSearchQuery && searchMatches.length === 0 ? ' is-empty' : ''}`}>
+              {normalizedSearchQuery
+                ? (searchMatches.length > 0 ? `${currentSearchIndex + 1}/${searchMatches.length}` : '0 results')
+                : 'Type to search'}
+            </span>
+            <button
+              type="button"
+              className="chat-search-nav"
+              onClick={handlePreviousSearchMatch}
+              disabled={searchMatches.length <= 1}
+              aria-label="Previous search result"
+            >
+              Prev
+            </button>
+            <button
+              type="button"
+              className="chat-search-nav"
+              onClick={handleNextSearchMatch}
+              disabled={searchMatches.length <= 1}
+              aria-label="Next search result"
+            >
+              Next
+            </button>
+            <button
+              type="button"
+              className="chat-search-close"
+              onClick={handleCloseSearch}
+              aria-label="Close message search"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {activePinnedMessage ? (
         <button
@@ -697,6 +856,9 @@ function ChatWindow({
                   onEditMessage={handleEditMessage}
                   onDeleteMessage={requestDeleteMessage}
                   isHighlighted={highlightedMessageId === item._id}
+                  searchQuery={isInternalThread ? normalizedSearchQuery : ''}
+                  isSearchMatch={searchMatches.includes(item._id)}
+                  isActiveSearchMatch={activeSearchMessageId === item._id}
                   messageElementRef={(node) => {
                     if (!item._id) return;
                     if (node) {

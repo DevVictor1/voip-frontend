@@ -19,6 +19,9 @@ function MessageBubble({
   onDeleteMessage,
   onTogglePinMessage,
   isHighlighted = false,
+  searchQuery = '',
+  isSearchMatch = false,
+  isActiveSearchMatch = false,
   messageElementRef = null,
 }) {
   const [copyState, setCopyState] = useState('idle');
@@ -95,6 +98,43 @@ function MessageBubble({
   const canTogglePin = Boolean(isInternalThread && isInternalMessage && !isDeleted && !isSending && onTogglePinMessage);
   const showPinnedIndicator = Boolean(isInternalThread && isInternalMessage && message.isPinned && !isDeleted);
   const canOpenMenu = !isDeleted && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete || canTogglePin);
+  const normalizedSearchQuery = String(searchQuery || '').trim().toLowerCase();
+
+  const renderHighlightedBody = (body) => {
+    const text = String(body || '');
+    if (!normalizedSearchQuery || !text) {
+      return text;
+    }
+
+    const lowerText = text.toLowerCase();
+    const parts = [];
+    let cursor = 0;
+    let matchIndex = lowerText.indexOf(normalizedSearchQuery);
+    let keyIndex = 0;
+
+    while (matchIndex !== -1) {
+      if (matchIndex > cursor) {
+        parts.push(<span key={`text-${keyIndex}`}>{text.slice(cursor, matchIndex)}</span>);
+      }
+
+      const endIndex = matchIndex + normalizedSearchQuery.length;
+      parts.push(
+        <mark key={`mark-${keyIndex}`} className="message-search-highlight">
+          {text.slice(matchIndex, endIndex)}
+        </mark>
+      );
+
+      cursor = endIndex;
+      keyIndex += 1;
+      matchIndex = lowerText.indexOf(normalizedSearchQuery, cursor);
+    }
+
+    if (cursor < text.length) {
+      parts.push(<span key={`text-tail-${keyIndex}`}>{text.slice(cursor)}</span>);
+    }
+
+    return parts;
+  };
 
   const menuStyle = useMemo(() => {
     if (!menuState.open || menuState.mode !== 'context') return undefined;
@@ -271,7 +311,7 @@ function MessageBubble({
   return (
     <div
       ref={messageElementRef}
-      className={`message-row ${message.direction}${isHighlighted ? ' is-highlighted' : ''}`}
+      className={`message-row ${message.direction}${isHighlighted ? ' is-highlighted' : ''}${isSearchMatch ? ' is-search-match' : ''}${isActiveSearchMatch ? ' is-search-match-active' : ''}`}
       data-message-id={message._id || ''}
     >
       <div
@@ -365,7 +405,7 @@ function MessageBubble({
                   className="message-media-preview"
                 />
               )}
-              <div className="message-body">{message.body}</div>
+              <div className="message-body">{renderHighlightedBody(message.body)}</div>
             </>
           )}
         </div>

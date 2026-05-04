@@ -31,6 +31,8 @@ function Header({
   onUpdateAssignmentStatus,
   onAddUserToContacts,
   assignableAgents = [],
+  onToggleSearch,
+  isSearchOpen = false,
 }) {
   const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
   const [assignMenuOpen, setAssignMenuOpen] = useState(false);
@@ -344,15 +346,37 @@ function Header({
         )}
 
         {!isTextingGroupMode && showTeamDetailsAction ? (
-          <button
-            className="button-icon"
-            type="button"
-            onClick={onOpenTeamDetails}
-          >
-            Group Details
-          </button>
+          <>
+            {onToggleSearch ? (
+              <button
+                className={`button-icon${isSearchOpen ? ' is-active' : ''}`}
+                type="button"
+                onClick={onToggleSearch}
+                aria-pressed={isSearchOpen}
+              >
+                Search
+              </button>
+            ) : null}
+            <button
+              className="button-icon"
+              type="button"
+              onClick={onOpenTeamDetails}
+            >
+              Group Details
+            </button>
+          </>
         ) : !isTextingGroupMode ? (
           <>
+            {onToggleSearch ? (
+              <button
+                className={`button-icon${isSearchOpen ? ' is-active' : ''}`}
+                type="button"
+                onClick={onToggleSearch}
+                aria-pressed={isSearchOpen}
+              >
+                Search
+              </button>
+            ) : null}
             <button className="button-icon" type="button">Notes</button>
             <button className="button-icon" type="button">Options</button>
           </>
