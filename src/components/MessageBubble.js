@@ -218,7 +218,7 @@ function MessageBubble({
   }, [copyState]);
 
   useEffect(() => {
-    if (!menuState.open) return undefined;
+    if (!menuState.open && !reactionPickerOpen) return undefined;
 
     const handlePointerDown = (event) => {
       if (
@@ -247,7 +247,7 @@ function MessageBubble({
       window.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('keydown', handleEscape);
     };
-  }, [menuState.open]);
+  }, [menuState.open, reactionPickerOpen]);
 
   useEffect(() => {
     setIsEditing(false);
