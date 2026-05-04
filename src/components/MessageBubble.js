@@ -1,5 +1,5 @@
 import { ChevronDown, Copy, Download, Pencil, Pin, PinOff, Reply, SmilePlus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const REACTION_OPTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
@@ -35,6 +35,7 @@ function MessageBubble({
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [isSavingReaction, setIsSavingReaction] = useState(false);
+  const [reactionPickerStyle, setReactionPickerStyle] = useState({});
   const bubbleShellRef = useRef(null);
   const menuRef = useRef(null);
   const reactionPickerRef = useRef(null);
@@ -134,6 +135,33 @@ function MessageBubble({
       .map((emoji) => groups.get(emoji));
   }, [currentUserId, message.reactions]);
 
+  const positionReactionPicker = useCallback(() => {
+    const pickerNode = reactionPickerRef.current;
+    const shellNode = bubbleShellRef.current;
+    if (!pickerNode || !shellNode) return;
+
+    const shellRect = shellNode.getBoundingClientRect();
+    const pickerRect = pickerNode.getBoundingClientRect();
+    const scrollContainer = shellNode.closest('.message-list');
+    const containerRect = scrollContainer?.getBoundingClientRect() || {
+      left: 8,
+      right: window.innerWidth - 8,
+    };
+    const padding = 12;
+
+    const preferredLeft = message.direction === 'outbound'
+      ? 0
+      : Math.max(0, shellRect.width - pickerRect.width);
+    const minLeft = containerRect.left + padding - shellRect.left;
+    const maxLeft = containerRect.right - padding - shellRect.left - pickerRect.width;
+    const resolvedLeft = Math.min(Math.max(preferredLeft, minLeft), Math.max(minLeft, maxLeft));
+
+    setReactionPickerStyle({
+      left: `${resolvedLeft}px`,
+      right: 'auto',
+    });
+  }, [message.direction]);
+
   const renderHighlightedBody = (body) => {
     const text = String(body || '');
     if (!normalizedSearchQuery || !text) {
@@ -228,7 +256,26 @@ function MessageBubble({
     setIsSavingEdit(false);
     setReactionPickerOpen(false);
     setIsSavingReaction(false);
+    setReactionPickerStyle({});
   }, [message._id, message.body, message.isDeleted, message.reactions]);
+
+  useEffect(() => {
+    if (!reactionPickerOpen) {
+      setReactionPickerStyle({});
+      return undefined;
+    }
+
+    const updatePosition = () => {
+      window.requestAnimationFrame(positionReactionPicker);
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [positionReactionPicker, reactionPickerOpen]);
 
   const handleCopyText = async () => {
     if (!canCopyText || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
@@ -584,6 +631,7 @@ function MessageBubble({
           <div
             ref={reactionPickerRef}
             className={`message-reaction-picker ${message.direction}`}
+            style={reactionPickerStyle}
             role="menu"
             aria-label="Message reactions"
           >
@@ -610,6 +658,12 @@ function MessageBubble({
             <span
               key={reaction.emoji}
               className={`message-reaction-chip${reaction.reactedByCurrentUser ? ' is-owned' : ''}`}
+              onContextMenu={(event) => {
+                if (!reaction.reactedByCurrentUser || isSavingReaction) return;
+                event.preventDefault();
+                handleReactionSelect(reaction.emoji);
+              }}
+              title={reaction.reactedByCurrentUser ? 'Right-click to remove your reaction' : undefined}
             >
               <span className="message-reaction-chip-emoji">{reaction.emoji}</span>
               <span className="message-reaction-chip-count">{reaction.count}</span>
