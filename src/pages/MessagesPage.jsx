@@ -294,6 +294,10 @@ const getDirectoryAgentMeta = (agentId, userDirectory = {}) => {
     return {
       name: fallbackMeta?.name || agentId,
       role: fallbackMeta?.role || '',
+      availabilityStatus: 'online',
+      connected: undefined,
+      presenceStatus: 'offline',
+      effectiveAvailabilityStatus: 'offline',
     };
   }
 
@@ -303,6 +307,10 @@ const getDirectoryAgentMeta = (agentId, userDirectory = {}) => {
   return {
     name: matchedUser.name || fallbackMeta?.name || agentId,
     role: roleLabel,
+    availabilityStatus: matchedUser.availabilityStatus || 'online',
+    connected: typeof matchedUser.connected === 'boolean' ? matchedUser.connected : undefined,
+    presenceStatus: matchedUser.presenceStatus || 'offline',
+    effectiveAvailabilityStatus: matchedUser.effectiveAvailabilityStatus || resolveEffectiveAvailabilityStatus(matchedUser),
   };
 };
 
