@@ -1,4 +1,4 @@
-import { ChevronDown, Copy, Download, Pencil, Pin, PinOff, Reply, SmilePlus, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Copy, Download, Forward, Pencil, Pin, PinOff, Reply, SmilePlus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const REACTION_OPTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -21,11 +21,15 @@ function MessageBubble({
   onDeleteMessage,
   onTogglePinMessage,
   onToggleReaction,
+  onStartForwardSelection,
   isHighlighted = false,
   searchQuery = '',
   isSearchMatch = false,
   isActiveSearchMatch = false,
   messageElementRef = null,
+  isForwardSelectionMode = false,
+  isForwardSelected = false,
+  onToggleForwardSelection,
 }) {
   const [copyState, setCopyState] = useState('idle');
   const [menuState, setMenuState] = useState({ open: false, mode: 'anchored', x: 0, y: 0 });
@@ -104,8 +108,11 @@ function MessageBubble({
   const canDelete = Boolean(isOwnInternalMessage && !isDeleted && !isSending && onDeleteMessage);
   const canTogglePin = Boolean(isInternalThread && isInternalMessage && !isDeleted && !isSending && onTogglePinMessage);
   const canReact = Boolean(isInternalThread && isInternalMessage && !isDeleted && !isSending && onToggleReaction);
+  const canForward = Boolean(isInternalThread && isInternalMessage && !isDeleted && !isSending && String(message.body || '').trim() && onStartForwardSelection);
+  const isForwardSelectable = Boolean(isForwardSelectionMode && canForward);
   const showPinnedIndicator = Boolean(isInternalThread && isInternalMessage && message.isPinned && !isDeleted);
-  const canOpenMenu = !isDeleted && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete || canTogglePin);
+  const showForwardedLabel = Boolean(isInternalThread && isInternalMessage && message.forwardedFromMessageId && !isDeleted);
+  const canOpenMenu = !isDeleted && !isForwardSelectionMode && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete || canTogglePin || canForward);
   const normalizedSearchQuery = String(searchQuery || '').trim().toLowerCase();
   const groupedReactions = useMemo(() => {
     const rawReactions = Array.isArray(message.reactions) ? message.reactions : [];
@@ -343,6 +350,12 @@ function MessageBubble({
     setMenuState((current) => ({ ...current, open: false }));
   };
 
+  const handleStartForward = () => {
+    onStartForwardSelection?.(message);
+    setReactionPickerOpen(false);
+    closeMenu();
+  };
+
   const toggleReactionPicker = () => {
     if (!canReact) return;
 
@@ -422,14 +435,21 @@ function MessageBubble({
   return (
     <div
       ref={messageElementRef}
-      className={`message-row ${message.direction}${isHighlighted ? ' is-highlighted' : ''}${isSearchMatch ? ' is-search-match' : ''}${isActiveSearchMatch ? ' is-search-match-active' : ''}`}
+      className={`message-row ${message.direction}${isHighlighted ? ' is-highlighted' : ''}${isSearchMatch ? ' is-search-match' : ''}${isActiveSearchMatch ? ' is-search-match-active' : ''}${isForwardSelectable ? ' is-forward-selectable' : ''}${isForwardSelected ? ' is-forward-selected' : ''}`}
       data-message-id={message._id || ''}
     >
       <div
         ref={bubbleShellRef}
         className={`message-bubble-shell ${message.direction}${menuState.open ? ' is-menu-open' : ''}`}
         onContextMenu={openContextMenu}
+        onClick={isForwardSelectable ? () => onToggleForwardSelection?.(message._id) : undefined}
       >
+        {isForwardSelectable ? (
+          <span className={`message-select-indicator${isForwardSelected ? ' is-selected' : ''}`} aria-hidden="true">
+            {isForwardSelected ? <Check size={13} /> : null}
+          </span>
+        ) : null}
+
         {canOpenMenu ? (
           <button
             type="button"
@@ -443,7 +463,7 @@ function MessageBubble({
           </button>
         ) : null}
 
-        {canReact ? (
+        {canReact && !isForwardSelectionMode ? (
           <button
             type="button"
             className={`message-reaction-trigger ${message.direction}${reactionPickerOpen ? ' is-open' : ''}`}
@@ -462,6 +482,10 @@ function MessageBubble({
         >
           {message.conversationType === 'team' && message.direction !== 'outbound' && message.senderName ? (
             <div className="message-author">{message.senderName}</div>
+          ) : null}
+
+          {showForwardedLabel ? (
+            <div className="message-forwarded-label">Forwarded</div>
           ) : null}
 
           {isTextingGroupMessage ? (
@@ -597,6 +621,17 @@ function MessageBubble({
               >
                 {message.isPinned ? <PinOff size={14} /> : <Pin size={14} />}
                 <span>{message.isPinned ? 'Unpin message' : 'Pin message'}</span>
+              </button>
+            ) : null}
+            {canForward ? (
+              <button
+                type="button"
+                className="message-actions-menu-item"
+                onClick={handleStartForward}
+                role="menuitem"
+              >
+                <Forward size={14} />
+                <span>Forward</span>
               </button>
             ) : null}
             {canEdit ? (

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Phone } from 'lucide-react';
+import { Check, Forward, Phone, Search, X } from 'lucide-react';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
 import MessageInput, { sendMessageRequest } from './MessageInput';
@@ -31,7 +31,8 @@ function ChatWindow({
   onCustomerMessageSent,
   assignableAgents,
   onBack,
-  showBack
+  showBack,
+  internalForwardTargets = [],
 }) {
   const bottomRef = useRef(null);
   const messageListRef = useRef(null);
@@ -52,6 +53,12 @@ function ChatWindow({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  const [isForwardSelectionMode, setIsForwardSelectionMode] = useState(false);
+  const [selectedForwardMessageIds, setSelectedForwardMessageIds] = useState([]);
+  const [showForwardPicker, setShowForwardPicker] = useState(false);
+  const [forwardSearchQuery, setForwardSearchQuery] = useState('');
+  const [selectedForwardTargetKeys, setSelectedForwardTargetKeys] = useState([]);
+  const [isForwardingMessages, setIsForwardingMessages] = useState(false);
 
   const safeMessages = useMemo(() => messages || [], [messages]);
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
@@ -273,6 +280,12 @@ function ChatWindow({
     setCurrentSearchIndex(0);
     setSearchQuery('');
     setIsSearchOpen(false);
+    setIsForwardSelectionMode(false);
+    setSelectedForwardMessageIds([]);
+    setShowForwardPicker(false);
+    setForwardSearchQuery('');
+    setSelectedForwardTargetKeys([]);
+    setIsForwardingMessages(false);
     messageRefs.current = {};
     window.clearTimeout(highlightTimeoutRef.current);
   }, [chat?.conversationId, chat?.phone, chat?.textingGroupId]);
@@ -626,6 +639,190 @@ function ChatWindow({
     handleNextSearchMatch();
   }, [handleCloseSearch, handleNextSearchMatch, handlePreviousSearchMatch]);
 
+  const forwardableMessages = useMemo(() => (
+    isInternalThread
+      ? safeMessages.filter((item) => (
+        item?._id
+        && !item?.isDeleted
+        && item?.status !== 'sending'
+        && String(item?.body || '').trim()
+      ))
+      : []
+  ), [isInternalThread, safeMessages]);
+
+  const forwardableMessageIds = useMemo(
+    () => new Set(forwardableMessages.map((item) => item._id)),
+    [forwardableMessages]
+  );
+
+  useEffect(() => {
+    if (!isForwardSelectionMode) return;
+
+    setSelectedForwardMessageIds((prev) => prev.filter((messageId) => forwardableMessageIds.has(messageId)));
+  }, [forwardableMessageIds, isForwardSelectionMode]);
+
+  const selectedForwardMessages = useMemo(() => (
+    forwardableMessages
+      .filter((item) => selectedForwardMessageIds.includes(item._id))
+      .sort((left, right) => new Date(left?.createdAt || 0) - new Date(right?.createdAt || 0))
+  ), [forwardableMessages, selectedForwardMessageIds]);
+
+  const selectedForwardCount = selectedForwardMessages.length;
+
+  const forwardTargets = useMemo(() => (
+    isInternalThread
+      ? internalForwardTargets
+        .filter((target) => target?.conversationId && (target.conversationType === 'internal_dm' || target.conversationType === 'team'))
+        .map((target) => ({
+          ...target,
+          forwardKey: `${target.conversationType}:${target.conversationId}`,
+        }))
+      : []
+  ), [internalForwardTargets, isInternalThread]);
+
+  const filteredForwardTargets = useMemo(() => {
+    const normalizedQuery = forwardSearchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return forwardTargets;
+
+    return forwardTargets.filter((target) => (
+      [
+        target?.name,
+        target?.title,
+        target?.subtitle,
+        target?.teamName,
+        target?.agentId,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(normalizedQuery)
+    ));
+  }, [forwardSearchQuery, forwardTargets]);
+
+  const selectedForwardTargets = useMemo(() => {
+    const selectedKeys = new Set(selectedForwardTargetKeys);
+    return forwardTargets.filter((target) => selectedKeys.has(target.forwardKey));
+  }, [forwardTargets, selectedForwardTargetKeys]);
+
+  const handleCancelForwardSelection = useCallback(() => {
+    setIsForwardSelectionMode(false);
+    setSelectedForwardMessageIds([]);
+    setShowForwardPicker(false);
+    setForwardSearchQuery('');
+    setSelectedForwardTargetKeys([]);
+    setIsForwardingMessages(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isForwardSelectionMode || selectedForwardMessageIds.length > 0) return;
+    handleCancelForwardSelection();
+  }, [handleCancelForwardSelection, isForwardSelectionMode, selectedForwardMessageIds.length]);
+
+  const handleStartForwardSelection = useCallback((message) => {
+    const messageId = message?._id;
+    if (!messageId || !forwardableMessageIds.has(messageId)) return;
+
+    setReplyTarget(null);
+    setIsForwardSelectionMode(true);
+    setShowForwardPicker(false);
+    setForwardSearchQuery('');
+    setSelectedForwardTargetKeys([]);
+    setSelectedForwardMessageIds([messageId]);
+  }, [forwardableMessageIds]);
+
+  const handleToggleForwardMessage = useCallback((messageId) => {
+    if (!isForwardSelectionMode || !messageId || !forwardableMessageIds.has(messageId)) return;
+
+    setSelectedForwardMessageIds((prev) => {
+      return prev.includes(messageId)
+        ? prev.filter((item) => item !== messageId)
+        : [...prev, messageId];
+    });
+  }, [forwardableMessageIds, isForwardSelectionMode]);
+
+  const handleOpenForwardPicker = useCallback(() => {
+    if (!isInternalThread || selectedForwardCount === 0) return;
+    setShowForwardPicker(true);
+  }, [isInternalThread, selectedForwardCount]);
+
+  const handleCloseForwardPicker = useCallback(() => {
+    if (isForwardingMessages) return;
+    setShowForwardPicker(false);
+    setForwardSearchQuery('');
+    setSelectedForwardTargetKeys([]);
+  }, [isForwardingMessages]);
+
+  const handleToggleForwardTarget = useCallback((targetKey) => {
+    if (!targetKey) return;
+
+    setSelectedForwardTargetKeys((prev) => (
+      prev.includes(targetKey)
+        ? prev.filter((item) => item !== targetKey)
+        : [...prev, targetKey]
+    ));
+  }, []);
+
+  const handleConfirmForward = useCallback(async () => {
+    if (!isInternalThread || selectedForwardMessages.length === 0 || selectedForwardTargets.length === 0 || isForwardingMessages) {
+      return;
+    }
+
+    setIsForwardingMessages(true);
+
+    try {
+      for (const target of selectedForwardTargets) {
+        for (const sourceMessage of selectedForwardMessages) {
+          const forwardedMessage = await sendMessageRequest(
+            {
+              chatId: target.conversationId,
+              conversationType: target.conversationType,
+              userId: currentUserId,
+              role: currentUserRole,
+              teamName: target.conversationType === 'team' ? (target.teamName || target.name || '') : '',
+              forwardedFromMessageId: sourceMessage._id,
+            },
+            sourceMessage.body
+          );
+
+          if (
+            target.conversationId === chat?.conversationId
+            && target.conversationType === (chat?.conversationType || 'customer')
+          ) {
+            setMessages((prev) => {
+              const exists = prev.some((item) => item._id === forwardedMessage?._id || item.sid === forwardedMessage?.sid);
+              if (exists) return prev;
+
+              return [
+                ...prev,
+                {
+                  ...forwardedMessage,
+                  direction: forwardedMessage.senderId && forwardedMessage.senderId !== currentUserId ? 'inbound' : 'outbound',
+                },
+              ];
+            });
+          }
+        }
+      }
+
+      handleCancelForwardSelection();
+    } catch (error) {
+      console.error('Forward messages failed:', error);
+    } finally {
+      setIsForwardingMessages(false);
+    }
+  }, [
+    chat?.conversationId,
+    chat?.conversationType,
+    currentUserId,
+    currentUserRole,
+    handleCancelForwardSelection,
+    isForwardingMessages,
+    isInternalThread,
+    selectedForwardMessages,
+    selectedForwardTargets,
+    setMessages,
+  ]);
+
   if (!chat) {
     const textingGroupEmptyTitle = selectedTextingGroup ? 'No shared threads found' : 'Select a texting group';
     const textingGroupEmptySubtitle = selectedTextingGroup
@@ -911,10 +1108,14 @@ function ChatWindow({
                   onToggleReaction={handleToggleReaction}
                   onEditMessage={handleEditMessage}
                   onDeleteMessage={requestDeleteMessage}
+                  onStartForwardSelection={handleStartForwardSelection}
                   isHighlighted={highlightedMessageId === item._id}
                   searchQuery={isInternalThread ? normalizedSearchQuery : ''}
                   isSearchMatch={searchMatches.includes(item._id)}
                   isActiveSearchMatch={activeSearchMessageId === item._id}
+                  isForwardSelectionMode={isForwardSelectionMode}
+                  isForwardSelected={selectedForwardMessageIds.includes(item._id)}
+                  onToggleForwardSelection={handleToggleForwardMessage}
                   messageElementRef={(node) => {
                     if (!item._id) return;
                     if (node) {
@@ -961,6 +1162,36 @@ function ChatWindow({
         </div>
       </div>
 
+      {isInternalThread && isForwardSelectionMode ? (
+        <div className="chat-forward-bar" role="status" aria-live="polite">
+          <div className="chat-forward-bar-count">
+            {selectedForwardCount} selected
+          </div>
+          <div className="chat-forward-bar-actions">
+            <button
+              type="button"
+              className="chat-forward-action is-muted"
+              onClick={handleCancelForwardSelection}
+              disabled={isForwardingMessages}
+              aria-label="Cancel forwarding"
+            >
+              <X size={16} />
+              <span>Cancel</span>
+            </button>
+            <button
+              type="button"
+              className="chat-forward-action is-primary"
+              onClick={handleOpenForwardPicker}
+              disabled={selectedForwardCount === 0 || isForwardingMessages}
+              aria-label="Forward selected messages"
+            >
+              <Forward size={16} />
+              <span>Forward</span>
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <MessageInput
         chatId={isCustomerChat ? chat.phone : chat.conversationId}
         conversationType={chat.conversationType || 'customer'}
@@ -1003,6 +1234,87 @@ function ChatWindow({
           });
         }}
       />
+
+      {showForwardPicker ? (
+        <div
+          className="messages-picker-overlay"
+          onClick={handleCloseForwardPicker}
+        >
+          <div
+            className="messages-picker-modal chat-forward-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="messages-picker-header">
+              <h3>Forward Messages</h3>
+              <p>Select internal chats or team chats to forward to.</p>
+            </div>
+
+            <div className="messages-picker-search">
+              <label className="messages-picker-search-field" htmlFor="forward-recipient-search">
+                <Search size={15} />
+                <input
+                  id="forward-recipient-search"
+                  type="search"
+                  value={forwardSearchQuery}
+                  onChange={(event) => setForwardSearchQuery(event.target.value)}
+                  placeholder="Search recipients"
+                  aria-label="Search forward recipients"
+                />
+              </label>
+            </div>
+
+            <div className="messages-picker-list chat-forward-target-list">
+              {filteredForwardTargets.length === 0 ? (
+                <div className="messages-picker-empty">
+                  No internal recipients match this search.
+                </div>
+              ) : (
+                filteredForwardTargets.map((target) => {
+                  const isSelected = selectedForwardTargetKeys.includes(target.forwardKey);
+
+                  return (
+                    <button
+                      key={target.forwardKey}
+                      type="button"
+                      className={`messages-picker-option chat-forward-target${isSelected ? ' is-selected' : ''}`}
+                      onClick={() => handleToggleForwardTarget(target.forwardKey)}
+                    >
+                      <span className="chat-forward-target-copy">
+                        <span className="messages-picker-option-name">{target.name}</span>
+                        <span className="messages-picker-option-role">{target.subtitle || (target.conversationType === 'team' ? 'Team chat' : 'Internal chat')}</span>
+                      </span>
+                      <span className={`chat-forward-target-check${isSelected ? ' is-selected' : ''}`} aria-hidden="true">
+                        {isSelected ? <Check size={12} /> : null}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="messages-picker-footer">
+              <button
+                type="button"
+                className="messages-picker-cancel"
+                onClick={handleCloseForwardPicker}
+                disabled={isForwardingMessages}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="chat-forward-confirm"
+                onClick={handleConfirmForward}
+                disabled={selectedForwardTargetKeys.length === 0 || isForwardingMessages}
+              >
+                {isForwardingMessages
+                  ? 'Forwarding...'
+                  : `Forward to ${selectedForwardTargetKeys.length || 0} ${selectedForwardTargetKeys.length === 1 ? 'chat' : 'chats'}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {pendingDeleteMessage ? (
         <div

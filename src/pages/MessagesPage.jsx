@@ -1142,6 +1142,14 @@ function MessagesPage({
     [currentAuthUserDbId, currentUserId, teammates]
   );
 
+  const internalForwardTargets = useMemo(
+    () => internalChats
+      .map((conversation) => normalizeInternalConversation(conversation, currentUserId, workspaceUserDirectory))
+      .filter((conversation) => Boolean(conversation?.conversationId))
+      .sort((left, right) => String(left?.name || '').localeCompare(String(right?.name || ''))),
+    [currentUserId, internalChats, workspaceUserDirectory]
+  );
+
   const teammatePickerOptions = useMemo(() => {
     const normalizedQuery = teammatePickerQuery.trim().toLowerCase();
     if (!normalizedQuery) return teammateOptions;
@@ -2747,6 +2755,7 @@ function MessagesPage({
                   upsertDirectConversationPreview(message, { markAsRead: true });
                 }}
                 assignableAgents={assignableAgents}
+                internalForwardTargets={[]}
                 onBack={() => setActiveChatId(null)}
                 showBack={isChatOpen}
               />
@@ -2772,6 +2781,7 @@ function MessagesPage({
             onUpdateAssignmentStatus={handleUpdateAssignmentStatus}
             onAddUserToContacts={(payload) => handleOpenSmsContactModal(payload)}
             assignableAgents={assignableAgents}
+            internalForwardTargets={internalForwardTargets}
             onBack={() => setActiveChatId(null)}
             showBack={isChatOpen}
           />

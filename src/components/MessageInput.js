@@ -21,6 +21,7 @@ export const sendMessageRequest = async (to, message, mediaUrl) => {
         conversationId: to.chatId,
         userId: to.userId,
         body: message,
+        ...(to.forwardedFromMessageId ? { forwardedFromMessageId: to.forwardedFromMessageId } : {}),
         ...(to.teamName ? { teamName: to.teamName } : {}),
         ...(to.textingGroupId ? { textingGroupId: to.textingGroupId } : {}),
         ...(to.senderName ? { senderName: to.senderName } : {}),
