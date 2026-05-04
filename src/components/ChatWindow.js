@@ -388,6 +388,33 @@ function ChatWindow({
     return payload;
   }, [currentUserId, currentUserRole, isInternalThread, setMessages]);
 
+  const handleToggleReaction = useCallback(async (message, emoji) => {
+    if (!isInternalThread || !message?._id || !emoji) {
+      throw new Error('Reactions are only available for internal messages');
+    }
+
+    const response = await fetch(`${BASE_URL}/api/messages/message/${encodeURIComponent(message._id)}/reaction`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: currentUserId,
+        role: currentUserRole,
+        emoji,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Failed to update reaction');
+    }
+
+    setMessages((prev) => prev.map((item) => (
+      item._id === payload._id ? { ...item, ...payload } : item
+    )));
+
+    return payload;
+  }, [currentUserId, currentUserRole, isInternalThread, setMessages]);
+
   const requestDeleteMessage = useCallback((message) => {
     if (!isInternalThread || !message?._id) return;
     setPendingDeleteMessage(message);
@@ -881,6 +908,7 @@ function ChatWindow({
                   currentUserId={currentUserId}
                   isInternalThread={isInternalThread}
                   onTogglePinMessage={handleTogglePinMessage}
+                  onToggleReaction={handleToggleReaction}
                   onEditMessage={handleEditMessage}
                   onDeleteMessage={requestDeleteMessage}
                   isHighlighted={highlightedMessageId === item._id}

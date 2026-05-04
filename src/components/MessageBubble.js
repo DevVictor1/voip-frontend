@@ -1,5 +1,7 @@
-import { ChevronDown, Copy, Download, Pencil, Pin, PinOff, Reply, Trash2 } from 'lucide-react';
+import { ChevronDown, Copy, Download, Pencil, Pin, PinOff, Reply, SmilePlus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+
+const REACTION_OPTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 const formatSmsContextNumber = (primary, fallback) => {
   return String(primary || fallback || '').trim() || 'unknown number';
@@ -18,6 +20,7 @@ function MessageBubble({
   onEditMessage,
   onDeleteMessage,
   onTogglePinMessage,
+  onToggleReaction,
   isHighlighted = false,
   searchQuery = '',
   isSearchMatch = false,
@@ -30,8 +33,11 @@ function MessageBubble({
   const [editValue, setEditValue] = useState('');
   const [editError, setEditError] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+  const [isSavingReaction, setIsSavingReaction] = useState(false);
   const bubbleShellRef = useRef(null);
   const menuRef = useRef(null);
+  const reactionPickerRef = useRef(null);
   const isInternalMessage = message.conversationType === 'internal_dm' || message.conversationType === 'team';
   const isTextingGroupMessage = Boolean(
     isTextingGroupThread
@@ -96,9 +102,37 @@ function MessageBubble({
   const canEdit = Boolean(isOwnInternalMessage && !isDeleted && !isSending && onEditMessage);
   const canDelete = Boolean(isOwnInternalMessage && !isDeleted && !isSending && onDeleteMessage);
   const canTogglePin = Boolean(isInternalThread && isInternalMessage && !isDeleted && !isSending && onTogglePinMessage);
+  const canReact = Boolean(isInternalThread && isInternalMessage && !isDeleted && !isSending && onToggleReaction);
   const showPinnedIndicator = Boolean(isInternalThread && isInternalMessage && message.isPinned && !isDeleted);
   const canOpenMenu = !isDeleted && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete || canTogglePin);
   const normalizedSearchQuery = String(searchQuery || '').trim().toLowerCase();
+  const groupedReactions = useMemo(() => {
+    const rawReactions = Array.isArray(message.reactions) ? message.reactions : [];
+    if (rawReactions.length === 0) return [];
+
+    const groups = new Map();
+    rawReactions.forEach((reaction) => {
+      const emoji = String(reaction?.emoji || '').trim();
+      if (!emoji) return;
+
+      const current = groups.get(emoji) || {
+        emoji,
+        count: 0,
+        reactedByCurrentUser: false,
+      };
+
+      current.count += 1;
+      if (reaction?.userId && reaction.userId === currentUserId) {
+        current.reactedByCurrentUser = true;
+      }
+
+      groups.set(emoji, current);
+    });
+
+    return REACTION_OPTIONS
+      .filter((emoji) => groups.has(emoji))
+      .map((emoji) => groups.get(emoji));
+  }, [currentUserId, message.reactions]);
 
   const renderHighlightedBody = (body) => {
     const text = String(body || '');
@@ -161,17 +195,20 @@ function MessageBubble({
     const handlePointerDown = (event) => {
       if (
         menuRef.current?.contains(event.target)
+        || reactionPickerRef.current?.contains(event.target)
         || bubbleShellRef.current?.contains(event.target)
       ) {
         return;
       }
 
       setMenuState((current) => ({ ...current, open: false }));
+      setReactionPickerOpen(false);
     };
 
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
         setMenuState((current) => ({ ...current, open: false }));
+        setReactionPickerOpen(false);
       }
     };
 
@@ -189,7 +226,9 @@ function MessageBubble({
     setEditValue('');
     setEditError('');
     setIsSavingEdit(false);
-  }, [message._id, message.body, message.isDeleted]);
+    setReactionPickerOpen(false);
+    setIsSavingReaction(false);
+  }, [message._id, message.body, message.isDeleted, message.reactions]);
 
   const handleCopyText = async () => {
     if (!canCopyText || typeof navigator === 'undefined' || !navigator.clipboard?.writeText) return;
@@ -212,6 +251,7 @@ function MessageBubble({
   const openAnchoredMenu = () => {
     if (!canOpenMenu) return;
 
+    setReactionPickerOpen(false);
     setMenuState((current) => ({
       open: !current.open || current.mode !== 'anchored',
       mode: 'anchored',
@@ -224,6 +264,7 @@ function MessageBubble({
     if (!canOpenMenu) return;
 
     event.preventDefault();
+    setReactionPickerOpen(false);
 
     const bounds = bubbleShellRef.current?.getBoundingClientRect();
     if (!bounds) {
@@ -253,6 +294,29 @@ function MessageBubble({
 
   const closeMenu = () => {
     setMenuState((current) => ({ ...current, open: false }));
+  };
+
+  const toggleReactionPicker = () => {
+    if (!canReact) return;
+
+    setReactionPickerOpen((current) => !current);
+    if (menuState.open) {
+      closeMenu();
+    }
+  };
+
+  const handleReactionSelect = async (emoji) => {
+    if (!canReact || !emoji || isSavingReaction) return;
+
+    try {
+      setIsSavingReaction(true);
+      await onToggleReaction?.(message, emoji);
+      setReactionPickerOpen(false);
+    } catch (error) {
+      console.error('Reaction update failed:', error);
+    } finally {
+      setIsSavingReaction(false);
+    }
   };
 
   const handleReply = () => {
@@ -329,6 +393,19 @@ function MessageBubble({
             aria-label="Open message actions"
           >
             <ChevronDown size={14} />
+          </button>
+        ) : null}
+
+        {canReact ? (
+          <button
+            type="button"
+            className={`message-reaction-trigger ${message.direction}${reactionPickerOpen ? ' is-open' : ''}`}
+            onClick={toggleReactionPicker}
+            aria-haspopup="menu"
+            aria-expanded={reactionPickerOpen}
+            aria-label="Add reaction"
+          >
+            <SmilePlus size={14} />
           </button>
         ) : null}
 
@@ -502,7 +579,44 @@ function MessageBubble({
             ) : null}
           </div>
         ) : null}
+
+        {reactionPickerOpen ? (
+          <div
+            ref={reactionPickerRef}
+            className={`message-reaction-picker ${message.direction}`}
+            role="menu"
+            aria-label="Message reactions"
+          >
+            {REACTION_OPTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                className="message-reaction-option"
+                onClick={() => handleReactionSelect(emoji)}
+                disabled={isSavingReaction}
+                role="menuitem"
+                aria-label={`React with ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
+
+      {groupedReactions.length > 0 ? (
+        <div className="message-reactions" aria-label="Message reactions">
+          {groupedReactions.map((reaction) => (
+            <span
+              key={reaction.emoji}
+              className={`message-reaction-chip${reaction.reactedByCurrentUser ? ' is-owned' : ''}`}
+            >
+              <span className="message-reaction-chip-emoji">{reaction.emoji}</span>
+              <span className="message-reaction-chip-count">{reaction.count}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       {isTextingGroupMessage && message.direction !== 'outbound' && showAddUserToContacts ? (
         <div className="message-inline-actions">
