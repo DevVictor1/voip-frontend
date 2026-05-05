@@ -5,6 +5,8 @@ import { getStoredAuthToken } from '../services/auth';
 
 const REACTION_OPTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
+const MESSAGE_URL_PATTERN = /(https?:\/\/[^\s<>"')]+)/gi;
+
 const formatSmsContextNumber = (primary, fallback) => {
   return String(primary || fallback || '').trim() || 'unknown number';
 };
@@ -109,11 +111,20 @@ function MessageBubble({
   const attachment = message?.attachment && typeof message.attachment === 'object'
     ? message.attachment
     : null;
+  const linkPreview = message?.linkPreview && typeof message.linkPreview === 'object'
+    ? message.linkPreview
+    : null;
   const attachmentUrl = String(attachment?.fileUrl || '').trim();
   const attachmentName = String(attachment?.fileName || '').trim();
   const attachmentType = String(attachment?.fileType || '').trim();
   const attachmentSize = formatAttachmentSize(attachment?.fileSize || 0);
   const attachmentKind = getAttachmentKind(attachmentType, attachmentName);
+  const linkPreviewUrl = String(linkPreview?.url || '').trim();
+  const linkPreviewTitle = String(linkPreview?.title || '').trim();
+  const linkPreviewDescription = String(linkPreview?.description || '').trim();
+  const linkPreviewSiteName = String(linkPreview?.siteName || '').trim();
+  const linkPreviewDomain = String(linkPreview?.domain || '').trim();
+  const linkPreviewImage = String(linkPreview?.image || '').trim();
 
   const getStatusMeta = () => {
     if (message.direction !== 'outbound') return null;
@@ -300,14 +311,58 @@ function MessageBubble({
     return parts;
   };
 
+  const renderTextWithLinks = (text, keyPrefix) => {
+    const safeText = String(text || '');
+    if (!safeText) {
+      return safeText;
+    }
+
+    const parts = [];
+    let cursor = 0;
+    let match;
+    let matchIndex = 0;
+
+    while ((match = MESSAGE_URL_PATTERN.exec(safeText)) !== null) {
+      const url = String(match[0] || '').trim();
+      if (!url) continue;
+
+      const startIndex = match.index;
+      if (startIndex > cursor) {
+        parts.push(...[].concat(renderSearchHighlights(safeText.slice(cursor, startIndex), `${keyPrefix}-text-${matchIndex}`)));
+      }
+
+      parts.push(
+        <a
+          key={`${keyPrefix}-link-${matchIndex}`}
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="message-inline-link"
+        >
+          {url}
+        </a>
+      );
+
+      cursor = startIndex + url.length;
+      matchIndex += 1;
+    }
+
+    if (cursor < safeText.length) {
+      parts.push(...[].concat(renderSearchHighlights(safeText.slice(cursor), `${keyPrefix}-tail-${matchIndex}`)));
+    }
+
+    MESSAGE_URL_PATTERN.lastIndex = 0;
+    return parts.length > 0 ? parts : safeText;
+  };
+
   const renderHighlightedBody = (body) => {
     const text = String(body || '');
     if (!normalizedSearchQuery || !text) {
-      if (!isTeamMessage) return text;
+      if (!isTeamMessage) return renderTextWithLinks(text, 'body');
     }
 
     if (!isTeamMessage) {
-      return renderSearchHighlights(text, 'body');
+      return renderTextWithLinks(text, 'body');
     }
 
     const mentionPattern = /(@[A-Za-z0-9._-]+)/g;
@@ -327,7 +382,7 @@ function MessageBubble({
         return;
       }
 
-      parts.push(...[].concat(renderSearchHighlights(segment, `body-${index}`)));
+      parts.push(...[].concat(renderTextWithLinks(segment, `body-${index}`)));
     });
 
     return parts;
@@ -860,6 +915,38 @@ function MessageBubble({
                     {attachmentAction === 'open' ? 'Opening...' : attachmentAction === 'download' ? 'Preparing...' : 'Open'}
                   </span>
                 </button>
+              ) : null}
+              {linkPreviewUrl && !isDeleted ? (
+                <a
+                  className="message-link-preview-card"
+                  href={linkPreviewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {linkPreviewImage ? (
+                    <span className="message-link-preview-media">
+                      <img
+                        src={linkPreviewImage}
+                        alt=""
+                        className="message-link-preview-image"
+                        loading="lazy"
+                      />
+                    </span>
+                  ) : null}
+                  <span className="message-link-preview-copy">
+                    <span className="message-link-preview-domain">
+                      {linkPreviewSiteName || linkPreviewDomain || 'Link preview'}
+                    </span>
+                    <span className="message-link-preview-title">
+                      {linkPreviewTitle || linkPreviewUrl}
+                    </span>
+                    {linkPreviewDescription ? (
+                      <span className="message-link-preview-description">
+                        {linkPreviewDescription}
+                      </span>
+                    ) : null}
+                  </span>
+                </a>
               ) : null}
               {String(message.body || '').trim() ? (
                 <div className="message-body">{renderHighlightedBody(message.body)}</div>
