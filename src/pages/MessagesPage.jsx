@@ -47,13 +47,14 @@ const emptyTeamCalendarForm = {
   description: '',
 };
 
-const TEAM_CALENDAR_LOCAL_TZ = (() => {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'your local timezone';
-  } catch (error) {
-    return 'your local timezone';
-  }
-})();
+const TEAM_CALENDAR_TIMEZONE_OPTIONS = [
+  { value: 'America/New_York', label: 'US Eastern Time' },
+  { value: 'America/Chicago', label: 'US Central Time' },
+  { value: 'America/Los_Angeles', label: 'US Pacific Time' },
+  { value: 'Asia/Ho_Chi_Minh', label: 'Vietnam Time' },
+];
+
+const DEFAULT_TEAM_CALENDAR_TIMEZONE = 'America/New_York';
 
 const toLocalDateInputValue = (date = new Date()) => {
   const year = date.getFullYear();
@@ -82,16 +83,69 @@ const buildDefaultTeamCalendarForm = () => {
   };
 };
 
-const buildEventDateTime = (dateValue, timeValue) => {
-  if (!dateValue || !timeValue) return '';
-  return new Date(`${dateValue}T${timeValue}`).toISOString();
+const getCalendarTimezoneLabel = (value) => {
+  return TEAM_CALENDAR_TIMEZONE_OPTIONS.find((option) => option.value === value)?.label || 'US Eastern Time';
 };
 
-const formatCalendarEventDate = (value) => {
+const getFormatterPartsAsObject = (date, timeZone) => {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+
+  return formatter.formatToParts(date).reduce((acc, part) => {
+    if (part.type !== 'literal') {
+      acc[part.type] = part.value;
+    }
+    return acc;
+  }, {});
+};
+
+const buildUtcDateFromParts = (parts) => {
+  return Date.UTC(
+    Number(parts.year || 0),
+    Number(parts.month || 1) - 1,
+    Number(parts.day || 1),
+    Number(parts.hour || 0),
+    Number(parts.minute || 0),
+    0,
+    0
+  );
+};
+
+const buildEventDateTime = (dateValue, timeValue, timeZone = DEFAULT_TEAM_CALENDAR_TIMEZONE) => {
+  if (!dateValue || !timeValue) return '';
+
+  const [year, month, day] = String(dateValue || '').split('-').map((value) => Number(value));
+  const [hour, minute] = String(timeValue || '').split(':').map((value) => Number(value));
+
+  if (![year, month, day, hour, minute].every((value) => Number.isFinite(value))) {
+    return '';
+  }
+
+  const desiredUtcValue = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+  let guess = desiredUtcValue;
+
+  for (let index = 0; index < 2; index += 1) {
+    const parts = getFormatterPartsAsObject(new Date(guess), timeZone);
+    const asUtc = buildUtcDateFromParts(parts);
+    guess += desiredUtcValue - asUtc;
+  }
+
+  return new Date(guess).toISOString();
+};
+
+const formatCalendarEventDate = (value, timeZone = DEFAULT_TEAM_CALENDAR_TIMEZONE) => {
   const date = value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return '';
 
   return date.toLocaleDateString([], {
+    timeZone,
     weekday: 'short',
     month: 'short',
     day: 'numeric',
@@ -99,11 +153,12 @@ const formatCalendarEventDate = (value) => {
   });
 };
 
-const formatCalendarEventTime = (value) => {
+const formatCalendarEventTime = (value, timeZone = DEFAULT_TEAM_CALENDAR_TIMEZONE) => {
   const date = value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return '';
 
   return date.toLocaleTimeString([], {
+    timeZone,
     hour: 'numeric',
     minute: '2-digit',
   });
@@ -1841,6 +1896,7 @@ function MessagesPage({
         conversationId: payload.conversationId || conversationId,
         teamId: payload.teamId || conversationId,
         teamName: payload.teamName || 'Group calendar',
+        calendarTimezone: payload.calendarTimezone || DEFAULT_TEAM_CALENDAR_TIMEZONE,
       });
       setTeamCalendarEvents(Array.isArray(payload?.events) ? payload.events : []);
       return payload;
@@ -1885,8 +1941,9 @@ function MessagesPage({
 
       const title = String(teamCalendarForm.title || '').trim();
       const description = String(teamCalendarForm.description || '').trim();
-      const startAt = buildEventDateTime(teamCalendarForm.date, teamCalendarForm.startTime);
-      const endAt = buildEventDateTime(teamCalendarForm.date, teamCalendarForm.endTime);
+      const selectedTimezone = teamCalendarData?.calendarTimezone || DEFAULT_TEAM_CALENDAR_TIMEZONE;
+      const startAt = buildEventDateTime(teamCalendarForm.date, teamCalendarForm.startTime, selectedTimezone);
+      const endAt = buildEventDateTime(teamCalendarForm.date, teamCalendarForm.endTime, selectedTimezone);
 
       if (!title || !teamCalendarForm.date || !teamCalendarForm.startTime || !teamCalendarForm.endTime) {
         setTeamCalendarFormError('Fill in the event title, date, start time, and end time');
@@ -1929,7 +1986,7 @@ function MessagesPage({
     } finally {
       setTeamCalendarSaving(false);
     }
-  }, [activeTeamConversationId, applyTeamCalendarMutation, currentRole, currentUserId, teamCalendarData?.conversationId, teamCalendarForm, teamCalendarSaving]);
+  }, [activeTeamConversationId, applyTeamCalendarMutation, currentRole, currentUserId, teamCalendarData?.calendarTimezone, teamCalendarData?.conversationId, teamCalendarForm, teamCalendarSaving]);
 
   const handleDeleteTeamCalendarEvent = useCallback(async (eventId) => {
     const conversationId = activeTeamConversationId || teamCalendarData?.conversationId;
@@ -2012,6 +2069,47 @@ function MessagesPage({
       setTeamCalendarSaving(false);
     }
   }, [activeTeamConversationId, currentRole, currentUserId, teamCalendarData?.conversationId, teamCalendarSaving]);
+
+  const handleTeamCalendarTimezoneChange = useCallback(async (nextTimezone) => {
+    const conversationId = activeTeamConversationId || teamCalendarData?.conversationId;
+    if (!conversationId || !nextTimezone || teamCalendarSaving) return;
+    if ((teamCalendarData?.calendarTimezone || DEFAULT_TEAM_CALENDAR_TIMEZONE) === nextTimezone) return;
+
+    try {
+      setTeamCalendarSaving(true);
+      setTeamCalendarError('');
+      setTeamCalendarSuccess('');
+
+      const res = await fetch(`${BASE_URL}/api/messages/team/${encodeURIComponent(conversationId)}/calendar/timezone`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          role: currentRole,
+          calendarTimezone: nextTimezone,
+        }),
+      });
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to update calendar timezone');
+      }
+
+      setTeamCalendarData((prev) => ({
+        ...(prev || {}),
+        conversationId: prev?.conversationId || conversationId,
+        teamId: prev?.teamId || conversationId,
+        teamName: prev?.teamName || 'Group calendar',
+        calendarTimezone: payload?.calendarTimezone || nextTimezone,
+      }));
+      setTeamCalendarSuccess(`Calendar timezone updated to ${getCalendarTimezoneLabel(payload?.calendarTimezone || nextTimezone)}`);
+    } catch (error) {
+      console.error('Update team calendar timezone error:', error);
+      setTeamCalendarError(error.message || 'Failed to update calendar timezone');
+    } finally {
+      setTeamCalendarSaving(false);
+    }
+  }, [activeTeamConversationId, currentRole, currentUserId, teamCalendarData?.calendarTimezone, teamCalendarData?.conversationId, teamCalendarSaving]);
 
   const toggleTeamDetailsMember = useCallback((agentId) => {
     if (!agentId) return;
@@ -2675,6 +2773,17 @@ function MessagesPage({
       const targetEventId = String(payload?.eventId || updatedEvent?._id || '').trim();
 
       if (showTeamCalendar && teamCalendarData?.conversationId === conversationId) {
+        if (payload?.calendarTimezone) {
+          setTeamCalendarData((prev) => (
+            prev
+              ? {
+                  ...prev,
+                  calendarTimezone: payload.calendarTimezone,
+                }
+              : prev
+          ));
+        }
+
         if (action === 'deleted' && targetEventId) {
           setTeamCalendarEvents((prev) => prev.filter((event) => String(event?._id || '') !== targetEventId));
           return;
@@ -4015,7 +4124,23 @@ function MessagesPage({
 
             <div className="team-calendar-body">
               <div className="team-calendar-timezone-note">
-                Times are shown in your local timezone: {TEAM_CALENDAR_LOCAL_TZ}
+                <div className="team-calendar-timezone-copy">
+                  Calendar timezone: {getCalendarTimezoneLabel(teamCalendarData?.calendarTimezone || DEFAULT_TEAM_CALENDAR_TIMEZONE)}
+                </div>
+                <label className="team-calendar-timezone-select">
+                  <span>Timezone</span>
+                  <select
+                    value={teamCalendarData?.calendarTimezone || DEFAULT_TEAM_CALENDAR_TIMEZONE}
+                    onChange={(event) => handleTeamCalendarTimezoneChange(event.target.value)}
+                    disabled={teamCalendarSaving}
+                  >
+                    {TEAM_CALENDAR_TIMEZONE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
 
               {teamCalendarSuccess ? (
@@ -4059,10 +4184,12 @@ function MessagesPage({
                                   <span className="team-calendar-pinned-badge">Pinned</span>
                                 ) : null}
                               </div>
-                              <div className="team-calendar-event-date">{formatCalendarEventDate(event.startAt)}</div>
+                              <div className="team-calendar-event-date">
+                                {formatCalendarEventDate(event.startAt, teamCalendarData?.calendarTimezone || DEFAULT_TEAM_CALENDAR_TIMEZONE)}
+                              </div>
                             </div>
                             <div className="team-calendar-event-time">
-                              {formatCalendarEventTime(event.startAt)} to {formatCalendarEventTime(event.endAt)}
+                              {formatCalendarEventTime(event.startAt, teamCalendarData?.calendarTimezone || DEFAULT_TEAM_CALENDAR_TIMEZONE)} to {formatCalendarEventTime(event.endAt, teamCalendarData?.calendarTimezone || DEFAULT_TEAM_CALENDAR_TIMEZONE)}
                             </div>
                             {event.description ? (
                               <div className="team-calendar-event-description">{event.description}</div>
