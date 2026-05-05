@@ -166,8 +166,10 @@ function ContactsList({
                         initialsClassName="contact-avatar-initials"
                       />
                     ) : isInternalTeamsList && item.conversationType === 'team' ? (
-                      <span className="contact-avatar contact-avatar-team" aria-hidden="true">
-                        <Users size={16} strokeWidth={2.1} />
+                      <span className="contact-team-avatar" aria-hidden="true">
+                        <span className="contact-team-avatar-icon">
+                          <Users size={16} strokeWidth={2.1} />
+                        </span>
                       </span>
                     ) : (
                       <span className={getIdentityClassName(item)} aria-hidden="true" />

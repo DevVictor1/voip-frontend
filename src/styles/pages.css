@@ -4583,6 +4583,43 @@
   color: #6d28d9;
 }
 
+.contact-team-avatar {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 28% 26%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 44%),
+    linear-gradient(145deg, rgba(129, 140, 248, 0.2), rgba(168, 85, 247, 0.22));
+  border: 1px solid rgba(167, 139, 250, 0.28);
+  box-shadow: 0 10px 22px rgba(109, 40, 217, 0.12);
+  color: #6d28d9;
+}
+
+.contact-team-avatar-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.contact-card.is-internal-teams-card:hover .contact-team-avatar,
+.contact-card.is-internal-teams-card.is-active .contact-team-avatar {
+  border-color: rgba(124, 58, 237, 0.34);
+  box-shadow: 0 14px 28px rgba(109, 40, 217, 0.16);
+}
+
+.contact-card.is-internal-teams-card.is-active .contact-team-avatar-icon {
+  background: rgba(255, 255, 255, 0.96);
+}
+
 .contact-card.is-internal-chat-card {
   padding: 12px 12px 12px 14px;
   margin: 0 8px;
