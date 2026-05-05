@@ -245,6 +245,31 @@ function App() {
   useEffect(() => {
     if (!isAuthenticated || !authToken) return undefined;
 
+    const handleUserPresenceUpdated = (payload) => {
+      const nextAgentId = String(payload?.userId || payload?.agentId || '').trim();
+      if (!nextAgentId || nextAgentId !== workspaceAgentId) {
+        return;
+      }
+
+      const nextAvailabilityStatus = normalizeAvailabilityStatus(
+        payload?.availabilityStatus || availabilityStatus
+      );
+      const nextPresenceStatus = String(payload?.presenceStatus || '').trim().toLowerCase() || 'offline';
+
+      setAgentStatus(nextPresenceStatus);
+      setAvailabilityStatus(nextAvailabilityStatus);
+      setAuthUser((current) => {
+        if (!current) return current;
+
+        const nextUser = {
+          ...current,
+          availabilityStatus: nextAvailabilityStatus,
+        };
+        storeAuthSession({ token: authToken, user: nextUser });
+        return nextUser;
+      });
+    };
+
     const handleUserAvatarUpdated = (payload) => {
       const nextUser = payload?.user || null;
       const nextUserId = String(nextUser?.id || nextUser?._id || payload?.userId || '').trim();
@@ -258,9 +283,13 @@ function App() {
       setAuthUser(nextUser);
     };
 
+    socket.on('userPresenceUpdated', handleUserPresenceUpdated);
     socket.on('userAvatarUpdated', handleUserAvatarUpdated);
-    return () => socket.off('userAvatarUpdated', handleUserAvatarUpdated);
-  }, [authToken, authUser?.id, authUser?._id, isAuthenticated]);
+    return () => {
+      socket.off('userPresenceUpdated', handleUserPresenceUpdated);
+      socket.off('userAvatarUpdated', handleUserAvatarUpdated);
+    };
+  }, [authToken, authUser?.id, authUser?._id, availabilityStatus, isAuthenticated, workspaceAgentId]);
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;

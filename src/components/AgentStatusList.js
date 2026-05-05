@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import socket from '../socket';
 import { formatAgentLabel, getAgentMeta, getDepartmentLabel } from '../config/agents';
+import { formatAvailabilityStatus, getAvailabilityStatusClass, resolveEffectiveAvailabilityStatus } from '../utils/presence';
 
 function AgentStatusList({ agents = [] }) {
   const [statuses, setStatuses] = useState({});
@@ -20,12 +21,30 @@ function AgentStatusList({ agents = [] }) {
       setStatuses((prev) => ({ ...prev, [userId]: status }));
     };
 
+    const handlePresenceUpdate = (payload) => {
+      const userId = String(payload?.userId || payload?.agentId || '').trim();
+      if (!userId) return;
+
+      setStatuses((prev) => ({
+        ...prev,
+        [userId]: String(
+          payload?.effectiveAvailabilityStatus
+          || payload?.effectiveStatus
+          || payload?.availabilityStatus
+          || payload?.presenceStatus
+          || 'offline'
+        ).trim().toLowerCase(),
+      }));
+    };
+
     socket.on('agentsStatus', handleAll);
     socket.on('agentStatus', handleOne);
+    socket.on('userPresenceUpdated', handlePresenceUpdate);
 
     return () => {
       socket.off('agentsStatus', handleAll);
       socket.off('agentStatus', handleOne);
+      socket.off('userPresenceUpdated', handlePresenceUpdate);
     };
   }, []);
 
@@ -49,7 +68,7 @@ function AgentStatusList({ agents = [] }) {
 
           return {
             agentId,
-            status: statuses?.[agentId] || 'offline',
+            status: statuses?.[agentId] || resolveEffectiveAvailabilityStatus(liveAgent) || 'offline',
             label: liveAgent?.name || formatAgentLabel(agentId),
             role: getDepartmentLabel(liveAgent?.department)
               || (liveAgent?.role === 'admin' ? 'Admin' : liveAgent?.role)
@@ -73,24 +92,16 @@ function AgentStatusList({ agents = [] }) {
           {items.map((item) => (
             <div key={item.agentId} className="dashboard-agent-status-row">
               <span
-                className={
-                  item.status === 'online'
-                    ? 'dashboard-agent-status-dot is-online'
-                    : 'dashboard-agent-status-dot is-offline'
-                }
+                className={`dashboard-agent-status-dot ${getAvailabilityStatusClass(item.status)}`}
               />
               <span className="dashboard-agent-status-name">{item.label}</span>
               {item.role ? (
                 <span className="agent-badge">{item.role}</span>
               ) : null}
               <span
-                className={
-                  item.status === 'online'
-                    ? 'dashboard-agent-status-badge is-online'
-                    : 'dashboard-agent-status-badge is-offline'
-                }
+                className={`dashboard-agent-status-badge ${getAvailabilityStatusClass(item.status)}`}
               >
-                {item.status === 'online' ? 'Online' : 'Offline'}
+                {formatAvailabilityStatus(item.status)}
               </span>
             </div>
           ))}

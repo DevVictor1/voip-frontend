@@ -6,6 +6,7 @@ import BASE_URL from '../config/api';
 import { fetchAgentStatusRequest, fetchUsersRequest, getStoredAuthToken } from '../services/auth';
 import socket from '../socket';
 import { fetchCallLogs } from '../utils/callLogs';
+import { formatAvailabilityStatus } from '../utils/presence';
 
 function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
   const [statValues, setStatValues] = useState({
@@ -82,6 +83,44 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
       isMounted = false;
       window.clearInterval(intervalId);
     };
+  }, []);
+
+  useEffect(() => {
+    const handleUserPresenceUpdated = (payload) => {
+      const agentId = String(payload?.userId || payload?.agentId || '').trim();
+      if (!agentId) return;
+
+      setLiveAgentState((prev) => {
+        if (!Array.isArray(prev) || prev.length === 0) return prev;
+
+        return prev.map((user) => (
+          user?.agentId !== agentId
+            ? user
+            : {
+                ...user,
+                connected: Boolean(payload?.connected),
+                connectionStatus: String(payload?.connectionStatus || '').trim().toLowerCase() || 'disconnected',
+                presenceStatus: String(payload?.presenceStatus || '').trim().toLowerCase() || 'offline',
+                availabilityStatus: String(payload?.availabilityStatus || user.availabilityStatus || 'online').trim().toLowerCase(),
+                effectiveAvailabilityStatus: String(
+                  payload?.effectiveAvailabilityStatus
+                  || payload?.effectiveStatus
+                  || user.effectiveAvailabilityStatus
+                  || 'offline'
+                ).trim().toLowerCase(),
+                effectiveStatus: String(
+                  payload?.effectiveStatus
+                  || payload?.effectiveAvailabilityStatus
+                  || user.effectiveStatus
+                  || 'offline'
+                ).trim().toLowerCase(),
+              }
+        ));
+      });
+    };
+
+    socket.on('userPresenceUpdated', handleUserPresenceUpdated);
+    return () => socket.off('userPresenceUpdated', handleUserPresenceUpdated);
   }, []);
 
   useEffect(() => {
@@ -254,7 +293,7 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
                     <td>{user.department || 'None'}</td>
                     <td>{user.agentId || 'None'}</td>
                     <td>{user.isActive ? 'Yes' : 'No'}</td>
-                    <td>{user.connected ? `${formatPresenceStatus(user.presenceStatus)} online` : 'Offline'}</td>
+                    <td>{formatAvailabilityStatus(user.effectiveAvailabilityStatus || user.effectiveStatus || 'offline')}</td>
                     <td>{user.voiceReady ? 'Ready' : 'Not Ready'}</td>
                     <td>{formatPresenceStatus(user.status)}</td>
                     <td>{`${user.activeCallCount || 0} / ${user.maxConcurrentCalls || 1}`}</td>

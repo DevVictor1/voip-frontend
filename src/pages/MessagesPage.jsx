@@ -1354,155 +1354,70 @@ function MessagesPage({
   }, [internalChats, onInternalConversationsChange]);
 
   useEffect(() => {
-    const handlePresenceStatus = (payload) => {
-      const userId = String(payload?.userId || '').trim();
-      const presenceStatus = String(payload?.status || '').trim().toLowerCase();
-      if (!userId || !presenceStatus) return;
+    const handleUserPresenceUpdated = (payload) => {
+      const userId = String(payload?.userId || payload?.agentId || '').trim();
+      if (!userId) return;
 
-      const nextSnapshot = {
-        connected: presenceStatus !== 'offline',
-        presenceStatus,
-      };
-
-      setPresenceSnapshotsByAgentId((prev) => {
-        const current = prev[userId] || {};
-        const connected = nextSnapshot.connected;
-        return {
-          ...prev,
-          [userId]: {
-            ...current,
-            connected,
-            presenceStatus,
-            effectiveAvailabilityStatus: connected
-              ? resolveEffectiveAvailabilityStatus({ ...current, connected, presenceStatus })
-              : 'offline',
-          },
-        };
-      });
-
-      setTeammates((prev) => prev.map((user) => {
-        if (user?.agentId !== userId) return user;
-
-        const connected = nextSnapshot.connected;
-        return {
-          ...user,
+      const connected = Boolean(payload?.connected);
+      const presenceStatus = String(payload?.presenceStatus || '').trim().toLowerCase() || 'offline';
+      const availabilityStatus = String(payload?.availabilityStatus || '').trim().toLowerCase() || 'online';
+      const effectiveAvailabilityStatus = String(
+        payload?.effectiveAvailabilityStatus
+        || payload?.effectiveStatus
+        || resolveEffectiveAvailabilityStatus({
           connected,
           presenceStatus,
-          effectiveAvailabilityStatus: connected
-            ? resolveEffectiveAvailabilityStatus({ ...user, connected, presenceStatus })
-            : 'offline',
-        };
-      }));
-
-      setInternalChats((prev) => prev.map((conversation) => {
-        const updatedConversation = applyPresenceSnapshotToConversation(conversation, userId, {
-          availabilityStatus: conversation?.availabilityStatus || 'online',
-          connected: nextSnapshot.connected,
-          presenceStatus,
-          effectiveAvailabilityStatus: nextSnapshot.connected
-            ? resolveEffectiveAvailabilityStatus({
-              ...conversation,
-              connected: nextSnapshot.connected,
-              presenceStatus,
-            })
-            : 'offline',
-        });
-
-        return updatedConversation;
-      }));
-
-      setTeamDetailsData((prev) => {
-        if (!prev?.members?.length) return prev;
-
-        const nextMembers = prev.members.map((member) => {
-          if (member?.agentId !== userId) return member;
-
-          const connected = nextSnapshot.connected;
-          return {
-            ...member,
-            connected,
-            presenceStatus,
-            effectiveAvailabilityStatus: connected
-              ? resolveEffectiveAvailabilityStatus({ ...member, connected, presenceStatus })
-              : 'offline',
-          };
-        });
-
-        return { ...prev, members: nextMembers };
-      });
-    };
-
-    const handleAvailabilityStatus = (payload) => {
-      const userId = String(payload?.userId || '').trim();
-      const availabilityStatus = String(payload?.availabilityStatus || '').trim().toLowerCase();
-      if (!userId || !availabilityStatus) return;
-
-      setPresenceSnapshotsByAgentId((prev) => {
-        const current = prev[userId] || {};
-        return {
-          ...prev,
-          [userId]: {
-            ...current,
-            availabilityStatus,
-            effectiveAvailabilityStatus: resolveEffectiveAvailabilityStatus({
-              ...current,
-              availabilityStatus,
-            }),
-          },
-        };
-      });
-
-      setTeammates((prev) => prev.map((user) => {
-        if (user?.agentId !== userId) return user;
-
-        return {
-          ...user,
           availabilityStatus,
-          effectiveAvailabilityStatus: resolveEffectiveAvailabilityStatus({
-            ...user,
-            availabilityStatus,
-          }),
-        };
+        })
+      ).trim().toLowerCase();
+      const snapshot = {
+        connected,
+        presenceStatus,
+        availabilityStatus,
+        effectiveAvailabilityStatus,
+      };
+
+      setPresenceSnapshotsByAgentId((prev) => ({
+        ...prev,
+        [userId]: {
+          ...(prev[userId] || {}),
+          ...snapshot,
+        },
       }));
+
+      setTeammates((prev) => prev.map((user) => (
+        user?.agentId !== userId
+          ? user
+          : {
+              ...user,
+              ...snapshot,
+            }
+      )));
 
       setInternalChats((prev) => prev.map((conversation) => (
-        applyPresenceSnapshotToConversation(conversation, userId, {
-          availabilityStatus,
-          connected: typeof conversation?.connected === 'boolean' ? conversation.connected : true,
-          presenceStatus: conversation?.presenceStatus || 'online',
-          effectiveAvailabilityStatus: resolveEffectiveAvailabilityStatus({
-            ...conversation,
-            availabilityStatus,
-          }),
-        })
+        applyPresenceSnapshotToConversation(conversation, userId, snapshot)
       )));
 
       setTeamDetailsData((prev) => {
         if (!prev?.members?.length) return prev;
 
-        const nextMembers = prev.members.map((member) => {
-          if (member?.agentId !== userId) return member;
-
-          return {
-            ...member,
-            availabilityStatus,
-            effectiveAvailabilityStatus: resolveEffectiveAvailabilityStatus({
-              ...member,
-              availabilityStatus,
-            }),
-          };
-        });
+        const nextMembers = prev.members.map((member) => (
+          member?.agentId !== userId
+            ? member
+            : {
+                ...member,
+                ...snapshot,
+              }
+        ));
 
         return { ...prev, members: nextMembers };
       });
     };
 
-    socket.on('agentStatus', handlePresenceStatus);
-    socket.on('agentAvailabilityStatus', handleAvailabilityStatus);
+    socket.on('userPresenceUpdated', handleUserPresenceUpdated);
 
     return () => {
-      socket.off('agentStatus', handlePresenceStatus);
-      socket.off('agentAvailabilityStatus', handleAvailabilityStatus);
+      socket.off('userPresenceUpdated', handleUserPresenceUpdated);
     };
   }, [applyPresenceSnapshotToConversation]);
 
