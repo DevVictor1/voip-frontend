@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import MainLayout from './layout/MainLayout';
 import Dashboard from './pages/Dashboard';
@@ -10,6 +10,7 @@ import SettingsPage from './pages/SettingsPage';
 import CallExperienceOverlay from './components/CallExperienceOverlay';
 import IncomingCallPopup from './components/IncomingCallPopup';
 import socket from './socket';
+import BASE_URL from './config/api';
 import {
   initVoice,
   getDeviceStatus,
@@ -55,6 +56,10 @@ function App() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [statusUpdateError, setStatusUpdateError] = useState('');
   const [agentId, setAgentId] = useState(() => getEffectiveAgentId(getStoredAuthUser()));
+  const [sidebarUnreadTotals, setSidebarUnreadTotals] = useState(() => ({
+    internalChat: 0,
+    internalTeams: 0,
+  }));
 
   const isAuthenticated = Boolean(authToken && authUser);
   const authenticatedAgentId = authUser?.agentId || '';
@@ -62,6 +67,34 @@ function App() {
     ? (authenticatedAgentId || agentId || 'web_user')
     : (agentId || 'web_user');
   const isVoiceReady = deviceStatus === 'ready';
+
+  const syncSidebarUnreadTotals = useCallback((conversations = []) => {
+    setSidebarUnreadTotals(calculateSidebarUnreadTotals(conversations));
+  }, []);
+
+  const fetchSidebarUnreadTotals = useCallback(async () => {
+    if (!isAuthenticated) {
+      setSidebarUnreadTotals({ internalChat: 0, internalTeams: 0 });
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        role: authUser?.role || userRole,
+        userId: workspaceAgentId,
+      });
+      const response = await fetch(`${BASE_URL}/api/messages/conversations?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch internal unread totals');
+      }
+
+      const data = await response.json();
+      syncSidebarUnreadTotals(data || []);
+    } catch (error) {
+      console.error('Sidebar unread totals error:', error);
+    }
+  }, [authUser?.role, isAuthenticated, syncSidebarUnreadTotals, userRole, workspaceAgentId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -171,6 +204,40 @@ function App() {
       socket.off('disconnect', handleDisconnect);
     };
   }, [availabilityStatus, deviceStatus, isAuthenticated, isVoiceReady, workspaceAgentId]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSidebarUnreadTotals({ internalChat: 0, internalTeams: 0 });
+      return;
+    }
+
+    fetchSidebarUnreadTotals();
+  }, [fetchSidebarUnreadTotals, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+
+    const refreshInternalUnreadTotals = (payload) => {
+      const conversationType = String(payload?.conversationType || '').trim();
+      if (!conversationType || (conversationType !== 'internal_dm' && conversationType !== 'team')) {
+        return;
+      }
+
+      fetchSidebarUnreadTotals();
+    };
+
+    socket.on('newMessage', refreshInternalUnreadTotals);
+    socket.on('internalMessageStatus', refreshInternalUnreadTotals);
+    socket.on('internalMessageUpdated', refreshInternalUnreadTotals);
+    socket.on('internalMessageDeleted', refreshInternalUnreadTotals);
+
+    return () => {
+      socket.off('newMessage', refreshInternalUnreadTotals);
+      socket.off('internalMessageStatus', refreshInternalUnreadTotals);
+      socket.off('internalMessageUpdated', refreshInternalUnreadTotals);
+      socket.off('internalMessageDeleted', refreshInternalUnreadTotals);
+    };
+  }, [fetchSidebarUnreadTotals, isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;
@@ -428,6 +495,7 @@ function App() {
         userRole={userRole}
         onRoleChange={handleRoleChange}
         roleLocked={Boolean(authUser)}
+        sidebarUnreadTotals={sidebarUnreadTotals}
         authUser={authUser}
         onLogout={handleLogout}
         deviceStatus={deviceStatus}
@@ -514,6 +582,7 @@ function App() {
                 currentRole={authUser?.role || userRole}
                 currentUserId={workspaceAgentId}
                 viewMode="internal"
+                onInternalConversationsChange={syncSidebarUnreadTotals}
               />
             )}
           />
@@ -524,6 +593,7 @@ function App() {
                 currentRole={authUser?.role || userRole}
                 currentUserId={workspaceAgentId}
                 viewMode="teams"
+                onInternalConversationsChange={syncSidebarUnreadTotals}
               />
             )}
           />
@@ -635,6 +705,29 @@ const authLoadingStyle = {
 };
 
 export default App;
+
+function calculateSidebarUnreadTotals(conversations = []) {
+  return (Array.isArray(conversations) ? conversations : []).reduce(
+    (totals, conversation) => {
+      const conversationType = String(conversation?.conversationType || conversation?.type || '').trim();
+      const unread = normalizeUnreadCount(conversation?.unreadCount ?? conversation?.unread);
+
+      if (conversationType === 'internal_dm') {
+        totals.internalChat += unread;
+      } else if (conversationType === 'team') {
+        totals.internalTeams += unread;
+      }
+
+      return totals;
+    },
+    { internalChat: 0, internalTeams: 0 }
+  );
+}
+
+function normalizeUnreadCount(value) {
+  const count = Number(value || 0);
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
 
 function shouldRenderCallOverlay({ callState, connection, callParticipant }) {
   if (callState === 'in-call') return Boolean(connection);

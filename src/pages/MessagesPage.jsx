@@ -608,6 +608,7 @@ function MessagesPage({
   currentRole: providedRole,
   currentUserId: providedUserId,
   viewMode = 'customers',
+  onInternalConversationsChange,
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -1341,6 +1342,10 @@ function MessagesPage({
     fetchInternalConversations();
     fetchTeammates();
   }, [fetchContacts, fetchConversations, fetchInternalConversations, fetchTeammates]);
+
+  useEffect(() => {
+    onInternalConversationsChange?.(internalChats);
+  }, [internalChats, onInternalConversationsChange]);
 
   useEffect(() => {
     const handlePresenceStatus = (payload) => {

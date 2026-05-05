@@ -8,6 +8,7 @@ function MainLayout({
   userRole,
   onRoleChange,
   roleLocked,
+  sidebarUnreadTotals,
   authUser,
   onLogout,
   deviceStatus,
@@ -27,7 +28,12 @@ function MainLayout({
   return (
     <div className="app-root">
       <div className="app-shell">
-        <Sidebar userRole={userRole} onRoleChange={onRoleChange} roleLocked={roleLocked} />
+        <Sidebar
+          userRole={userRole}
+          onRoleChange={onRoleChange}
+          roleLocked={roleLocked}
+          unreadTotals={sidebarUnreadTotals}
+        />
         <main className="app-main">
           <div className="app-topbar">
             <div className="app-topbar-copy">

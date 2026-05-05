@@ -19,8 +19,26 @@ const navItems = [
   { label: 'Settings', to: '/settings', icon: Settings, roles: ['admin'] }
 ];
 
-function Sidebar({ userRole = 'admin', onRoleChange, roleLocked = false }) {
+function Sidebar({
+  userRole = 'admin',
+  onRoleChange,
+  roleLocked = false,
+  unreadTotals = {},
+}) {
   const visibleItems = navItems.filter((item) => item.roles.includes(userRole));
+
+  const getUnreadCount = (path) => {
+    if (path === '/internal-chat') {
+      return normalizeUnreadCount(unreadTotals.internalChat);
+    }
+
+    if (path === '/internal-teams') {
+      return normalizeUnreadCount(unreadTotals.internalTeams);
+    }
+
+    return 0;
+  };
+
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
@@ -49,18 +67,20 @@ function Sidebar({ userRole = 'admin', onRoleChange, roleLocked = false }) {
       <div className="sidebar-nav-scroll">
         <nav className="sidebar-nav">
           {visibleItems.map((item) => (
-            <NavLink
-              key={item.label}
-              to={item.to}
-              className={({ isActive }) =>
-                isActive ? 'nav-item active' : 'nav-item'
-              }
-              end={item.to === '/'}
+            <NavLink key={item.label} to={item.to} className={({ isActive }) =>
+              isActive ? 'nav-item active' : 'nav-item'
+            }
+            end={item.to === '/'}
             >
               <span className="nav-icon" aria-hidden="true">
                 <item.icon size={18} />
               </span>
-              <span>{item.label}</span>
+              <span className="nav-item-label">{item.label}</span>
+              {getUnreadCount(item.to) > 0 ? (
+                <span className="nav-badge" aria-label={`${getUnreadCount(item.to)} unread items`}>
+                  {formatUnreadBadge(getUnreadCount(item.to))}
+                </span>
+              ) : null}
             </NavLink>
           ))}
         </nav>
@@ -104,3 +124,12 @@ const roleSelect = {
 };
 
 export default Sidebar;
+
+function normalizeUnreadCount(value) {
+  const count = Number(value || 0);
+  return Number.isFinite(count) && count > 0 ? count : 0;
+}
+
+function formatUnreadBadge(count) {
+  return count > 99 ? '99+' : String(count);
+}
