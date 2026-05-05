@@ -729,6 +729,28 @@ function MessagesPage({
     }
   }, []);
 
+  const applyPresenceSnapshotToConversation = useCallback((conversation, agentId, snapshot) => {
+    if (!conversation || !agentId) return conversation;
+
+    const participants = Array.isArray(conversation.participants) ? conversation.participants : [];
+    const matchesDirectConversation = (
+      (conversation.conversationType === 'internal_dm' || conversation.type === 'internal_dm')
+      && participants.includes(agentId)
+    );
+
+    if (!matchesDirectConversation) {
+      return conversation;
+    }
+
+    return {
+      ...conversation,
+      availabilityStatus: snapshot.availabilityStatus,
+      connected: snapshot.connected,
+      presenceStatus: snapshot.presenceStatus,
+      effectiveAvailabilityStatus: snapshot.effectiveAvailabilityStatus,
+    };
+  }, []);
+
   const fetchCustomerMessages = useCallback(async (phone, options = {}) => {
     const { requestKey = '' } = options;
 
@@ -1100,10 +1122,15 @@ function MessagesPage({
       const presenceStatus = String(payload?.status || '').trim().toLowerCase();
       if (!userId || !presenceStatus) return;
 
+      const nextSnapshot = {
+        connected: presenceStatus !== 'offline',
+        presenceStatus,
+      };
+
       setTeammates((prev) => prev.map((user) => {
         if (user?.agentId !== userId) return user;
 
-        const connected = presenceStatus !== 'offline';
+        const connected = nextSnapshot.connected;
         return {
           ...user,
           connected,
@@ -1113,6 +1140,43 @@ function MessagesPage({
             : 'offline',
         };
       }));
+
+      setInternalChats((prev) => prev.map((conversation) => {
+        const updatedConversation = applyPresenceSnapshotToConversation(conversation, userId, {
+          availabilityStatus: conversation?.availabilityStatus || 'online',
+          connected: nextSnapshot.connected,
+          presenceStatus,
+          effectiveAvailabilityStatus: nextSnapshot.connected
+            ? resolveEffectiveAvailabilityStatus({
+              ...conversation,
+              connected: nextSnapshot.connected,
+              presenceStatus,
+            })
+            : 'offline',
+        });
+
+        return updatedConversation;
+      }));
+
+      setTeamDetailsData((prev) => {
+        if (!prev?.members?.length) return prev;
+
+        const nextMembers = prev.members.map((member) => {
+          if (member?.agentId !== userId) return member;
+
+          const connected = nextSnapshot.connected;
+          return {
+            ...member,
+            connected,
+            presenceStatus,
+            effectiveAvailabilityStatus: connected
+              ? resolveEffectiveAvailabilityStatus({ ...member, connected, presenceStatus })
+              : 'offline',
+          };
+        });
+
+        return { ...prev, members: nextMembers };
+      });
     };
 
     const handleAvailabilityStatus = (payload) => {
@@ -1132,6 +1196,37 @@ function MessagesPage({
           }),
         };
       }));
+
+      setInternalChats((prev) => prev.map((conversation) => (
+        applyPresenceSnapshotToConversation(conversation, userId, {
+          availabilityStatus,
+          connected: typeof conversation?.connected === 'boolean' ? conversation.connected : true,
+          presenceStatus: conversation?.presenceStatus || 'online',
+          effectiveAvailabilityStatus: resolveEffectiveAvailabilityStatus({
+            ...conversation,
+            availabilityStatus,
+          }),
+        })
+      )));
+
+      setTeamDetailsData((prev) => {
+        if (!prev?.members?.length) return prev;
+
+        const nextMembers = prev.members.map((member) => {
+          if (member?.agentId !== userId) return member;
+
+          return {
+            ...member,
+            availabilityStatus,
+            effectiveAvailabilityStatus: resolveEffectiveAvailabilityStatus({
+              ...member,
+              availabilityStatus,
+            }),
+          };
+        });
+
+        return { ...prev, members: nextMembers };
+      });
     };
 
     socket.on('agentStatus', handlePresenceStatus);
@@ -1141,7 +1236,7 @@ function MessagesPage({
       socket.off('agentStatus', handlePresenceStatus);
       socket.off('agentAvailabilityStatus', handleAvailabilityStatus);
     };
-  }, []);
+  }, [applyPresenceSnapshotToConversation]);
 
   useEffect(() => {
     if (!isSmsPage) return;
