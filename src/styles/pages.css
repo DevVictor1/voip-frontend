@@ -2709,6 +2709,10 @@
   white-space: nowrap;
 }
 
+.contact-name.contact-name--online {
+  color: #6bbf7e;
+}
+
 .contact-name-row {
   display: flex;
   align-items: center;

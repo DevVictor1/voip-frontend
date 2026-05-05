@@ -134,6 +134,11 @@ function ContactsList({
         : (item.lastMessage || item.previewFallback || 'No messages yet');
       const timestamp = formatTimestamp(item.lastMessageAt || item.updatedAt);
       const effectiveAvailabilityStatus = resolveEffectiveAvailabilityStatus(item);
+      const shouldHighlightOnlineName = (
+        isInternalChatList
+        && item.conversationType === 'internal_dm'
+        && effectiveAvailabilityStatus === 'online'
+      );
 
       return (
         <div
@@ -166,7 +171,7 @@ function ContactsList({
                     ) : (
                       <span className={getIdentityClassName(item)} aria-hidden="true" />
                     )}
-                    <div className={`contact-name${(isSmsList || isSmsGroupThreadList || isInternalTeamsList) && hasUnread ? ' is-unread' : ''}`}>
+                    <div className={`contact-name${(isSmsList || isSmsGroupThreadList || isInternalTeamsList) && hasUnread ? ' is-unread' : ''}${shouldHighlightOnlineName ? ' contact-name--online' : ''}`}>
                       {displayName}
                     </div>
                     {isInternalChatList && item.conversationType === 'internal_dm' ? (
