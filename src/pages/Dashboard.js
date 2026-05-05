@@ -258,7 +258,7 @@ function Dashboard({ agentId, onAgentChange, agentSelectionLocked = false }) {
       </div>
 
       <div className="dashboard-list-grid">
-        <AgentStatusList agents={agents} />
+        <AgentStatusList agents={agents} presenceAgents={liveAgentState} />
       </div>
 
       <div className="section-card dashboard-section-card">

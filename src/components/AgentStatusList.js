@@ -1,53 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import socket from '../socket';
+import { useMemo } from 'react';
 import { formatAgentLabel, getAgentMeta, getDepartmentLabel } from '../config/agents';
 import { formatAvailabilityStatus, getAvailabilityStatusClass, resolveEffectiveAvailabilityStatus } from '../utils/presence';
 
-function AgentStatusList({ agents = [] }) {
-  const [statuses, setStatuses] = useState({});
-
-  useEffect(() => {
-    socket.emit('getAgentsStatus');
-
-    const handleAll = (data) => {
-      if (data && typeof data === 'object') {
-        setStatuses(data);
-      }
-    };
-
-    const handleOne = (data) => {
-      const { userId, status } = data || {};
-      if (!userId || !status) return;
-      setStatuses((prev) => ({ ...prev, [userId]: status }));
-    };
-
-    const handlePresenceUpdate = (payload) => {
-      const userId = String(payload?.userId || payload?.agentId || '').trim();
-      if (!userId) return;
-
-      setStatuses((prev) => ({
-        ...prev,
-        [userId]: String(
-          payload?.effectiveAvailabilityStatus
-          || payload?.effectiveStatus
-          || payload?.availabilityStatus
-          || payload?.presenceStatus
-          || 'offline'
-        ).trim().toLowerCase(),
-      }));
-    };
-
-    socket.on('agentsStatus', handleAll);
-    socket.on('agentStatus', handleOne);
-    socket.on('userPresenceUpdated', handlePresenceUpdate);
-
-    return () => {
-      socket.off('agentsStatus', handleAll);
-      socket.off('agentStatus', handleOne);
-      socket.off('userPresenceUpdated', handlePresenceUpdate);
-    };
-  }, []);
-
+function AgentStatusList({ agents = [], presenceAgents = [] }) {
   const agentDirectory = useMemo(
     () => (Array.isArray(agents) ? agents : []).reduce((acc, agent) => {
       if (agent?.agentId) {
@@ -60,15 +15,29 @@ function AgentStatusList({ agents = [] }) {
 
   const items = useMemo(
     () => {
+      const presenceDirectory = (Array.isArray(presenceAgents) ? presenceAgents : []).reduce((acc, agent) => {
+        if (agent?.agentId) {
+          acc[agent.agentId] = agent;
+        }
+        return acc;
+      }, {});
+
       return Object.keys(agentDirectory)
         .sort((a, b) => a.localeCompare(b))
         .map((agentId) => {
-          const liveAgent = agentDirectory[agentId];
+          const baseAgent = agentDirectory[agentId];
+          const liveAgent = presenceDirectory[agentId] || baseAgent;
           const fallbackMeta = getAgentMeta(agentId);
+          const effectiveStatus = String(
+            liveAgent?.effectiveAvailabilityStatus
+            || liveAgent?.effectiveStatus
+            || resolveEffectiveAvailabilityStatus(liveAgent)
+            || 'offline'
+          ).trim().toLowerCase();
 
           return {
             agentId,
-            status: statuses?.[agentId] || resolveEffectiveAvailabilityStatus(liveAgent) || 'offline',
+            status: effectiveStatus,
             label: liveAgent?.name || formatAgentLabel(agentId),
             role: getDepartmentLabel(liveAgent?.department)
               || (liveAgent?.role === 'admin' ? 'Admin' : liveAgent?.role)
@@ -77,7 +46,7 @@ function AgentStatusList({ agents = [] }) {
           };
         });
     },
-    [agentDirectory, statuses]
+    [agentDirectory, presenceAgents]
   );
 
   return (
