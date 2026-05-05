@@ -329,6 +329,7 @@ const normalizeInternalConversation = (conversation, currentUserId, userDirector
     ? (conversation?.role || conversation?.teamName || 'Team channel')
     : (otherAgent?.role || conversation?.role || 'Internal chat');
   const unreadCount = normalizeUnreadCount(conversation?.unread);
+  const unreadMentionCount = normalizeUnreadCount(conversation?.unreadMentionCount);
   const lastMessageAt = conversation?.updatedAt || 0;
   const lastMessageSenderName = conversationType === 'team'
     ? (conversation?.lastMessageSenderName || '')
@@ -350,6 +351,9 @@ const normalizeInternalConversation = (conversation, currentUserId, userDirector
     updatedAt: lastMessageAt,
     unreadCount,
     unread: unreadCount,
+    unreadMentionCount,
+    hasUnreadMention: conversationType === 'team' && unreadMentionCount > 0,
+    latestUnreadMentionMessageId: conversation?.latestUnreadMentionMessageId || '',
     teamId: conversation?.teamId || null,
     teamName: conversation?.teamName || null,
     participants,
@@ -459,6 +463,8 @@ function MessagesPage({
   const [activeCustomerContactId, setActiveCustomerContactId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [teamThreadLoading, setTeamThreadLoading] = useState(false);
+  const [pendingMentionJump, setPendingMentionJump] = useState(null);
+  const [mentionNotifications, setMentionNotifications] = useState([]);
   const [teammates, setTeammates] = useState([]);
   const [presenceSnapshotsByAgentId, setPresenceSnapshotsByAgentId] = useState({});
   const [showModal, setShowModal] = useState(false);
@@ -518,6 +524,7 @@ function MessagesPage({
   const activeCustomerRequestRef = useRef('');
   const messagesRef = useRef([]);
   const smsContactSuccessTimeoutRef = useRef(null);
+  const mentionNotificationTimeoutsRef = useRef({});
   const pendingDirectorySmsPhoneRef = useRef(
     normalize(location.state?.phone || '')
   );
@@ -890,7 +897,12 @@ function MessagesPage({
     setInternalChats((prev) =>
       prev.map((item) =>
         item.conversationId === conversation.conversationId
-          ? { ...item, unread: 0 }
+          ? {
+              ...item,
+              unread: 0,
+              unreadMentionCount: 0,
+              latestUnreadMentionMessageId: '',
+            }
           : item
       )
     );
@@ -2087,6 +2099,12 @@ function MessagesPage({
     return () => window.removeEventListener('switchChatNumber', handler);
   }, [activeChat?._id, markChatRead]);
 
+  useEffect(() => () => {
+    Object.values(mentionNotificationTimeoutsRef.current).forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+  }, []);
+
   useEffect(() => {
     const handleMessage = (msg) => {
       if (msg.conversationType === 'internal_dm' || msg.conversationType === 'team') {
@@ -2277,6 +2295,36 @@ function MessagesPage({
   }, []);
 
   useEffect(() => {
+    const handleTeamMentionNotification = (payload) => {
+      const conversationId = String(payload?.conversationId || payload?.teamId || '').trim();
+      const messageId = String(payload?.messageId || '').trim();
+
+      if (!conversationId || !messageId) {
+        return;
+      }
+
+      const notificationId = `${conversationId}:${messageId}:${Date.now()}`;
+      const nextNotification = {
+        id: notificationId,
+        conversationId,
+        messageId,
+        senderName: payload?.senderName || 'Teammate',
+        previewText: payload?.previewText || '',
+      };
+
+      setMentionNotifications((prev) => [nextNotification, ...prev].slice(0, 3));
+
+      mentionNotificationTimeoutsRef.current[notificationId] = window.setTimeout(() => {
+        setMentionNotifications((prev) => prev.filter((item) => item.id !== notificationId));
+        delete mentionNotificationTimeoutsRef.current[notificationId];
+      }, 8000);
+    };
+
+    socket.on('teamMentionNotification', handleTeamMentionNotification);
+    return () => socket.off('teamMentionNotification', handleTeamMentionNotification);
+  }, []);
+
+  useEffect(() => {
     const handleInternalMessageStatus = (payload) => {
       if (!payload?.conversationId || !payload?.conversationType || !Array.isArray(payload?.messageIds)) {
         return;
@@ -2405,7 +2453,7 @@ function MessagesPage({
     });
   }, [markChatRead, selectedTextingGroupId]);
 
-  const handleSelectChat = (conversation) => {
+  const handleSelectChat = useCallback((conversation) => {
     if (!conversation) return;
 
     const normalizedConversation = (
@@ -2423,6 +2471,12 @@ function MessagesPage({
       normalizedConversation.conversationType || 'customer',
       normalizedConversation.conversationId || normalizedConversation.phone
     );
+    const nextMentionMessageId = (
+      (normalizedConversation.conversationType || '') === 'team'
+      && Number(normalizedConversation.unreadMentionCount || 0) > 0
+    )
+      ? String(normalizedConversation.latestUnreadMentionMessageId || '').trim()
+      : '';
 
     if ((normalizedConversation.conversationType || 'customer') === 'customer') {
       setActiveSection('customers');
@@ -2443,15 +2497,22 @@ function MessagesPage({
       activeCustomerRequestRef.current = nextKey;
       setMessages([]);
       setTeamThreadLoading(false);
+      setPendingMentionJump(null);
     } else if ((normalizedConversation.conversationType || '') === 'team') {
       const cachedMessages = teamMessagesCacheRef.current[nextKey];
       activeTeamRequestRef.current = nextKey;
       setMessages(Array.isArray(cachedMessages) ? cachedMessages : []);
       setTeamThreadLoading(!Array.isArray(cachedMessages));
+      setPendingMentionJump(
+        nextMentionMessageId
+          ? { conversationKey: nextKey, messageId: nextMentionMessageId }
+          : null
+      );
     } else {
       activeCustomerRequestRef.current = '';
       setMessages([]);
       setTeamThreadLoading(false);
+      setPendingMentionJump(null);
     }
 
     markChatRead(normalizedConversation);
@@ -2463,7 +2524,27 @@ function MessagesPage({
         role: normalizedConversation.subtitle || normalizedConversation.role || 'Teammate',
       });
     }
-  };
+  }, [isInternalChatPage, markChatRead, rememberInternalSearch, searchQuery, smsMode]);
+
+  const handleOpenMentionTarget = useCallback((conversationId, messageId = '') => {
+    const normalizedConversationId = String(conversationId || '').trim();
+    if (!normalizedConversationId) return;
+
+    const targetConversation = conversationList.find(
+      (item) => item.conversationType === 'team' && item.conversationId === normalizedConversationId
+    );
+
+    if (!targetConversation) return;
+
+    const conversationKey = buildConversationKey('team', normalizedConversationId);
+    const normalizedMessageId = String(messageId || targetConversation.latestUnreadMentionMessageId || '').trim();
+    handleSelectChat(targetConversation);
+    setPendingMentionJump(
+      normalizedMessageId
+        ? { conversationKey, messageId: normalizedMessageId }
+        : null
+    );
+  }, [conversationList, handleSelectChat]);
 
   const isChatOpen = Boolean(activeChatId);
   const smsVisibleList = isSmsPage && smsMode === 'texting-group'
@@ -2586,6 +2667,28 @@ function MessagesPage({
       {toast ? (
         <div className={`numbers-toast numbers-toast-${toast.type} messages-toast`}>
           {toast.message}
+        </div>
+      ) : null}
+
+      {mentionNotifications.length > 0 ? (
+        <div className="mention-toast-stack" role="status" aria-live="polite">
+          {mentionNotifications.map((notification) => (
+            <button
+              key={notification.id}
+              type="button"
+              className="mention-toast"
+              onClick={() => {
+                window.clearTimeout(mentionNotificationTimeoutsRef.current[notification.id]);
+                delete mentionNotificationTimeoutsRef.current[notification.id];
+                setMentionNotifications((prev) => prev.filter((item) => item.id !== notification.id));
+                handleOpenMentionTarget(notification.conversationId, notification.messageId);
+              }}
+            >
+              <div className="mention-toast-label">You were mentioned</div>
+              <div className="mention-toast-title">{notification.senderName}</div>
+              <div className="mention-toast-preview">{notification.previewText || 'Open team chat'}</div>
+            </button>
+          ))}
         </div>
       ) : null}
 
@@ -3043,6 +3146,12 @@ function MessagesPage({
             assignableAgents={assignableAgents}
             internalForwardTargets={internalForwardTargets}
             teamMentionMembers={activeTeamMentionMembers}
+            jumpToMessageId={pendingMentionJump?.conversationKey === activeChatId ? pendingMentionJump.messageId : ''}
+            onJumpToMessageHandled={(messageId) => {
+              setPendingMentionJump((current) => (
+                current?.messageId === messageId ? null : current
+              ));
+            }}
             onBack={() => setActiveChatId(null)}
             showBack={isChatOpen}
           />

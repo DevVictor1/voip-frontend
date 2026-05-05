@@ -2649,6 +2649,15 @@
   box-shadow: inset 3px 0 0 #3b82f6;
 }
 
+.contact-card.has-mention {
+  background: linear-gradient(90deg, rgba(255, 247, 237, 0.96), rgba(255, 255, 255, 0.96));
+}
+
+.contact-card.has-mention.is-active {
+  background: linear-gradient(90deg, rgba(255, 237, 213, 0.98), rgba(254, 249, 195, 0.82));
+  box-shadow: inset 3px 0 0 #f59e0b;
+}
+
 /* DELETE */
 .delete-btn {
   position: absolute;
@@ -2828,6 +2837,11 @@
   color: #334155;
 }
 
+.contact-preview.is-mention {
+  color: #9a3412;
+  font-weight: 700;
+}
+
 /* DBA */
 .contact-dba {
   font-size: 12px;
@@ -2853,6 +2867,18 @@
   padding: 3px 6px;
   border-radius: 999px;
   min-width: 18px;
+  text-align: center;
+}
+
+.mention-badge {
+  background: #f59e0b;
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 999px;
+  min-width: 20px;
   text-align: center;
 }
 
@@ -4536,6 +4562,48 @@
 
 .contact-card.is-internal-teams-card .contact-indicators {
   padding-right: 4px;
+}
+
+.mention-toast-stack {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 90;
+  display: grid;
+  gap: 10px;
+}
+
+.mention-toast {
+  width: min(320px, calc(100vw - 32px));
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 16px;
+  background: rgba(255, 251, 235, 0.98);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mention-toast-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #b45309;
+}
+
+.mention-toast-title {
+  margin-top: 4px;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mention-toast-preview {
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 /* Messages layout helpers */

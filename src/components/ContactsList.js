@@ -127,6 +127,7 @@ function ContactsList({
         ? activeContactId === item._id
         : activeId === conversationKey;
       const hasUnread = item.unread > 0;
+      const hasUnreadMention = item.conversationType === 'team' && Number(item.unreadMentionCount || 0) > 0;
       const displayName = getDisplayName(item);
       const secondaryLine = getSecondaryLine(item, activePhone);
       const preview = isInternalTeamsList && item.conversationType === 'team' && item.lastMessage
@@ -143,7 +144,7 @@ function ContactsList({
       return (
         <div
           key={conversationKey || index}
-          className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}${isSmsList && item.conversationType === 'customer' ? ' is-sms-card' : ''}${isSmsGroupThreadList && item.conversationType === 'customer' ? ' is-sms-group-thread-card' : ''}${isInternalChatList && item.conversationType === 'internal_dm' ? ' is-internal-chat-card' : ''}${isInternalTeamsList && item.conversationType === 'team' ? ' is-internal-teams-card' : ''}`}
+          className={`contact-card${isActive ? ' is-active' : ''}${hasUnread ? ' has-unread' : ''}${hasUnreadMention ? ' has-mention' : ''}${isSmsList && item.conversationType === 'customer' ? ' is-sms-card' : ''}${isSmsGroupThreadList && item.conversationType === 'customer' ? ' is-sms-group-thread-card' : ''}${isInternalChatList && item.conversationType === 'internal_dm' ? ' is-internal-chat-card' : ''}${isInternalTeamsList && item.conversationType === 'team' ? ' is-internal-teams-card' : ''}`}
           onClick={() => onSelect(item)}
         >
           {item._id && item.conversationType === 'customer' && !isSmsGroupThreadList && (
@@ -197,13 +198,18 @@ function ContactsList({
             </div>
 
             <div className="contact-row contact-row-bottom">
-              <div className={`contact-preview${hasUnread ? ' is-unread' : ''}`}>
+              <div className={`contact-preview${hasUnread ? ' is-unread' : ''}${hasUnreadMention ? ' is-mention' : ''}`}>
                 {preview}
               </div>
               <div className="contact-indicators">
                 {!isInternalChatList && !isInternalTeamsList ? (
                   <span className={getBadgeClassName(item)}>
                     {getBadgeLabel(item)}
+                  </span>
+                ) : null}
+                {hasUnreadMention ? (
+                  <span className="mention-badge">
+                    @{item.unreadMentionCount}
                   </span>
                 ) : null}
                 {hasUnread && (

@@ -34,6 +34,8 @@ function ChatWindow({
   showBack,
   internalForwardTargets = [],
   teamMentionMembers = [],
+  jumpToMessageId = '',
+  onJumpToMessageHandled,
 }) {
   const bottomRef = useRef(null);
   const messageListRef = useRef(null);
@@ -597,6 +599,16 @@ function ChatWindow({
     });
   }, []);
 
+  useEffect(() => {
+    if (!jumpToMessageId || chat?.conversationType !== 'team') return;
+
+    const targetExists = safeMessages.some((message) => message?._id === jumpToMessageId);
+    if (!targetExists) return;
+
+    scrollToReferencedMessage(jumpToMessageId);
+    onJumpToMessageHandled?.(jumpToMessageId);
+  }, [chat?.conversationType, jumpToMessageId, onJumpToMessageHandled, safeMessages, scrollToReferencedMessage]);
+
   const activeSearchMessageId = searchMatches.length > 0
     ? searchMatches[currentSearchIndex] || searchMatches[0]
     : '';
@@ -1134,6 +1146,7 @@ function ChatWindow({
                   onDeleteMessage={requestDeleteMessage}
                   onStartForwardSelection={handleStartForwardSelection}
                   isHighlighted={highlightedMessageId === item._id}
+                  jumpToMessageId={jumpToMessageId}
                   searchQuery={isInternalThread ? normalizedSearchQuery : ''}
                   isSearchMatch={searchMatches.includes(item._id)}
                   isActiveSearchMatch={activeSearchMessageId === item._id}

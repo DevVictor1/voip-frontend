@@ -127,6 +127,15 @@ function MessageBubble({
     && replyPreview?.messageId
   );
   const isTeamMessage = message.conversationType === 'team';
+  const isCurrentUserMentioned = Boolean(
+    isTeamMessage
+    && currentUserId
+    && !isDeleted
+    && (
+      (Array.isArray(message.mentionedUserIds) && message.mentionedUserIds.includes(currentUserId))
+      || (Array.isArray(message.mentionedUsernames) && message.mentionedUsernames.includes(currentUserId))
+    )
+  );
   const canOpenMenu = !isDeleted && !isForwardSelectionMode && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete || canTogglePin || canForward);
   const normalizedSearchQuery = String(searchQuery || '').trim().toLowerCase();
   const groupedReactions = useMemo(() => {
@@ -491,7 +500,7 @@ function MessageBubble({
   return (
     <div
       ref={messageElementRef}
-      className={`message-row ${message.direction}${isHighlighted ? ' is-highlighted' : ''}${isSearchMatch ? ' is-search-match' : ''}${isActiveSearchMatch ? ' is-search-match-active' : ''}${isForwardSelectable ? ' is-forward-selectable' : ''}${isForwardSelected ? ' is-forward-selected' : ''}`}
+      className={`message-row ${message.direction}${isHighlighted ? ' is-highlighted' : ''}${isCurrentUserMentioned ? ' has-personal-mention' : ''}${isSearchMatch ? ' is-search-match' : ''}${isActiveSearchMatch ? ' is-search-match-active' : ''}${isForwardSelectable ? ' is-forward-selectable' : ''}${isForwardSelected ? ' is-forward-selected' : ''}`}
       data-message-id={message._id || ''}
     >
       <div
@@ -553,6 +562,10 @@ function MessageBubble({
               <span className="message-quoted-reply-sender">{replyPreview.senderName}</span>
               <span className="message-quoted-reply-text">{replyPreview.body}</span>
             </button>
+          ) : null}
+
+          {isCurrentUserMentioned ? (
+            <div className="message-mention-indicator">You were mentioned</div>
           ) : null}
 
           {isTextingGroupMessage ? (
