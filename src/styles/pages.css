@@ -4575,6 +4575,8 @@
 
 .mention-toast {
   width: min(320px, calc(100vw - 32px));
+  max-width: min(320px, calc(100vw - 32px));
+  min-width: 0;
   border: 1px solid rgba(251, 191, 36, 0.35);
   border-radius: 16px;
   background: rgba(255, 251, 235, 0.98);
@@ -4582,6 +4584,7 @@
   padding: 12px 14px;
   text-align: left;
   cursor: pointer;
+  overflow: hidden;
 }
 
 .mention-toast-label {
@@ -4590,6 +4593,8 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: #b45309;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .mention-toast-title {
@@ -4597,6 +4602,10 @@
   color: #111827;
   font-size: 13px;
   font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mention-toast-preview {
@@ -4604,6 +4613,16 @@
   color: #6b7280;
   font-size: 12px;
   line-height: 1.4;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  text-overflow: ellipsis;
 }
 
 /* Messages layout helpers */
