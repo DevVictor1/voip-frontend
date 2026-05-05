@@ -7,6 +7,24 @@ const formatSmsContextNumber = (primary, fallback) => {
   return String(primary || fallback || '').trim() || 'unknown number';
 };
 
+const formatMessageTimestamp = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const year = String(date.getFullYear()).slice(-2);
+  const time = date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  return `${month}-${day}-${year} • ${time}`;
+};
+
 function MessageBubble({
   message,
   onRetry,
@@ -800,10 +818,7 @@ function MessageBubble({
       ) : null}
 
       <div className="message-meta" style={isFailed ? { color: '#dc2626' } : undefined}>
-        {new Date(message.createdAt).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        })}
+        {formatMessageTimestamp(message.createdAt)}
 
         {!isDeleted && message.editedAt ? (
           <span className="message-edited-indicator">
