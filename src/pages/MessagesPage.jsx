@@ -460,6 +460,7 @@ function MessagesPage({
   const [messages, setMessages] = useState([]);
   const [teamThreadLoading, setTeamThreadLoading] = useState(false);
   const [teammates, setTeammates] = useState([]);
+  const [presenceSnapshotsByAgentId, setPresenceSnapshotsByAgentId] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [showTeammatePicker, setShowTeammatePicker] = useState(false);
   const [startingDirectChat, setStartingDirectChat] = useState(false);
@@ -718,14 +719,30 @@ function MessagesPage({
       const token = getStoredAuthToken();
       if (!token) {
         setTeammates([]);
+        setPresenceSnapshotsByAgentId({});
         return;
       }
 
       const payload = await fetchTeammatesRequest(token);
-      setTeammates(Array.isArray(payload?.teammates) ? payload.teammates : []);
+      const nextTeammates = Array.isArray(payload?.teammates) ? payload.teammates : [];
+      setTeammates(nextTeammates);
+      setPresenceSnapshotsByAgentId(
+        nextTeammates.reduce((acc, user) => {
+          if (!user?.agentId) return acc;
+
+          acc[user.agentId] = {
+            availabilityStatus: user.availabilityStatus || 'online',
+            connected: typeof user.connected === 'boolean' ? user.connected : undefined,
+            presenceStatus: user.presenceStatus || 'offline',
+            effectiveAvailabilityStatus: user.effectiveAvailabilityStatus || resolveEffectiveAvailabilityStatus(user),
+          };
+          return acc;
+        }, {})
+      );
     } catch (err) {
       console.error('Fetch teammates error:', err);
       setTeammates([]);
+      setPresenceSnapshotsByAgentId({});
     }
   }, []);
 
@@ -1127,6 +1144,22 @@ function MessagesPage({
         presenceStatus,
       };
 
+      setPresenceSnapshotsByAgentId((prev) => {
+        const current = prev[userId] || {};
+        const connected = nextSnapshot.connected;
+        return {
+          ...prev,
+          [userId]: {
+            ...current,
+            connected,
+            presenceStatus,
+            effectiveAvailabilityStatus: connected
+              ? resolveEffectiveAvailabilityStatus({ ...current, connected, presenceStatus })
+              : 'offline',
+          },
+        };
+      });
+
       setTeammates((prev) => prev.map((user) => {
         if (user?.agentId !== userId) return user;
 
@@ -1183,6 +1216,21 @@ function MessagesPage({
       const userId = String(payload?.userId || '').trim();
       const availabilityStatus = String(payload?.availabilityStatus || '').trim().toLowerCase();
       if (!userId || !availabilityStatus) return;
+
+      setPresenceSnapshotsByAgentId((prev) => {
+        const current = prev[userId] || {};
+        return {
+          ...prev,
+          [userId]: {
+            ...current,
+            availabilityStatus,
+            effectiveAvailabilityStatus: resolveEffectiveAvailabilityStatus({
+              ...current,
+              availabilityStatus,
+            }),
+          },
+        };
+      });
 
       setTeammates((prev) => prev.map((user) => {
         if (user?.agentId !== userId) return user;
@@ -1260,15 +1308,28 @@ function MessagesPage({
     }
   }, [isSmsPage, location.state, textingGroups]);
 
-  const workspaceUserDirectory = useMemo(
-    () => teammates.reduce((acc, user) => {
+  const workspaceUserDirectory = useMemo(() => {
+    const directory = teammates.reduce((acc, user) => {
       if (user?.agentId) {
-        acc[user.agentId] = user;
+        acc[user.agentId] = {
+          ...user,
+          ...(presenceSnapshotsByAgentId[user.agentId] || {}),
+        };
       }
       return acc;
-    }, {}),
-    [teammates]
-  );
+    }, {});
+
+    Object.entries(presenceSnapshotsByAgentId).forEach(([agentId, snapshot]) => {
+      if (!agentId) return;
+      directory[agentId] = {
+        ...(directory[agentId] || {}),
+        agentId,
+        ...(snapshot || {}),
+      };
+    });
+
+    return directory;
+  }, [presenceSnapshotsByAgentId, teammates]);
 
   const teammateOptions = useMemo(
     () => teammates
