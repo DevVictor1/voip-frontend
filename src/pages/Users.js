@@ -79,6 +79,8 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
   const [showClientImport, setShowClientImport] = useState(false);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
   const [addClientForm, setAddClientForm] = useState(emptyClientForm);
+  const [savingClient, setSavingClient] = useState(false);
+  const [addClientError, setAddClientError] = useState('');
 
   const toastType = error ? 'error' : success ? 'success' : '';
   const toastMessage = error || success;
@@ -451,6 +453,68 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
     setSuccess('');
     setError(message || 'Failed to import contacts');
   };
+
+  const closeAddClientModal = useCallback(() => {
+    if (savingClient) return;
+    setShowAddClientModal(false);
+    setAddClientForm(emptyClientForm);
+    setAddClientError('');
+  }, [savingClient]);
+
+  const handleSaveClient = useCallback(async () => {
+    const trimmedPhone = String(addClientForm.phone || '').trim();
+    if (!trimmedPhone || savingClient) return;
+
+    setSavingClient(true);
+    setAddClientError('');
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch(`${BASE_URL}/api/contacts/upsert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: addClientForm.name,
+          phone: trimmedPhone,
+          business: addClientForm.business,
+          merchantId: addClientForm.merchantId,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to save client');
+      }
+
+      const savedContact = payload?.contact;
+      if (savedContact?._id) {
+        setContacts((prev) => {
+          const existingIndex = prev.findIndex((contact) => contact._id === savedContact._id);
+          if (existingIndex === -1) {
+            return [savedContact, ...prev];
+          }
+
+          const next = [...prev];
+          next[existingIndex] = {
+            ...next[existingIndex],
+            ...savedContact,
+          };
+          return next;
+        });
+        setSelectedClientId(savedContact._id);
+      }
+
+      setSuccess(payload?.created ? 'Client created successfully' : 'Client updated successfully');
+      setShowAddClientModal(false);
+      setAddClientForm(emptyClientForm);
+      setAddClientError('');
+    } catch (saveError) {
+      setAddClientError(saveError.message || 'Failed to save client');
+    } finally {
+      setSavingClient(false);
+    }
+  }, [addClientForm, savingClient]);
 
   const handleClientStatusChange = async (contactId, assignmentStatus) => {
     if (!contactId || !assignmentStatus) return;
@@ -1246,17 +1310,17 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
       )}
 
       {showAddClientModal ? (
-        <div className="directory-modal-overlay" onClick={() => setShowAddClientModal(false)}>
+        <div className="directory-modal-overlay" onClick={closeAddClientModal}>
           <div className="directory-modal" onClick={(event) => event.stopPropagation()}>
             <div className="directory-modal-header">
               <div>
                 <h3>Add Client</h3>
-                <p>Prepare a client entry point without faking backend creation.</p>
+                <p>Create a directory client entry using the existing contact save flow.</p>
               </div>
               <button
                 type="button"
                 className="directory-modal-close"
-                onClick={() => setShowAddClientModal(false)}
+                onClick={closeAddClientModal}
                 aria-label="Close add client"
               >
                 <X size={16} />
@@ -1264,6 +1328,11 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
             </div>
 
             <div className="directory-modal-body">
+              {addClientError ? (
+                <div className="directory-modal-feedback is-error">
+                  {addClientError}
+                </div>
+              ) : null}
               <input
                 className="numbers-input"
                 placeholder="Client name"
@@ -1289,7 +1358,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                 onChange={(event) => setAddClientForm((prev) => ({ ...prev, merchantId: event.target.value }))}
               />
               <div className="directory-modal-note">
-                Manual client creation is not wired to a backend create endpoint yet. Use Import Clients for a real save today, or let SMS auto-create a new number through the existing messaging flow.
+                Save will create or update the directory contact for this phone number using the current contacts backend.
               </div>
             </div>
 
@@ -1298,18 +1367,36 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                 type="button"
                 className="directory-client-toolbar-btn"
                 onClick={() => {
-                  setShowAddClientModal(false);
+                  closeAddClientModal();
                   setShowClientImport(true);
                 }}
+                disabled={savingClient}
               >
                 Import Instead
               </button>
               <button
                 type="button"
                 className="directory-client-toolbar-btn is-accent"
-                onClick={() => setShowAddClientModal(false)}
+                onClick={handleSaveClient}
+                disabled={savingClient || !addClientForm.phone.trim()}
+              >
+                {savingClient ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                type="button"
+                className="directory-client-toolbar-btn"
+                onClick={closeAddClientModal}
+                disabled={savingClient}
               >
                 Close
+              </button>
+              <button
+                type="button"
+                className="directory-client-toolbar-btn"
+                onClick={closeAddClientModal}
+                disabled={savingClient}
+              >
+                Cancel
               </button>
             </div>
           </div>
