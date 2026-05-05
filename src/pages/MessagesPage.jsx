@@ -1443,9 +1443,10 @@ function MessagesPage({
     setInternalChats((prev) => {
       const next = [...prev];
       const index = next.findIndex((item) => item.conversationId === conversation.conversationId);
+      const hasActivityTimestamp = Boolean(conversation?.lastMessageAt || conversation?.updatedAt);
 
       if (index === -1) {
-        return [conversation, ...next];
+        return hasActivityTimestamp ? [conversation, ...next] : [...next, conversation];
       }
 
       next[index] = {
@@ -1531,7 +1532,7 @@ function MessagesPage({
         role: 'Group chat',
         participants: payload.members?.map((member) => member.agentId) || [],
         lastMessage: '',
-        updatedAt: payload.updatedAt || new Date().toISOString(),
+        updatedAt: payload.updatedAt || null,
         unread: 0,
         isInternal: true,
         isTeam: true,
@@ -1589,7 +1590,7 @@ function MessagesPage({
         role: otherAgent.role,
         agentId: otherParticipant,
         lastMessage: conversation.lastMessagePreview || '',
-        updatedAt: conversation.lastMessageAt || conversation.updatedAt || new Date().toISOString(),
+        updatedAt: conversation.lastMessageAt || conversation.updatedAt || null,
         unread: 0,
         isInternal: true,
         isTeam: false,
