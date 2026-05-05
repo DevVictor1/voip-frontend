@@ -1368,6 +1368,7 @@
   align-items: center;
   min-width: min(320px, 100%);
   max-width: min(360px, 100%);
+  width: min(360px, 100%);
   padding: 12px 14px;
   margin-bottom: 8px;
   border-radius: 16px;
@@ -1375,6 +1376,14 @@
   background: rgba(248, 250, 252, 0.94);
   border: 1px solid rgba(226, 232, 240, 0.92);
   color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.message-attachment-card:disabled {
+  cursor: wait;
+  opacity: 0.82;
 }
 
 .message-attachment-icon {

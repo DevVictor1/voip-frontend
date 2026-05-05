@@ -1,5 +1,7 @@
 import { Check, ChevronDown, Copy, Download, FileImage, FileSpreadsheet, FileText, Forward, Pencil, Pin, PinOff, Reply, SmilePlus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import BASE_URL from '../config/api';
+import { getStoredAuthToken } from '../services/auth';
 
 const REACTION_OPTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
@@ -84,6 +86,7 @@ function MessageBubble({
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const [isSavingReaction, setIsSavingReaction] = useState(false);
   const [reactionPickerStyle, setReactionPickerStyle] = useState({});
+  const [attachmentAction, setAttachmentAction] = useState('');
   const bubbleShellRef = useRef(null);
   const menuRef = useRef(null);
   const reactionPickerRef = useRef(null);
@@ -379,6 +382,7 @@ function MessageBubble({
     setReactionPickerOpen(false);
     setIsSavingReaction(false);
     setReactionPickerStyle({});
+    setAttachmentAction('');
   }, [message._id, message.body, message.isDeleted, message.reactions]);
 
   useEffect(() => {
@@ -416,6 +420,95 @@ function MessageBubble({
       }, 1500);
     }
   };
+
+  const handleAttachmentAccess = useCallback(async (mode = 'open') => {
+    if (!attachmentUrl || !message?._id) return;
+
+    if (!isInternalMessage) {
+      if (mode === 'download') {
+        const link = document.createElement('a');
+        link.href = attachmentUrl;
+        link.download = attachmentName || 'attachment';
+        link.target = '_blank';
+        link.rel = 'noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        return;
+      }
+
+      window.open(attachmentUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const authToken = getStoredAuthToken();
+    if (!authToken) {
+      throw new Error('Your session expired. Please sign in again.');
+    }
+
+    const popup = mode === 'open'
+      ? window.open('', '_blank', 'noopener,noreferrer')
+      : null;
+
+    setAttachmentAction(mode);
+
+    try {
+      const response = await fetch(
+        `${BASE_URL}/api/messages/message/${encodeURIComponent(message._id)}/attachment${mode === 'download' ? '?download=1' : ''}`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        let errorMessage = 'Unable to access attachment.';
+
+        try {
+          const payload = await response.json();
+          errorMessage = payload?.error || errorMessage;
+        } catch (error) {
+          // Keep the fallback error message for non-JSON responses.
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      const blob = await response.blob();
+      if (!blob || blob.size === 0) {
+        throw new Error('Attachment file is unavailable.');
+      }
+
+      const objectUrl = window.URL.createObjectURL(blob);
+
+      if (mode === 'download') {
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = attachmentName || 'attachment';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } else if (popup) {
+        popup.location.href = objectUrl;
+      } else {
+        window.open(objectUrl, '_blank', 'noopener,noreferrer');
+      }
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(objectUrl);
+      }, 60000);
+    } catch (error) {
+      if (popup && !popup.closed) {
+        popup.close();
+      }
+
+      throw error;
+    } finally {
+      setAttachmentAction('');
+    }
+  }, [attachmentName, attachmentUrl, isInternalMessage, message]);
 
   const openAnchoredMenu = () => {
     if (!canOpenMenu) return;
@@ -497,6 +590,28 @@ function MessageBubble({
   const handleReply = () => {
     onReplyMessage?.(message);
     closeMenu();
+  };
+
+  const handleOpenAttachment = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    try {
+      await handleAttachmentAccess('open');
+    } catch (error) {
+      console.error('Attachment open failed:', error);
+      window.alert(error?.message || 'Unable to open attachment.');
+    }
+  };
+
+  const handleDownloadAttachment = async () => {
+    try {
+      await handleAttachmentAccess('download');
+      closeMenu();
+    } catch (error) {
+      console.error('Attachment download failed:', error);
+      window.alert(error?.message || 'Unable to download attachment.');
+    }
   };
 
   const handleJumpToReply = (event) => {
@@ -692,12 +807,11 @@ function MessageBubble({
                 />
               )}
               {attachmentUrl ? (
-                <a
+                <button
+                  type="button"
                   className="message-attachment-card"
-                  href={attachmentUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  download={attachmentName || undefined}
+                  onClick={handleOpenAttachment}
+                  disabled={attachmentAction === 'open' || attachmentAction === 'download'}
                 >
                   <span className={`message-attachment-icon is-${attachmentKind}`} aria-hidden="true">
                     {attachmentKind === 'image' ? (
@@ -714,8 +828,10 @@ function MessageBubble({
                       {[attachmentSize, attachmentType].filter(Boolean).join(' • ') || 'Open file'}
                     </span>
                   </span>
-                  <span className="message-attachment-action">Open</span>
-                </a>
+                  <span className="message-attachment-action">
+                    {attachmentAction === 'open' ? 'Opening...' : attachmentAction === 'download' ? 'Preparing...' : 'Open'}
+                  </span>
+                </button>
               ) : null}
               {String(message.body || '').trim() ? (
                 <div className="message-body">{renderHighlightedBody(message.body)}</div>
@@ -754,18 +870,31 @@ function MessageBubble({
               </button>
             ) : null}
             {canDownloadMedia ? (
-              <a
-                className="message-actions-menu-item"
-                href={message.media[0] || attachmentUrl}
-                download={attachmentName || true}
-                target="_blank"
-                rel="noreferrer"
-                onClick={closeMenu}
-                role="menuitem"
-              >
-                <Download size={14} />
-                <span>Download</span>
-              </a>
+              attachmentUrl ? (
+                <button
+                  type="button"
+                  className="message-actions-menu-item"
+                  onClick={handleDownloadAttachment}
+                  role="menuitem"
+                  disabled={attachmentAction === 'open' || attachmentAction === 'download'}
+                >
+                  <Download size={14} />
+                  <span>{attachmentAction === 'download' ? 'Preparing...' : 'Download'}</span>
+                </button>
+              ) : (
+                <a
+                  className="message-actions-menu-item"
+                  href={message.media[0]}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={closeMenu}
+                  role="menuitem"
+                >
+                  <Download size={14} />
+                  <span>Download</span>
+                </a>
+              )
             ) : null}
             {canSendAnotherSms ? (
               <button
