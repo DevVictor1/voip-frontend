@@ -52,6 +52,8 @@ function App() {
   const [userRole, setUserRole] = useState(() => getEffectiveRole(getStoredAuthUser()));
   const [agentStatus, setAgentStatus] = useState('offline');
   const [availabilityStatus, setAvailabilityStatus] = useState(() => normalizeAvailabilityStatus(getStoredAuthUser()?.availabilityStatus || 'online'));
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusUpdateError, setStatusUpdateError] = useState('');
   const [agentId, setAgentId] = useState(() => getEffectiveAgentId(getStoredAuthUser()));
 
   const isAuthenticated = Boolean(authToken && authUser);
@@ -125,9 +127,9 @@ function App() {
       socket.emit('registerUser', {
         userId,
         status: 'online',
+        availabilityStatus,
         voiceReady: isVoiceReady,
       });
-      socket.emit('agentStatus', { userId, status: 'online' });
       socket.emit('voiceReady', {
         userId,
         voiceReady: isVoiceReady,
@@ -136,6 +138,7 @@ function App() {
       lastRegisteredSocketIdentityRef.current = userId;
       console.log('Registered socket user:', userId, {
         agentStatus: 'online',
+        availabilityStatus,
         deviceStatus,
         voiceReady: isVoiceReady,
       });
@@ -167,7 +170,7 @@ function App() {
       socket.off('connect', registerIdentity);
       socket.off('disconnect', handleDisconnect);
     };
-  }, [deviceStatus, isAuthenticated, isVoiceReady, workspaceAgentId]);
+  }, [availabilityStatus, deviceStatus, isAuthenticated, isVoiceReady, workspaceAgentId]);
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;
@@ -313,20 +316,30 @@ function App() {
   };
 
   const handleAvailabilityStatusChange = async (nextStatus) => {
-    if (!isAuthenticated || !authToken) return;
+    if (!isAuthenticated || !authToken || isUpdatingStatus) return;
 
     const normalizedStatus = normalizeAvailabilityStatus(nextStatus);
+    const previousStatus = availabilityStatus;
+    setStatusUpdateError('');
+    setIsUpdatingStatus(true);
+    setAvailabilityStatus(normalizedStatus);
 
     try {
       const payload = await updateMyAvailabilityStatusRequest(authToken, normalizedStatus);
       const nextUser = payload?.user || null;
-      if (!nextUser) return;
+      if (!nextUser) {
+        throw new Error('Status update did not return a user payload');
+      }
 
       storeAuthSession({ token: authToken, user: nextUser });
       setAuthUser(nextUser);
       setAvailabilityStatus(normalizeAvailabilityStatus(nextUser.availabilityStatus || normalizedStatus));
     } catch (error) {
       console.error('Update availability status failed:', error);
+      setAvailabilityStatus(previousStatus);
+      setStatusUpdateError(error?.message || 'Unable to update status');
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -392,6 +405,8 @@ function App() {
       setUserRole('admin');
       setAgentStatus('offline');
       setAvailabilityStatus('online');
+      setIsUpdatingStatus(false);
+      setStatusUpdateError('');
       setAgentId('web_user');
   };
 
@@ -426,6 +441,8 @@ function App() {
         availabilityStatus={availabilityStatus}
         availabilityOptions={AVAILABILITY_STATUS_OPTIONS}
         onAvailabilityStatusChange={handleAvailabilityStatusChange}
+        isUpdatingStatus={isUpdatingStatus}
+        statusUpdateError={statusUpdateError}
       >
         {children}
       </MainLayout>

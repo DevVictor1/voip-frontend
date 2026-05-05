@@ -274,8 +274,18 @@
   cursor: pointer;
 }
 
+.availability-pill-select-input:disabled {
+  cursor: wait;
+}
+
 .availability-pill-value {
   font-weight: 700;
+}
+
+.availability-pill-error {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b91c1c;
 }
 
 .availability-pill.is-online,

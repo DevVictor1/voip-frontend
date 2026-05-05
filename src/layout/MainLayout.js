@@ -18,6 +18,8 @@ function MainLayout({
   availabilityStatus,
   availabilityOptions = [],
   onAvailabilityStatusChange,
+  isUpdatingStatus = false,
+  statusUpdateError = '',
 }) {
   const agentMeta = getAgentMeta(agentId);
   const roleLabel = userRole === 'agent' ? 'Agent' : 'Admin';
@@ -61,6 +63,7 @@ function MainLayout({
                   value={availabilityStatus}
                   onChange={(event) => onAvailabilityStatusChange?.(event.target.value)}
                   aria-label="Update your availability status"
+                  disabled={isUpdatingStatus}
                 >
                   {availabilityOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -68,8 +71,16 @@ function MainLayout({
                     </option>
                   ))}
                 </select>
-                <span className="availability-pill-value">{formatAvailabilityStatus(agentStatus)}</span>
+                <span className="availability-pill-value">
+                  {isUpdatingStatus ? 'Updating...' : formatAvailabilityStatus(agentStatus)}
+                </span>
               </label>
+
+              {statusUpdateError ? (
+                <span className="availability-pill-error" role="status" aria-live="polite">
+                  {statusUpdateError}
+                </span>
+              ) : null}
 
               <button type="button" onClick={onLogout} style={logoutButtonStyle}>
                 Logout
