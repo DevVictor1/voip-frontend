@@ -101,10 +101,6 @@ function MainLayout({
                   avatarUrl={authUser?.avatarUrl || ''}
                   className="app-topbar-avatar"
                 />
-                <span className="app-topbar-avatar-copy">
-                  <span className="app-topbar-avatar-label">{isUpdatingAvatar ? 'Uploading avatar...' : 'Change avatar'}</span>
-                  <span className="app-topbar-avatar-subtitle">PNG, JPG, WEBP, or GIF up to 350 KB</span>
-                </span>
                 <span className="app-topbar-avatar-icon" aria-hidden="true">
                   <Camera size={14} />
                 </span>
