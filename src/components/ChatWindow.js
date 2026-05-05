@@ -33,6 +33,7 @@ function ChatWindow({
   onBack,
   showBack,
   internalForwardTargets = [],
+  teamMentionMembers = [],
 }) {
   const bottomRef = useRef(null);
   const messageListRef = useRef(null);
@@ -1222,6 +1223,7 @@ function ChatWindow({
         userId={currentUserId}
         role={currentUserRole}
         teamName={chat.conversationType === 'team' ? (chat.teamName || chat.name || '') : ''}
+        teamMentionMembers={chat.conversationType === 'team' ? teamMentionMembers : []}
         textingGroupId={chat?.textingGroupId || ''}
         focusNonce={composerFocusNonce}
         allowAttachments={isCustomerChat}

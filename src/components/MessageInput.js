@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './MessageInput.css';
 import BASE_URL from '../config/api';
 import { getStoredAuthUser } from '../services/auth';
@@ -44,6 +44,7 @@ function MessageInput({
   userId,
   role = '',
   teamName = '',
+  teamMentionMembers = [],
   textingGroupId = '',
   focusNonce = 0,
   allowAttachments = true,
@@ -58,9 +59,63 @@ function MessageInput({
   const [sending, setSending] = useState(false);
   const [mediaUrl, setMediaUrl] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [mentionState, setMentionState] = useState({ open: false, query: '', start: -1, end: -1 });
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const currentUserName = getStoredAuthUser()?.name || getStoredAuthUser()?.agentId || '';
+  const isTeamChat = conversationType === 'team';
+
+  const filteredMentionMembers = useMemo(() => {
+    if (!isTeamChat || !mentionState.open) return [];
+
+    const normalizedQuery = mentionState.query.trim().toLowerCase();
+    const list = Array.isArray(teamMentionMembers) ? teamMentionMembers : [];
+    if (!normalizedQuery) return list;
+
+    return list.filter((member) => (
+      [member?.name, member?.agentId, member?.role]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(normalizedQuery)
+    ));
+  }, [isTeamChat, mentionState.open, mentionState.query, teamMentionMembers]);
+
+  const updateMentionState = (value, cursorPosition) => {
+    if (!isTeamChat) {
+      setMentionState({ open: false, query: '', start: -1, end: -1 });
+      return;
+    }
+
+    const safeValue = String(value || '');
+    const cursor = Math.max(0, Math.min(cursorPosition ?? safeValue.length, safeValue.length));
+    const prefix = safeValue.slice(0, cursor);
+    const triggerIndex = prefix.lastIndexOf('@');
+
+    if (triggerIndex === -1) {
+      setMentionState({ open: false, query: '', start: -1, end: -1 });
+      return;
+    }
+
+    const previousChar = triggerIndex > 0 ? prefix.charAt(triggerIndex - 1) : '';
+    if (previousChar && !/\s/.test(previousChar)) {
+      setMentionState({ open: false, query: '', start: -1, end: -1 });
+      return;
+    }
+
+    const query = prefix.slice(triggerIndex + 1);
+    if (/\s/.test(query)) {
+      setMentionState({ open: false, query: '', start: -1, end: -1 });
+      return;
+    }
+
+    setMentionState({
+      open: true,
+      query,
+      start: triggerIndex,
+      end: cursor,
+    });
+  };
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -77,6 +132,7 @@ function MessageInput({
   useEffect(() => {
     setText('');
     setMediaUrl('');
+    setMentionState({ open: false, query: '', start: -1, end: -1 });
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -151,6 +207,28 @@ function MessageInput({
     }
   };
 
+  const insertMention = (member) => {
+    const textarea = textareaRef.current;
+    if (!textarea || !member?.agentId) return;
+
+    const mentionToken = `@${member.agentId} `;
+    const currentValue = text;
+    const start = mentionState.start;
+    const end = mentionState.end;
+    const before = currentValue.slice(0, start);
+    const after = currentValue.slice(end);
+    const nextValue = `${before}${mentionToken}${after}`;
+    const nextCursor = before.length + mentionToken.length;
+
+    setText(nextValue);
+    setMentionState({ open: false, query: '', start: -1, end: -1 });
+
+    window.requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextCursor, nextCursor);
+    });
+  };
+
   const handleSend = async () => {
     if (sending || uploading) return;
     if ((!text.trim() && !mediaUrl) || !chatId) return;
@@ -186,6 +264,7 @@ function MessageInput({
     }
 
     setText('');
+    setMentionState({ open: false, query: '', start: -1, end: -1 });
 
     try {
       const data = await sendMessageRequest(
@@ -299,21 +378,62 @@ function MessageInput({
       )}
 
       <div className="message-input-row">
+        {isTeamChat && mentionState.open ? (
+          <div className="team-mention-picker" role="listbox" aria-label="Team members">
+            {filteredMentionMembers.length > 0 ? (
+              filteredMentionMembers.map((member) => (
+                <button
+                  key={member.agentId}
+                  type="button"
+                  className="team-mention-option"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    insertMention(member);
+                  }}
+                  role="option"
+                  aria-selected="false"
+                >
+                  <span className="team-mention-option-name">{member.name || member.agentId}</span>
+                  <span className="team-mention-option-meta">@{member.agentId}{member.role ? ` · ${member.role}` : ''}</span>
+                </button>
+              ))
+            ) : (
+              <div className="team-mention-empty">No team members match this mention.</div>
+            )}
+          </div>
+        ) : null}
+
         <textarea
           ref={textareaRef}
           className="message-input-field"
           placeholder="Type a message..."
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            const nextValue = e.target.value;
+            setText(nextValue);
+            updateMentionState(nextValue, e.target.selectionStart);
+          }}
           onFocus={() => onFocusInput?.()}
           rows={1}
           onKeyDown={(e) => {
             if (sending || uploading) return;
+            if (isTeamChat && mentionState.open && filteredMentionMembers.length > 0 && e.key === 'Enter') {
+              e.preventDefault();
+              insertMention(filteredMentionMembers[0]);
+              return;
+            }
+            if (isTeamChat && mentionState.open && e.key === 'Escape') {
+              e.preventDefault();
+              setMentionState({ open: false, query: '', start: -1, end: -1 });
+              return;
+            }
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               handleSend();
             }
           }}
+          onClick={(e) => updateMentionState(e.currentTarget.value, e.currentTarget.selectionStart)}
+          onKeyUp={(e) => updateMentionState(e.currentTarget.value, e.currentTarget.selectionStart)}
         />
 
         {allowAttachments && (

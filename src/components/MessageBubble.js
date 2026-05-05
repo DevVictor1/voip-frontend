@@ -126,6 +126,7 @@ function MessageBubble({
     && !isDeleted
     && replyPreview?.messageId
   );
+  const isTeamMessage = message.conversationType === 'team';
   const canOpenMenu = !isDeleted && !isForwardSelectionMode && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete || canTogglePin || canForward);
   const normalizedSearchQuery = String(searchQuery || '').trim().toLowerCase();
   const groupedReactions = useMemo(() => {
@@ -183,13 +184,13 @@ function MessageBubble({
     });
   }, [message.direction]);
 
-  const renderHighlightedBody = (body) => {
-    const text = String(body || '');
-    if (!normalizedSearchQuery || !text) {
-      return text;
+  const renderSearchHighlights = (text, keyPrefix) => {
+    const safeText = String(text || '');
+    if (!normalizedSearchQuery || !safeText) {
+      return safeText;
     }
 
-    const lowerText = text.toLowerCase();
+    const lowerText = safeText.toLowerCase();
     const parts = [];
     let cursor = 0;
     let matchIndex = lowerText.indexOf(normalizedSearchQuery);
@@ -197,13 +198,13 @@ function MessageBubble({
 
     while (matchIndex !== -1) {
       if (matchIndex > cursor) {
-        parts.push(<span key={`text-${keyIndex}`}>{text.slice(cursor, matchIndex)}</span>);
+        parts.push(<span key={`${keyPrefix}-text-${keyIndex}`}>{safeText.slice(cursor, matchIndex)}</span>);
       }
 
       const endIndex = matchIndex + normalizedSearchQuery.length;
       parts.push(
-        <mark key={`mark-${keyIndex}`} className="message-search-highlight">
-          {text.slice(matchIndex, endIndex)}
+        <mark key={`${keyPrefix}-mark-${keyIndex}`} className="message-search-highlight">
+          {safeText.slice(matchIndex, endIndex)}
         </mark>
       );
 
@@ -212,9 +213,42 @@ function MessageBubble({
       matchIndex = lowerText.indexOf(normalizedSearchQuery, cursor);
     }
 
-    if (cursor < text.length) {
-      parts.push(<span key={`text-tail-${keyIndex}`}>{text.slice(cursor)}</span>);
+    if (cursor < safeText.length) {
+      parts.push(<span key={`${keyPrefix}-tail-${keyIndex}`}>{safeText.slice(cursor)}</span>);
     }
+
+    return parts;
+  };
+
+  const renderHighlightedBody = (body) => {
+    const text = String(body || '');
+    if (!normalizedSearchQuery || !text) {
+      if (!isTeamMessage) return text;
+    }
+
+    if (!isTeamMessage) {
+      return renderSearchHighlights(text, 'body');
+    }
+
+    const mentionPattern = /(@[A-Za-z0-9._-]+)/g;
+    const mentionTokenPattern = /^@[A-Za-z0-9._-]+$/;
+    const segments = text.split(mentionPattern);
+    const parts = [];
+
+    segments.forEach((segment, index) => {
+      if (!segment) return;
+
+      if (mentionTokenPattern.test(segment)) {
+        parts.push(
+          <span key={`mention-${index}`} className="message-mention">
+            {renderSearchHighlights(segment, `mention-${index}`)}
+          </span>
+        );
+        return;
+      }
+
+      parts.push(...[].concat(renderSearchHighlights(segment, `body-${index}`)));
+    });
 
     return parts;
   };

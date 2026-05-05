@@ -2521,6 +2521,35 @@ function MessagesPage({
 
     return haystack.includes(normalizedQuery);
   });
+  const activeTeamMentionMembers = useMemo(() => {
+    if (activeChat?.conversationType !== 'team') return [];
+
+    const participantIds = Array.isArray(activeChat?.participants) ? activeChat.participants : [];
+    const participantSet = new Set(participantIds.filter(Boolean));
+    const detailMembers = Array.isArray(teamDetailsData?.members) ? teamDetailsData.members : [];
+
+    const merged = teammateOptions
+      .filter((agent) => participantSet.has(agent.agentId))
+      .map((agent) => ({
+        agentId: agent.agentId,
+        name: agent.name || agent.agentId,
+        role: agent.role || 'Teammate',
+      }));
+
+    detailMembers.forEach((member) => {
+      if (!member?.agentId || member.agentId === currentUserId) return;
+      if (merged.some((entry) => entry.agentId === member.agentId)) return;
+      merged.push({
+        agentId: member.agentId,
+        name: member.name || member.agentId,
+        role: member.role || 'Teammate',
+      });
+    });
+
+    return merged
+      .filter((member) => member.agentId !== currentUserId)
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }, [activeChat?.conversationType, activeChat?.participants, currentUserId, teamDetailsData?.members, teammateOptions]);
 
   const closeSmsModeChooser = () => {
     setShowSmsModeChooser(false);
@@ -3013,6 +3042,7 @@ function MessagesPage({
             onAddUserToContacts={(payload) => handleOpenSmsContactModal(payload)}
             assignableAgents={assignableAgents}
             internalForwardTargets={internalForwardTargets}
+            teamMentionMembers={activeTeamMentionMembers}
             onBack={() => setActiveChatId(null)}
             showBack={isChatOpen}
           />
