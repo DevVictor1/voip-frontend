@@ -47,6 +47,14 @@ const emptyTeamCalendarForm = {
   description: '',
 };
 
+const TEAM_CALENDAR_LOCAL_TZ = (() => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'your local timezone';
+  } catch (error) {
+    return 'your local timezone';
+  }
+})();
+
 const toLocalDateInputValue = (date = new Date()) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -98,6 +106,45 @@ const formatCalendarEventTime = (value) => {
   return date.toLocaleTimeString([], {
     hour: 'numeric',
     minute: '2-digit',
+  });
+};
+
+const buildCalendarSortWeight = (event) => {
+  const startAt = new Date(event?.startAt || 0).getTime();
+  const endAt = new Date(event?.endAt || event?.startAt || 0).getTime();
+  const now = Date.now();
+  const isPast = Number.isFinite(endAt) && endAt < now;
+  return {
+    isPinned: Boolean(event?.isPinned),
+    isPast,
+    startAt,
+    pinnedAt: new Date(event?.pinnedAt || 0).getTime(),
+    createdAt: new Date(event?.createdAt || 0).getTime(),
+  };
+};
+
+const sortTeamCalendarEvents = (events = []) => {
+  return [...events].sort((left, right) => {
+    const leftWeight = buildCalendarSortWeight(left);
+    const rightWeight = buildCalendarSortWeight(right);
+
+    if (leftWeight.isPinned !== rightWeight.isPinned) {
+      return leftWeight.isPinned ? -1 : 1;
+    }
+
+    if (leftWeight.isPinned && rightWeight.isPinned && leftWeight.pinnedAt !== rightWeight.pinnedAt) {
+      return rightWeight.pinnedAt - leftWeight.pinnedAt;
+    }
+
+    if (leftWeight.isPast !== rightWeight.isPast) {
+      return leftWeight.isPast ? 1 : -1;
+    }
+
+    if (leftWeight.startAt !== rightWeight.startAt) {
+      return leftWeight.startAt - rightWeight.startAt;
+    }
+
+    return leftWeight.createdAt - rightWeight.createdAt;
   });
 };
 
@@ -577,6 +624,7 @@ function MessagesPage({
   const [teamCalendarData, setTeamCalendarData] = useState(null);
   const [teamCalendarEvents, setTeamCalendarEvents] = useState([]);
   const [teamCalendarForm, setTeamCalendarForm] = useState(() => buildDefaultTeamCalendarForm());
+  const [teamCalendarFormError, setTeamCalendarFormError] = useState('');
   const [teamDetailsLoading, setTeamDetailsLoading] = useState(false);
   const [teamDetailsSaving, setTeamDetailsSaving] = useState(false);
   const [teamDetailsError, setTeamDetailsError] = useState('');
@@ -634,6 +682,7 @@ function MessagesPage({
     setTeamCalendarData(null);
     setTeamCalendarEvents([]);
     setTeamCalendarForm(buildDefaultTeamCalendarForm());
+    setTeamCalendarFormError('');
   }, []);
 
   useEffect(() => {
@@ -1804,11 +1853,22 @@ function MessagesPage({
     }
   }, [currentRole, currentUserId]);
 
+  const applyTeamCalendarMutation = useCallback((payload) => {
+    const normalizedEventId = String(payload?._id || '').trim();
+    if (!normalizedEventId) return;
+
+    setTeamCalendarEvents((prev) => {
+      const next = prev.filter((event) => String(event?._id || '') !== normalizedEventId);
+      return sortTeamCalendarEvents([...next, payload]);
+    });
+  }, []);
+
   const handleOpenTeamCalendar = useCallback(async () => {
     if (!isInternalTeamsPage || !activeTeamConversationId) return;
 
     setShowTeamCalendar(true);
     setTeamCalendarForm(buildDefaultTeamCalendarForm());
+    setTeamCalendarFormError('');
     await fetchTeamCalendarEvents(activeTeamConversationId);
   }, [activeTeamConversationId, fetchTeamCalendarEvents, isInternalTeamsPage]);
 
@@ -1821,6 +1881,7 @@ function MessagesPage({
       setTeamCalendarSaving(true);
       setTeamCalendarError('');
       setTeamCalendarSuccess('');
+      setTeamCalendarFormError('');
 
       const title = String(teamCalendarForm.title || '').trim();
       const description = String(teamCalendarForm.description || '').trim();
@@ -1828,7 +1889,15 @@ function MessagesPage({
       const endAt = buildEventDateTime(teamCalendarForm.date, teamCalendarForm.endTime);
 
       if (!title || !teamCalendarForm.date || !teamCalendarForm.startTime || !teamCalendarForm.endTime) {
-        throw new Error('Fill in the event title, date, start time, and end time');
+        setTeamCalendarFormError('Fill in the event title, date, start time, and end time');
+        setTeamCalendarSaving(false);
+        return;
+      }
+
+      if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
+        setTeamCalendarFormError('End time must be after start time');
+        setTeamCalendarSaving(false);
+        return;
       }
 
       const res = await fetch(`${BASE_URL}/api/messages/team/${encodeURIComponent(conversationId)}/calendar`, {
@@ -1849,18 +1918,18 @@ function MessagesPage({
         throw new Error(payload?.error || 'Failed to create calendar event');
       }
 
-      setTeamCalendarEvents((prev) => (
-        [...prev, payload].sort((left, right) => new Date(left.startAt) - new Date(right.startAt))
-      ));
+      applyTeamCalendarMutation(payload);
       setTeamCalendarForm(buildDefaultTeamCalendarForm());
       setTeamCalendarSuccess('Event added to the group calendar');
     } catch (error) {
       console.error('Create team calendar event error:', error);
-      setTeamCalendarError(error.message || 'Failed to create calendar event');
+      const nextError = error.message || 'Failed to create calendar event';
+      setTeamCalendarError(nextError);
+      setTeamCalendarFormError(nextError);
     } finally {
       setTeamCalendarSaving(false);
     }
-  }, [activeTeamConversationId, currentRole, currentUserId, teamCalendarData?.conversationId, teamCalendarForm, teamCalendarSaving]);
+  }, [activeTeamConversationId, applyTeamCalendarMutation, currentRole, currentUserId, teamCalendarData?.conversationId, teamCalendarForm, teamCalendarSaving]);
 
   const handleDeleteTeamCalendarEvent = useCallback(async (eventId) => {
     const conversationId = activeTeamConversationId || teamCalendarData?.conversationId;
@@ -1891,6 +1960,54 @@ function MessagesPage({
     } catch (error) {
       console.error('Delete team calendar event error:', error);
       setTeamCalendarError(error.message || 'Failed to delete calendar event');
+    } finally {
+      setTeamCalendarSaving(false);
+    }
+  }, [activeTeamConversationId, currentRole, currentUserId, teamCalendarData?.conversationId, teamCalendarSaving]);
+
+  const handleToggleTeamCalendarEventPin = useCallback(async (eventId, pinned) => {
+    const conversationId = activeTeamConversationId || teamCalendarData?.conversationId;
+    if (!conversationId || !eventId || teamCalendarSaving) return;
+
+    try {
+      setTeamCalendarSaving(true);
+      setTeamCalendarError('');
+      setTeamCalendarSuccess('');
+
+      const res = await fetch(`${BASE_URL}/api/messages/team/${encodeURIComponent(conversationId)}/calendar/${encodeURIComponent(eventId)}/pin`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          role: currentRole,
+          pinned,
+        }),
+      });
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to update event pin state');
+      }
+
+      setTeamCalendarEvents((prev) => {
+        const next = prev.map((event) => {
+          if (String(event?._id || '') === String(payload?._id || '')) {
+            return payload;
+          }
+
+          if (pinned && event?.isPinned) {
+            return { ...event, isPinned: false, pinnedAt: null };
+          }
+
+          return event;
+        });
+
+        return sortTeamCalendarEvents(next);
+      });
+      setTeamCalendarSuccess(pinned ? 'Event pinned to the top' : 'Event unpinned');
+    } catch (error) {
+      console.error('Toggle team calendar pin error:', error);
+      setTeamCalendarError(error.message || 'Failed to update event pin state');
     } finally {
       setTeamCalendarSaving(false);
     }
@@ -2547,6 +2664,44 @@ function MessagesPage({
   }, []);
 
   useEffect(() => {
+    const handleTeamCalendarUpdated = (payload) => {
+      const conversationId = String(payload?.conversationId || payload?.teamId || '').trim();
+      if (!conversationId || conversationId !== activeTeamConversationId) {
+        return;
+      }
+
+      const action = String(payload?.action || '').trim();
+      const updatedEvent = payload?.event || null;
+      const targetEventId = String(payload?.eventId || updatedEvent?._id || '').trim();
+
+      if (showTeamCalendar && teamCalendarData?.conversationId === conversationId) {
+        if (action === 'deleted' && targetEventId) {
+          setTeamCalendarEvents((prev) => prev.filter((event) => String(event?._id || '') !== targetEventId));
+          return;
+        }
+
+        if (updatedEvent?._id) {
+          setTeamCalendarEvents((prev) => {
+            const next = prev.filter((event) => String(event?._id || '') !== String(updatedEvent._id || ''));
+
+            if (action === 'pinned') {
+              return sortTeamCalendarEvents([
+                ...next.map((event) => (event?.isPinned ? { ...event, isPinned: false, pinnedAt: null } : event)),
+                updatedEvent,
+              ]);
+            }
+
+            return sortTeamCalendarEvents([...next, updatedEvent]);
+          });
+        }
+      }
+    };
+
+    socket.on('teamCalendarUpdated', handleTeamCalendarUpdated);
+    return () => socket.off('teamCalendarUpdated', handleTeamCalendarUpdated);
+  }, [activeTeamConversationId, showTeamCalendar, teamCalendarData?.conversationId]);
+
+  useEffect(() => {
     const handleInternalMessageStatus = (payload) => {
       if (!payload?.conversationId || !payload?.conversationType || !Array.isArray(payload?.messageIds)) {
         return;
@@ -2853,9 +3008,7 @@ function MessagesPage({
       .filter((member) => member.agentId !== currentUserId)
       .sort((left, right) => left.name.localeCompare(right.name));
   }, [activeChat?.conversationType, activeChat?.participants, currentUserId, teamDetailsData?.members, teammateOptions]);
-  const sortedTeamCalendarEvents = useMemo(() => (
-    [...teamCalendarEvents].sort((left, right) => new Date(left.startAt) - new Date(right.startAt))
-  ), [teamCalendarEvents]);
+  const sortedTeamCalendarEvents = useMemo(() => sortTeamCalendarEvents(teamCalendarEvents), [teamCalendarEvents]);
 
   const closeSmsModeChooser = () => {
     setShowSmsModeChooser(false);
@@ -3861,6 +4014,10 @@ function MessagesPage({
             </div>
 
             <div className="team-calendar-body">
+              <div className="team-calendar-timezone-note">
+                Times are shown in your local timezone: {TEAM_CALENDAR_LOCAL_TZ}
+              </div>
+
               {teamCalendarSuccess ? (
                 <div className="internal-teams-details-success">
                   {teamCalendarSuccess}
@@ -3883,18 +4040,25 @@ function MessagesPage({
                   <div className="messages-picker-empty">Loading calendar events…</div>
                 ) : sortedTeamCalendarEvents.length === 0 ? (
                   <div className="messages-picker-empty">
-                    No events yet for this group. Add the first one below.
+                    No events yet. Create the first group event.
                   </div>
                 ) : (
                   <div className="team-calendar-event-list">
                     {sortedTeamCalendarEvents.map((event) => {
                       const canDeleteEvent = currentRole === 'admin' || event.createdBy === currentUserId;
+                      const canPinEvent = currentRole === 'admin' || event.createdBy === currentUserId;
+                      const isPinnedEvent = Boolean(event.isPinned);
 
                       return (
-                        <div key={event._id} className="team-calendar-event-card">
+                        <div key={event._id} className={`team-calendar-event-card${isPinnedEvent ? ' is-pinned' : ''}`}>
                           <div className="team-calendar-event-copy">
                             <div className="team-calendar-event-title-row">
-                              <div className="team-calendar-event-title">{event.title}</div>
+                              <div className="team-calendar-event-title-wrap">
+                                <div className="team-calendar-event-title">{event.title}</div>
+                                {isPinnedEvent ? (
+                                  <span className="team-calendar-pinned-badge">Pinned</span>
+                                ) : null}
+                              </div>
                               <div className="team-calendar-event-date">{formatCalendarEventDate(event.startAt)}</div>
                             </div>
                             <div className="team-calendar-event-time">
@@ -3907,16 +4071,28 @@ function MessagesPage({
                               Created by {event.createdByName || event.createdBy || 'Teammate'}
                             </div>
                           </div>
-                          {canDeleteEvent ? (
-                            <button
-                              type="button"
-                              className="team-calendar-event-delete"
-                              onClick={() => handleDeleteTeamCalendarEvent(event._id)}
-                              disabled={teamCalendarSaving}
-                            >
-                              Delete
-                            </button>
-                          ) : null}
+                          <div className="team-calendar-event-actions">
+                            {canPinEvent ? (
+                              <button
+                                type="button"
+                                className={`team-calendar-event-pin${isPinnedEvent ? ' is-active' : ''}`}
+                                onClick={() => handleToggleTeamCalendarEventPin(event._id, !isPinnedEvent)}
+                                disabled={teamCalendarSaving}
+                              >
+                                {isPinnedEvent ? 'Unpin' : 'Pin'}
+                              </button>
+                            ) : null}
+                            {canDeleteEvent ? (
+                              <button
+                                type="button"
+                                className="team-calendar-event-delete"
+                                onClick={() => handleDeleteTeamCalendarEvent(event._id)}
+                                disabled={teamCalendarSaving}
+                              >
+                                Delete
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                       );
                     })}
@@ -3982,6 +4158,12 @@ function MessagesPage({
                     />
                   </label>
                 </div>
+
+                {teamCalendarFormError ? (
+                  <div className="team-calendar-inline-error">
+                    {teamCalendarFormError}
+                  </div>
+                ) : null}
               </div>
             </div>
 
