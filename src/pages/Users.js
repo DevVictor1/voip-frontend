@@ -41,6 +41,8 @@ const emptyClientForm = {
   phone: '',
   business: '',
   merchantId: '',
+  alternatePhone: '',
+  notes: '',
 };
 
 function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'directory' }) {
@@ -81,6 +83,11 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
   const [addClientForm, setAddClientForm] = useState(emptyClientForm);
   const [savingClient, setSavingClient] = useState(false);
   const [addClientError, setAddClientError] = useState('');
+  const [showEditClientModal, setShowEditClientModal] = useState(false);
+  const [editClientForm, setEditClientForm] = useState(emptyClientForm);
+  const [editingClient, setEditingClient] = useState(false);
+  const [editClientError, setEditClientError] = useState('');
+  const [deletingClientId, setDeletingClientId] = useState('');
 
   const toastType = error ? 'error' : success ? 'success' : '';
   const toastMessage = error || success;
@@ -215,6 +222,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
       const params = new URLSearchParams({
         role: currentUserRole,
         userId: currentUserId,
+        includeArchived: 'true',
       });
 
       const [contactsRes, chatsRes] = await Promise.all([
@@ -479,6 +487,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
           phone: trimmedPhone,
           business: addClientForm.business,
           merchantId: addClientForm.merchantId,
+          notes: addClientForm.notes,
         }),
       });
 
@@ -515,6 +524,127 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
       setSavingClient(false);
     }
   }, [addClientForm, savingClient]);
+
+  const closeEditClientModal = useCallback(() => {
+    if (editingClient) return;
+    setShowEditClientModal(false);
+    setEditClientForm(emptyClientForm);
+    setEditClientError('');
+  }, [editingClient]);
+
+  const handleOpenEditClientModal = useCallback((client) => {
+    if (!client?._id) return;
+
+    const phones = Array.isArray(client.phones) ? client.phones : [];
+    setEditClientForm({
+      name: client.name || '',
+      phone: client.phone || normalizePhone(phones[0]?.number) || '',
+      business: client.businessName || '',
+      merchantId: client.mid || '',
+      alternatePhone: normalizePhone(phones[1]?.number) || '',
+      notes: client.notes || '',
+    });
+    setEditClientError('');
+    setShowEditClientModal(true);
+  }, []);
+
+  const handleSaveEditedClient = useCallback(async () => {
+    if (!selectedClient?._id || editingClient) return;
+
+    const trimmedPhone = String(editClientForm.phone || '').trim();
+    if (!trimmedPhone) {
+      setEditClientError('Valid phone number is required');
+      return;
+    }
+
+    setEditingClient(true);
+    setEditClientError('');
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch(`${BASE_URL}/api/contacts/${selectedClient._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: currentUserRole,
+          userId: currentUserId,
+          name: editClientForm.name,
+          phone: trimmedPhone,
+          alternatePhone: editClientForm.alternatePhone,
+          business: editClientForm.business,
+          merchantId: editClientForm.merchantId,
+          notes: editClientForm.notes,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to update client');
+      }
+
+      if (payload?.contact?._id) {
+        setContacts((prev) => prev.map((contact) => (
+          contact._id === payload.contact._id ? payload.contact : contact
+        )));
+        setSelectedClientId(payload.contact._id);
+      }
+
+      setSuccess('Client updated successfully');
+      setShowEditClientModal(false);
+      setEditClientForm(emptyClientForm);
+      setEditClientError('');
+    } catch (updateError) {
+      setEditClientError(updateError.message || 'Failed to update client');
+    } finally {
+      setEditingClient(false);
+    }
+  }, [currentUserId, currentUserRole, editClientForm, editingClient, selectedClient?._id]);
+
+  const handleDeleteClient = useCallback(async (client) => {
+    if (!client?._id || deletingClientId) return;
+
+    const confirmed = window.confirm(
+      'Delete this client? Contacts with message history will be archived instead of permanently removed.'
+    );
+    if (!confirmed) return;
+
+    setDeletingClientId(client._id);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch(`${BASE_URL}/api/contacts/${client._id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: currentUserRole,
+          userId: currentUserId,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to delete client');
+      }
+
+      setContacts((prev) => prev.filter((contact) => contact._id !== client._id));
+      if (selectedClientId === client._id) {
+        setSelectedClientId('');
+      }
+
+      setSuccess(payload?.archived ? 'Client archived safely' : 'Client deleted successfully');
+      if (showEditClientModal) {
+        setShowEditClientModal(false);
+        setEditClientForm(emptyClientForm);
+        setEditClientError('');
+      }
+    } catch (deleteError) {
+      setError(deleteError.message || 'Failed to delete client');
+    } finally {
+      setDeletingClientId('');
+    }
+  }, [currentUserId, currentUserRole, deletingClientId, selectedClientId, showEditClientModal]);
 
   const handleClientStatusChange = async (contactId, assignmentStatus) => {
     if (!contactId || !assignmentStatus) return;
@@ -1240,18 +1370,20 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                   <button
                     type="button"
                     className="directory-client-toolbar-btn"
-                    disabled
-                    title="Assignment tools stay in the existing SMS flow for now"
+                    onClick={() => handleOpenEditClientModal(selectedClient)}
+                    disabled={!selectedClient._id}
+                    title={selectedClient._id ? 'Edit client details' : 'Create a saved contact before editing'}
                   >
-                    Assign
+                    Edit
                   </button>
                   <button
                     type="button"
                     className="directory-client-toolbar-btn"
-                    disabled
-                    title="Client notes are not connected from Directory yet"
+                    onClick={() => handleDeleteClient(selectedClient)}
+                    disabled={!selectedClient._id || deletingClientId === selectedClient._id}
+                    title={selectedClient._id ? 'Archive or delete this client safely' : 'Chat-only entries cannot be deleted from Directory'}
                   >
-                    Notes
+                    {deletingClientId === selectedClient._id ? 'Deleting...' : 'Delete'}
                   </button>
                   <button
                     type="button"
@@ -1290,8 +1422,16 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
                     <div className="directory-detail-value">{selectedClient.phone || 'Unknown'}</div>
                   </div>
                   <div className="directory-detail-section">
+                    <div className="directory-detail-label">Alternate phone</div>
+                    <div className="directory-detail-value">{selectedClient.alternatePhone || 'Not available'}</div>
+                  </div>
+                  <div className="directory-detail-section">
                     <div className="directory-detail-label">Business</div>
                     <div className="directory-detail-value">{selectedClient.businessName || 'Not available'}</div>
+                  </div>
+                  <div className="directory-detail-section">
+                    <div className="directory-detail-label">Notes</div>
+                    <div className="directory-detail-value">{selectedClient.notes || 'No notes yet'}</div>
                   </div>
                   <div className="directory-detail-section">
                     <div className="directory-detail-label">Last preview</div>
@@ -1402,6 +1542,91 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
           </div>
         </div>
       ) : null}
+
+      {showEditClientModal ? (
+        <div className="directory-modal-overlay" onClick={closeEditClientModal}>
+          <div className="directory-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="directory-modal-header">
+              <div>
+                <h3>Edit Client</h3>
+                <p>Update the saved directory contact without affecting message history.</p>
+              </div>
+              <button
+                type="button"
+                className="directory-modal-close"
+                onClick={closeEditClientModal}
+                aria-label="Close edit client"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="directory-modal-body">
+              {editClientError ? (
+                <div className="directory-modal-feedback is-error">
+                  {editClientError}
+                </div>
+              ) : null}
+              <input
+                className="numbers-input"
+                placeholder="Client name"
+                value={editClientForm.name}
+                onChange={(event) => setEditClientForm((prev) => ({ ...prev, name: event.target.value }))}
+              />
+              <input
+                className="numbers-input"
+                placeholder="Primary phone number"
+                value={editClientForm.phone}
+                onChange={(event) => setEditClientForm((prev) => ({ ...prev, phone: event.target.value }))}
+              />
+              <input
+                className="numbers-input"
+                placeholder="Alternate phone number"
+                value={editClientForm.alternatePhone}
+                onChange={(event) => setEditClientForm((prev) => ({ ...prev, alternatePhone: event.target.value }))}
+              />
+              <input
+                className="numbers-input"
+                placeholder="Business / store"
+                value={editClientForm.business}
+                onChange={(event) => setEditClientForm((prev) => ({ ...prev, business: event.target.value }))}
+              />
+              <input
+                className="numbers-input"
+                placeholder="Merchant ID"
+                value={editClientForm.merchantId}
+                onChange={(event) => setEditClientForm((prev) => ({ ...prev, merchantId: event.target.value }))}
+              />
+              <textarea
+                className="numbers-input numbers-textarea"
+                placeholder="Notes"
+                value={editClientForm.notes}
+                onChange={(event) => setEditClientForm((prev) => ({ ...prev, notes: event.target.value }))}
+                rows={4}
+              />
+            </div>
+
+            <div className="directory-modal-footer">
+              <button
+                type="button"
+                className="directory-client-toolbar-btn"
+                onClick={closeEditClientModal}
+                disabled={editingClient}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="directory-client-toolbar-btn is-accent"
+                onClick={handleSaveEditedClient}
+                disabled={editingClient || !editClientForm.phone.trim()}
+              >
+                {editingClient ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1480,14 +1705,26 @@ function normalizePhone(value) {
 function buildClientDirectory({ contacts = [], chats = [] }) {
   const clients = [];
   const matchedPhones = new Set();
+  const archivedPhones = new Set();
 
   contacts.forEach((contact) => {
+    if (!contact?.isArchived) return;
+    const phones = Array.isArray(contact?.phones) ? contact.phones : [];
+    phones
+      .map((phone) => normalizePhone(phone.number))
+      .filter(Boolean)
+      .forEach((phone) => archivedPhones.add(phone));
+  });
+
+  contacts.forEach((contact) => {
+    if (contact?.isArchived) return;
     const phones = Array.isArray(contact?.phones) ? contact.phones : [];
     const normalizedPhones = phones
       .map((phone) => normalizePhone(phone.number))
       .filter(Boolean);
     const matchedChat = chats.find((chat) => normalizedPhones.includes(normalizePhone(chat?.phone)));
     const phone = normalizePhone(matchedChat?.phone || phones[0]?.number || '');
+    const alternatePhone = normalizePhone(phones[1]?.number || '');
     const fullName = [contact?.firstName, contact?.lastName].filter(Boolean).join(' ').trim();
     const businessName = contact?.dba || '';
     const name = fullName || contact?.name || businessName || phone;
@@ -1499,8 +1736,10 @@ function buildClientDirectory({ contacts = [], chats = [] }) {
       _id: contact?._id || null,
       name: name || phone || 'Unknown client',
       phone,
+      alternatePhone,
       businessName,
       mid: contact?.mid || '',
+      notes: contact?.notes || '',
       previewText,
       assignedTo: contact?.assignedTo || matchedChat?.assignedTo || null,
       isUnassigned: typeof contact?.isUnassigned === 'boolean'
@@ -1520,15 +1759,17 @@ function buildClientDirectory({ contacts = [], chats = [] }) {
 
   chats.forEach((chat) => {
     const phone = normalizePhone(chat?.phone);
-    if (!phone || matchedPhones.has(phone)) return;
+    if (!phone || matchedPhones.has(phone) || archivedPhones.has(phone)) return;
 
     clients.push({
       id: `client:${phone}`,
       _id: null,
       name: chat?.name || phone,
       phone,
+      alternatePhone: '',
       businessName: '',
       mid: '',
+      notes: '',
       previewText: chat?.lastMessage || 'No messages yet',
       assignedTo: chat?.assignedTo || null,
       isUnassigned: typeof chat?.isUnassigned === 'boolean' ? chat.isUnassigned : !chat?.assignedTo,
