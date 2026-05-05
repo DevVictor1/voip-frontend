@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  Download,
   MessageSquare,
   MoreHorizontal,
   Phone,
@@ -88,6 +89,7 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
   const [editingClient, setEditingClient] = useState(false);
   const [editClientError, setEditClientError] = useState('');
   const [deletingClientId, setDeletingClientId] = useState('');
+  const [exportingClients, setExportingClients] = useState(false);
 
   const toastType = error ? 'error' : success ? 'success' : '';
   const toastMessage = error || success;
@@ -461,6 +463,45 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
     setSuccess('');
     setError(message || 'Failed to import contacts');
   };
+
+  const handleExportClients = useCallback(async () => {
+    if (exportingClients) return;
+
+    setExportingClients(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const params = new URLSearchParams({
+        role: currentUserRole,
+        userId: currentUserId,
+      });
+
+      const response = await fetch(`${BASE_URL}/api/contacts/export?${params.toString()}`);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || 'Failed to export contacts');
+      }
+
+      const blob = await response.blob();
+      const today = new Date().toISOString().slice(0, 10);
+      const filename = `contacts_export_${today}.csv`;
+      const objectUrl = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(objectUrl);
+
+      setSuccess('Contacts exported successfully');
+    } catch (exportError) {
+      setError(exportError.message || 'Failed to export contacts');
+    } finally {
+      setExportingClients(false);
+    }
+  }, [currentUserId, currentUserRole, exportingClients]);
 
   const closeAddClientModal = useCallback(() => {
     if (savingClient) return;
@@ -1271,6 +1312,15 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
               >
                 <Upload size={15} />
                 <span>{showClientImport ? 'Hide Import' : 'Import Clients'}</span>
+              </button>
+              <button
+                type="button"
+                className="directory-client-action-btn"
+                onClick={handleExportClients}
+                disabled={exportingClients}
+              >
+                <Download size={15} />
+                <span>{exportingClients ? 'Exporting...' : 'Export'}</span>
               </button>
             </div>
 
