@@ -1,5 +1,6 @@
 import { Users, X } from 'lucide-react';
 import BASE_URL from '../config/api';
+import UserAvatar from './UserAvatar';
 import { formatAvailabilityStatus, resolveEffectiveAvailabilityStatus } from '../utils/presence';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
@@ -103,10 +104,6 @@ function ContactsList({
     return 'conversation-dot is-customer';
   };
 
-  const getAvatarLabel = (label = '') => {
-    return String(label || '').trim().charAt(0).toUpperCase() || '?';
-  };
-
   const handleDelete = async (id, e) => {
     e.stopPropagation();
 
@@ -162,9 +159,12 @@ function ContactsList({
                 <div className="contact-name-row">
                   <div className="contact-name-wrap">
                     {isInternalChatList && item.conversationType === 'internal_dm' ? (
-                      <span className="contact-avatar contact-avatar-internal" aria-hidden="true">
-                        {getAvatarLabel(displayName)}
-                      </span>
+                      <UserAvatar
+                        name={displayName}
+                        avatarUrl={item.avatarUrl || ''}
+                        className="contact-avatar contact-avatar-internal"
+                        initialsClassName="contact-avatar-initials"
+                      />
                     ) : isInternalTeamsList && item.conversationType === 'team' ? (
                       <span className="contact-avatar contact-avatar-team" aria-hidden="true">
                         <Users size={16} strokeWidth={2.1} />

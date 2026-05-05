@@ -3210,10 +3210,6 @@
 .internal-chat-recent-avatar {
   width: 22px;
   height: 22px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(14, 165, 233, 0.18));
   color: #1d4ed8;
   font-size: 11px;
@@ -3958,7 +3954,8 @@
 
 .internal-teams-member-copy {
   display: grid;
-  gap: 3px;
+  grid-template-columns: auto 1fr;
+  gap: 3px 10px;
   min-width: 0;
 }
 
@@ -3969,11 +3966,23 @@
   font-size: 14px;
   font-weight: 700;
   color: #0f172a;
+  grid-column: 2;
 }
 
 .internal-teams-member-role {
   font-size: 12px;
   color: #64748b;
+  grid-column: 2;
+}
+
+.internal-teams-member-avatar {
+  width: 34px;
+  height: 34px;
+  grid-row: 1 / span 2;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(14, 165, 233, 0.14));
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .internal-teams-member-check {
@@ -4131,7 +4140,8 @@
 
 .internal-teams-details-member-copy {
   display: grid;
-  gap: 4px;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
   min-width: 0;
 }
 
@@ -4142,6 +4152,7 @@
   font-size: 14px;
   font-weight: 700;
   color: #0f172a;
+  grid-column: 2;
 }
 
 .internal-teams-member-self {
@@ -4159,6 +4170,17 @@
 .internal-teams-details-member-meta {
   font-size: 12px;
   color: #64748b;
+  grid-column: 2;
+}
+
+.internal-teams-details-member-avatar {
+  width: 36px;
+  height: 36px;
+  grid-row: 1 / span 2;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(14, 165, 233, 0.14));
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .internal-teams-member-remove,
@@ -4546,10 +4568,6 @@
 .contact-avatar {
   width: 34px;
   height: 34px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
   font-size: 12px;
   font-weight: 700;

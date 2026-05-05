@@ -85,6 +85,68 @@
   justify-content: flex-end;
 }
 
+.app-topbar-avatar-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+}
+
+.app-topbar-avatar-button.is-disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.app-topbar-avatar-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.app-topbar-avatar {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.14), rgba(37, 99, 235, 0.18));
+  color: #1d4ed8;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.app-topbar-avatar-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-topbar-avatar-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.app-topbar-avatar-subtitle {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.app-topbar-avatar-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+}
+
 .page-shell {
   display: flex;
   gap: 24px;

@@ -1,7 +1,13 @@
+import { useState } from 'react';
+import { Camera } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import DeviceStatusControl from '../components/DeviceStatusControl';
+import UserAvatar from '../components/UserAvatar';
 import { formatAgentLabel, getAgentMeta } from '../config/agents';
 import { formatAvailabilityStatus, getAvailabilityStatusClass } from '../utils/presence';
+
+const AVATAR_MAX_BYTES = 350 * 1024;
+const ALLOWED_AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
 function MainLayout({
   children,
@@ -21,9 +27,35 @@ function MainLayout({
   onAvailabilityStatusChange,
   isUpdatingStatus = false,
   statusUpdateError = '',
+  onAvatarChange,
+  isUpdatingAvatar = false,
+  avatarUpdateError = '',
 }) {
   const agentMeta = getAgentMeta(agentId);
   const roleLabel = userRole === 'agent' ? 'Agent' : 'Admin';
+  const [avatarInputError, setAvatarInputError] = useState('');
+  const handleAvatarInput = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+      setAvatarInputError('Please choose a PNG, JPG, WEBP, or GIF image.');
+      return;
+    }
+
+    if (file.size > AVATAR_MAX_BYTES) {
+      setAvatarInputError('Please choose an image that is 350 KB or smaller.');
+      return;
+    }
+
+    setAvatarInputError('');
+    const dataUrl = await readFileAsDataUrl(file);
+    await onAvatarChange?.(dataUrl);
+  };
 
   return (
     <div className="app-root">
@@ -54,6 +86,30 @@ function MainLayout({
             </div>
 
             <div className="app-topbar-actions">
+              <label className={`app-topbar-avatar-button${isUpdatingAvatar ? ' is-disabled' : ''}`}>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="app-topbar-avatar-input"
+                  onChange={(event) => {
+                    handleAvatarInput(event).catch(() => {});
+                  }}
+                  disabled={isUpdatingAvatar}
+                />
+                <UserAvatar
+                  name={authUser?.name || formatAgentLabel(agentId)}
+                  avatarUrl={authUser?.avatarUrl || ''}
+                  className="app-topbar-avatar"
+                />
+                <span className="app-topbar-avatar-copy">
+                  <span className="app-topbar-avatar-label">{isUpdatingAvatar ? 'Uploading avatar...' : 'Change avatar'}</span>
+                  <span className="app-topbar-avatar-subtitle">PNG, JPG, WEBP, or GIF up to 350 KB</span>
+                </span>
+                <span className="app-topbar-avatar-icon" aria-hidden="true">
+                  <Camera size={14} />
+                </span>
+              </label>
+
               <DeviceStatusControl
                 deviceStatus={deviceStatus}
                 callState={callState}
@@ -88,6 +144,12 @@ function MainLayout({
                 </span>
               ) : null}
 
+              {avatarInputError || avatarUpdateError ? (
+                <span className="availability-pill-error" role="status" aria-live="polite">
+                  {avatarInputError || avatarUpdateError}
+                </span>
+              ) : null}
+
               <button type="button" onClick={onLogout} style={logoutButtonStyle}>
                 Logout
               </button>
@@ -113,4 +175,13 @@ const logoutButtonStyle = {
 };
 
 export default MainLayout;
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Unable to read avatar file'));
+    reader.readAsDataURL(file);
+  });
+}
 

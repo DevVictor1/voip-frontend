@@ -33,6 +33,7 @@ import {
   getStoredAuthUser,
   loginRequest,
   storeAuthSession,
+  updateMyAvatarRequest,
   updateMyAvailabilityStatusRequest,
 } from './services/auth';
 import { AVAILABILITY_STATUS_OPTIONS, normalizeAvailabilityStatus, resolveEffectiveAvailabilityStatus } from './utils/presence';
@@ -56,6 +57,8 @@ function App() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [statusUpdateError, setStatusUpdateError] = useState('');
   const [agentId, setAgentId] = useState(() => getEffectiveAgentId(getStoredAuthUser()));
+  const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
+  const [avatarUpdateError, setAvatarUpdateError] = useState('');
   const [sidebarUnreadTotals, setSidebarUnreadTotals] = useState(() => ({
     internalChat: 0,
     internalTeams: 0,
@@ -238,6 +241,26 @@ function App() {
       socket.off('internalMessageDeleted', refreshInternalUnreadTotals);
     };
   }, [fetchSidebarUnreadTotals, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !authToken) return undefined;
+
+    const handleUserAvatarUpdated = (payload) => {
+      const nextUser = payload?.user || null;
+      const nextUserId = String(nextUser?.id || nextUser?._id || payload?.userId || '').trim();
+      const currentUserDbId = String(authUser?.id || authUser?._id || '').trim();
+
+      if (!nextUser || !nextUserId || !currentUserDbId || nextUserId !== currentUserDbId) {
+        return;
+      }
+
+      storeAuthSession({ token: authToken, user: nextUser });
+      setAuthUser(nextUser);
+    };
+
+    socket.on('userAvatarUpdated', handleUserAvatarUpdated);
+    return () => socket.off('userAvatarUpdated', handleUserAvatarUpdated);
+  }, [authToken, authUser?.id, authUser?._id, isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;
@@ -474,7 +497,34 @@ function App() {
       setAvailabilityStatus('online');
       setIsUpdatingStatus(false);
       setStatusUpdateError('');
+      setIsUpdatingAvatar(false);
+      setAvatarUpdateError('');
       setAgentId('web_user');
+  };
+
+  const handleAvatarChange = async (avatarDataUrl) => {
+    if (!isAuthenticated || !authToken || isUpdatingAvatar) return;
+
+    try {
+      setIsUpdatingAvatar(true);
+      setAvatarUpdateError('');
+
+      const payload = await updateMyAvatarRequest(authToken, avatarDataUrl);
+      const nextUser = payload?.user || null;
+
+      if (!nextUser) {
+        throw new Error('Avatar update did not return a user payload');
+      }
+
+      storeAuthSession({ token: authToken, user: nextUser });
+      setAuthUser(nextUser);
+    } catch (error) {
+      console.error('Update avatar failed:', error);
+      setAvatarUpdateError(error?.message || 'Unable to update avatar');
+      throw error;
+    } finally {
+      setIsUpdatingAvatar(false);
+    }
   };
 
   const renderProtectedLayout = (children, { adminOnly = false } = {}) => {
@@ -511,6 +561,9 @@ function App() {
         onAvailabilityStatusChange={handleAvailabilityStatusChange}
         isUpdatingStatus={isUpdatingStatus}
         statusUpdateError={statusUpdateError}
+        onAvatarChange={handleAvatarChange}
+        isUpdatingAvatar={isUpdatingAvatar}
+        avatarUpdateError={avatarUpdateError}
       >
         {children}
       </MainLayout>

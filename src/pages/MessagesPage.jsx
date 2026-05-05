@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import ContactsList from '../components/ContactsList';
 import ChatWindow from '../components/ChatWindow';
 import NewMessageModal from '../components/NewMessageModal';
+import UserAvatar from '../components/UserAvatar';
 import socket from '../socket';
 import BASE_URL from '../config/api';
 import { Plus, Search } from 'lucide-react';
@@ -458,6 +459,7 @@ const getDirectoryAgentMeta = (agentId, userDirectory = {}) => {
     return {
       name: fallbackMeta?.name || agentId,
       role: fallbackMeta?.role || '',
+      avatarUrl: '',
       availabilityStatus: 'online',
       connected: undefined,
       presenceStatus: 'offline',
@@ -471,6 +473,7 @@ const getDirectoryAgentMeta = (agentId, userDirectory = {}) => {
   return {
     name: matchedUser.name || fallbackMeta?.name || agentId,
     role: roleLabel,
+    avatarUrl: matchedUser.avatarUrl || '',
     availabilityStatus: matchedUser.availabilityStatus || 'online',
     connected: typeof matchedUser.connected === 'boolean' ? matchedUser.connected : undefined,
     presenceStatus: matchedUser.presenceStatus || 'offline',
@@ -524,6 +527,9 @@ const normalizeInternalConversation = (conversation, currentUserId, userDirector
     agentId: conversationType === 'internal_dm'
       ? (otherParticipant || conversation?.agentId || null)
       : (conversation?.agentId || null),
+    avatarUrl: conversationType === 'internal_dm'
+      ? (otherAgent?.avatarUrl || conversation?.avatarUrl || '')
+      : (conversation?.avatarUrl || ''),
     availabilityStatus: otherAgent?.availabilityStatus || 'online',
     connected: typeof otherAgent?.connected === 'boolean' ? otherAgent.connected : undefined,
     presenceStatus: otherAgent?.presenceStatus || 'offline',
@@ -1568,6 +1574,7 @@ function MessagesPage({
           agentId: user.agentId,
           name: user.name || user.agentId,
           role: secondaryParts.join(' - ') || 'Teammate',
+          avatarUrl: user.avatarUrl || '',
           availabilityStatus: user.availabilityStatus || 'online',
           connected: typeof user.connected === 'boolean' ? user.connected : undefined,
           presenceStatus: user.presenceStatus || 'offline',
@@ -1686,6 +1693,7 @@ function MessagesPage({
         agentId: entry.agentId,
         name: entry.name || entry.agentId,
         role: entry.role || 'Teammate',
+        avatarUrl: entry.avatarUrl || '',
       };
 
       return [
@@ -1803,6 +1811,7 @@ function MessagesPage({
         name: otherAgent.name,
         role: otherAgent.role,
         agentId: otherParticipant,
+        avatarUrl: otherAgent.avatarUrl || '',
         lastMessage: conversation.lastMessagePreview || '',
         updatedAt: conversation.lastMessageAt || conversation.updatedAt || null,
         unread: 0,
@@ -1817,9 +1826,10 @@ function MessagesPage({
       setShowTeammatePicker(false);
       setTeammatePickerQuery('');
       rememberInternalSearch({
-        agentId: otherAgent.agentId,
+        agentId: otherParticipant,
         name: otherAgent.name,
         role: otherAgent.role,
+        avatarUrl: otherAgent.avatarUrl || '',
       });
       fetchInternalConversations();
     } catch (err) {
@@ -2816,6 +2826,44 @@ function MessagesPage({
   }, [activeTeamConversationId, showTeamCalendar, teamCalendarData?.conversationId]);
 
   useEffect(() => {
+    const handleUserAvatarUpdated = (payload) => {
+      const nextUser = payload?.user || null;
+      const nextAgentId = String(nextUser?.agentId || payload?.agentId || '').trim();
+
+      if (!nextAgentId) {
+        return;
+      }
+
+      const avatarUrl = nextUser?.avatarUrl || '';
+
+      setTeammates((prev) => prev.map((user) => (
+        user?.agentId === nextAgentId ? { ...user, avatarUrl } : user
+      )));
+      setInternalChats((prev) => prev.map((conversation) => (
+        conversation?.conversationType === 'internal_dm' && conversation?.agentId === nextAgentId
+          ? { ...conversation, avatarUrl }
+          : conversation
+      )));
+      setRecentInternalSearches((prev) => prev.map((entry) => (
+        entry?.agentId === nextAgentId ? { ...entry, avatarUrl } : entry
+      )));
+      setTeamDetailsData((prev) => (
+        prev
+          ? {
+              ...prev,
+              members: (prev.members || []).map((member) => (
+                member?.agentId === nextAgentId ? { ...member, avatarUrl } : member
+              )),
+            }
+          : prev
+      ));
+    };
+
+    socket.on('userAvatarUpdated', handleUserAvatarUpdated);
+    return () => socket.off('userAvatarUpdated', handleUserAvatarUpdated);
+  }, []);
+
+  useEffect(() => {
     const handleInternalMessageStatus = (payload) => {
       if (!payload?.conversationId || !payload?.conversationType || !Array.isArray(payload?.messageIds)) {
         return;
@@ -3013,6 +3061,7 @@ function MessagesPage({
         agentId: normalizedConversation.agentId,
         name: normalizedConversation.name || normalizedConversation.title || normalizedConversation.agentId,
         role: normalizedConversation.subtitle || normalizedConversation.role || 'Teammate',
+        avatarUrl: normalizedConversation.avatarUrl || '',
       });
     }
   }, [isInternalChatPage, markChatRead, rememberInternalSearch, searchQuery, smsMode]);
@@ -3063,12 +3112,14 @@ function MessagesPage({
   const teamDetailsMemberDirectory = teamDetailsMembers.map((agentId) => {
     const existingMember = (teamDetailsData?.members || []).find((member) => member.agentId === agentId);
     const teammate = teammateOptions.find((member) => member.agentId === agentId);
+    const isCurrentUser = existingMember?.isCurrentUser || agentId === currentUserId;
 
     return {
       agentId,
       name: existingMember?.name || teammate?.name || agentId,
       role: existingMember?.role || teammate?.role || 'Teammate',
       department: existingMember?.department || '',
+      avatarUrl: existingMember?.avatarUrl || teammate?.avatarUrl || (isCurrentUser ? (storedAuthUser?.avatarUrl || '') : ''),
       availabilityStatus: existingMember?.availabilityStatus || teammate?.availabilityStatus || 'online',
       connected: typeof existingMember?.connected === 'boolean'
         ? existingMember.connected
@@ -3077,7 +3128,7 @@ function MessagesPage({
       effectiveAvailabilityStatus: existingMember?.effectiveAvailabilityStatus
         || teammate?.effectiveAvailabilityStatus
         || resolveEffectiveAvailabilityStatus(existingMember || teammate || {}),
-      isCurrentUser: existingMember?.isCurrentUser || agentId === currentUserId,
+      isCurrentUser,
     };
   });
   const filteredAvailableTeamMembers = teammateOptions.filter((agent) => {
@@ -3241,9 +3292,11 @@ function MessagesPage({
                       className="internal-chat-recent-item"
                       onClick={() => handleStartDirectChat(entry.agentId)}
                     >
-                      <span className="internal-chat-recent-avatar" aria-hidden="true">
-                        {(entry.name || entry.agentId).trim().charAt(0).toUpperCase()}
-                      </span>
+                      <UserAvatar
+                        name={entry.name || entry.agentId}
+                        avatarUrl={entry.avatarUrl || ''}
+                        className="internal-chat-recent-avatar"
+                      />
                       <span className="internal-chat-recent-name">{entry.name || entry.agentId}</span>
                     </button>
                   ))}
@@ -3865,6 +3918,11 @@ function MessagesPage({
                         onClick={() => toggleTeamMemberSelection(agent.agentId)}
                       >
                         <span className="internal-teams-member-copy">
+                          <UserAvatar
+                            name={agent.name}
+                            avatarUrl={agent.avatarUrl || ''}
+                            className="internal-teams-member-avatar"
+                          />
                           <span className="internal-teams-member-name">{agent.name}</span>
                           <span className="internal-teams-member-role">{agent.role}</span>
                         </span>
@@ -3966,6 +4024,11 @@ function MessagesPage({
                         return (
                           <div key={member.agentId} className="internal-teams-details-member-row">
                             <div className="internal-teams-details-member-copy">
+                              <UserAvatar
+                                name={member.name}
+                                avatarUrl={member.avatarUrl || ''}
+                                className="internal-teams-details-member-avatar"
+                              />
                               <div className="internal-teams-details-member-name">
                                 <span
                                   className={`presence-dot is-${member.effectiveAvailabilityStatus || 'offline'}`}
@@ -4027,6 +4090,11 @@ function MessagesPage({
                             disabled={!teamDetailsData.canManage || teamDetailsSaving}
                           >
                             <span className="internal-teams-member-copy">
+                              <UserAvatar
+                                name={agent.name}
+                                avatarUrl={agent.avatarUrl || ''}
+                                className="internal-teams-member-avatar"
+                              />
                               <span className="internal-teams-member-name">
                                 <span
                                   className={`presence-dot is-${agent.effectiveAvailabilityStatus || 'offline'}`}

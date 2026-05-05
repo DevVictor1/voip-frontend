@@ -205,6 +205,25 @@ export const updateMyAvailabilityStatusRequest = async (token, availabilityStatu
   return payload;
 };
 
+export const updateMyAvatarRequest = async (token, avatarDataUrl) => {
+  const response = await fetch(`${BASE_URL}/api/auth/me/avatar`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ avatarDataUrl }),
+  });
+
+  const payload = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to update avatar');
+  }
+
+  return payload;
+};
+
 export const createUserRequest = async (token, userData) => {
   const response = await fetch(`${BASE_URL}/api/auth/users`, {
     method: 'POST',
