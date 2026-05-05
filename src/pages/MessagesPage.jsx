@@ -397,6 +397,17 @@ const sortConversationsByUnreadAndTime = (conversations = []) => {
   });
 };
 
+const hasInternalConversationActivity = (conversation) => {
+  if (!conversation) return false;
+
+  const updatedAt = conversation?.updatedAt || conversation?.lastMessageAt || 0;
+  const unreadCount = normalizeUnreadCount(conversation?.unread);
+  const unreadMentionCount = normalizeUnreadCount(conversation?.unreadMentionCount);
+  const lastMessage = String(conversation?.lastMessage || '').trim();
+
+  return Boolean(updatedAt || unreadCount > 0 || unreadMentionCount > 0 || lastMessage);
+};
+
 const buildDirectSmsConversationList = ({ contacts, chats }) => {
   const normalizedCustomers = [];
   const matchedPhones = new Set();
@@ -1766,6 +1777,10 @@ function MessagesPage({
         currentUserId,
         userDirectory: workspaceUserDirectory,
       });
+  const activeInternalChatThreads = conversationList.filter((item) => (
+    item?.conversationType === 'internal_dm'
+    && hasInternalConversationActivity(item)
+  ));
 
   const fetchTeamDetails = useCallback(async (conversationId) => {
     if (!conversationId) return null;
@@ -2207,7 +2222,7 @@ function MessagesPage({
   if (activeSection === 'customers') {
     filteredList = conversationList.filter((item) => item.conversationType === 'customer');
   } else if (activeSection === 'internal') {
-    filteredList = conversationList.filter((item) => item.conversationType === 'internal_dm');
+    filteredList = activeInternalChatThreads;
   } else if (activeSection === 'teams') {
     filteredList = conversationList.filter((item) => item.conversationType === 'team');
   }
