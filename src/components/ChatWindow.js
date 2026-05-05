@@ -24,6 +24,7 @@ function ChatWindow({
   threadLoading = false,
   showTeamDetailsAction = false,
   onOpenTeamDetails,
+  onOpenTeamCalendar,
   onSwitchNumber,
   onAssignContact,
   onUpdateAssignmentStatus,
@@ -1016,6 +1017,7 @@ function ChatWindow({
         onCall={handleCall}
         showTeamDetailsAction={showTeamDetailsAction}
         onOpenTeamDetails={onOpenTeamDetails}
+        onOpenTeamCalendar={onOpenTeamCalendar}
         onSwitchNumber={onSwitchNumber}
         onAssignContact={onAssignContact}
         onUpdateAssignmentStatus={onUpdateAssignmentStatus}

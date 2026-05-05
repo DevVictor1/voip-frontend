@@ -27,6 +27,7 @@ function Header({
   callLabel,
   showTeamDetailsAction = false,
   onOpenTeamDetails,
+  onOpenTeamCalendar,
   onAssignContact,
   onUpdateAssignmentStatus,
   onAddUserToContacts,
@@ -357,6 +358,13 @@ function Header({
                 Search
               </button>
             ) : null}
+            <button
+              className="button-icon"
+              type="button"
+              onClick={onOpenTeamCalendar}
+            >
+              Calendar
+            </button>
             <button
               className="button-icon"
               type="button"

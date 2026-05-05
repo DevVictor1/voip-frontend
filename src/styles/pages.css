@@ -4195,6 +4195,159 @@
   justify-content: space-between;
 }
 
+.team-calendar-modal {
+  width: min(620px, calc(100vw - 32px));
+  max-height: min(720px, calc(100vh - 32px));
+}
+
+.team-calendar-body {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.team-calendar-section {
+  display: grid;
+  gap: 12px;
+}
+
+.team-calendar-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.team-calendar-event-list {
+  display: grid;
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.team-calendar-event-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  padding: 14px;
+}
+
+.team-calendar-event-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.team-calendar-event-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.team-calendar-event-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.team-calendar-event-date {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6366f1;
+}
+
+.team-calendar-event-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.team-calendar-event-description {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748b;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.team-calendar-event-meta {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.team-calendar-event-delete {
+  flex: 0 0 auto;
+  border: 1px solid rgba(252, 165, 165, 0.85);
+  background: rgba(255, 255, 255, 0.96);
+  color: #dc2626;
+  border-radius: 10px;
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.team-calendar-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.team-calendar-field {
+  display: grid;
+  gap: 8px;
+}
+
+.team-calendar-field.is-full {
+  grid-column: 1 / -1;
+}
+
+.team-calendar-field span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.team-calendar-field input,
+.team-calendar-field textarea {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #dbe3f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #0f172a;
+  background: #fff;
+}
+
+.team-calendar-field textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.team-calendar-field input:focus,
+.team-calendar-field textarea:focus {
+  outline: none;
+  border-color: #c4b5fd;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+}
+
+.team-calendar-footer {
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .messages-toast {
   position: fixed;
   top: 20px;

@@ -39,6 +39,68 @@ const emptySmsContactForm = {
   notes: '',
 };
 
+const emptyTeamCalendarForm = {
+  title: '',
+  date: '',
+  startTime: '',
+  endTime: '',
+  description: '',
+};
+
+const toLocalDateInputValue = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toLocalTimeInputValue = (date = new Date()) => {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+const buildDefaultTeamCalendarForm = () => {
+  const now = new Date();
+  const start = new Date(now.getTime() + 60 * 60 * 1000);
+  start.setMinutes(0, 0, 0);
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+  return {
+    ...emptyTeamCalendarForm,
+    date: toLocalDateInputValue(start),
+    startTime: toLocalTimeInputValue(start),
+    endTime: toLocalTimeInputValue(end),
+  };
+};
+
+const buildEventDateTime = (dateValue, timeValue) => {
+  if (!dateValue || !timeValue) return '';
+  return new Date(`${dateValue}T${timeValue}`).toISOString();
+};
+
+const formatCalendarEventDate = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '';
+
+  return date.toLocaleDateString([], {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
+
+const formatCalendarEventTime = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '';
+
+  return date.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
+
 const buildConversationKey = (conversationType, conversationId) => {
   const rawId = String(conversationId || '');
   const safeId = conversationType === 'customer'
@@ -460,6 +522,10 @@ function MessagesPage({
   const [textingGroupThreadsLoading, setTextingGroupThreadsLoading] = useState(false);
   const [showSmsModeChooser, setShowSmsModeChooser] = useState(false);
   const [activeChatId, setActiveChatId] = useState(null);
+  const isActiveTeamConversation = String(activeChatId || '').startsWith('team:');
+  const activeTeamConversationId = isActiveTeamConversation
+    ? String(activeChatId || '').replace(/^team:/, '')
+    : '';
   const [activeCustomerContactId, setActiveCustomerContactId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [teamThreadLoading, setTeamThreadLoading] = useState(false);
@@ -503,6 +569,14 @@ function MessagesPage({
   const [selectedTeamMembers, setSelectedTeamMembers] = useState([]);
   const [creatingTeam, setCreatingTeam] = useState(false);
   const [showTeamDetails, setShowTeamDetails] = useState(false);
+  const [showTeamCalendar, setShowTeamCalendar] = useState(false);
+  const [teamCalendarLoading, setTeamCalendarLoading] = useState(false);
+  const [teamCalendarSaving, setTeamCalendarSaving] = useState(false);
+  const [teamCalendarError, setTeamCalendarError] = useState('');
+  const [teamCalendarSuccess, setTeamCalendarSuccess] = useState('');
+  const [teamCalendarData, setTeamCalendarData] = useState(null);
+  const [teamCalendarEvents, setTeamCalendarEvents] = useState([]);
+  const [teamCalendarForm, setTeamCalendarForm] = useState(() => buildDefaultTeamCalendarForm());
   const [teamDetailsLoading, setTeamDetailsLoading] = useState(false);
   const [teamDetailsSaving, setTeamDetailsSaving] = useState(false);
   const [teamDetailsError, setTeamDetailsError] = useState('');
@@ -551,6 +625,17 @@ function MessagesPage({
     setSmsContactModalError('');
   }, []);
 
+  const closeTeamCalendarModal = useCallback(() => {
+    setShowTeamCalendar(false);
+    setTeamCalendarLoading(false);
+    setTeamCalendarSaving(false);
+    setTeamCalendarError('');
+    setTeamCalendarSuccess('');
+    setTeamCalendarData(null);
+    setTeamCalendarEvents([]);
+    setTeamCalendarForm(buildDefaultTeamCalendarForm());
+  }, []);
+
   useEffect(() => {
     setActiveSection(viewConfig.section);
     setActiveChatId(null);
@@ -579,6 +664,7 @@ function MessagesPage({
     setSelectedTeamMembers([]);
     setCreatingTeam(false);
     setShowTeamDetails(false);
+    setShowTeamCalendar(false);
     setTeamDetailsLoading(false);
     setTeamDetailsSaving(false);
     setTeamDetailsError('');
@@ -591,6 +677,13 @@ function MessagesPage({
     setDeletingTeam(false);
     setToast(null);
   }, [viewConfig.section]);
+
+  useEffect(() => {
+    if (isActiveTeamConversation) return;
+    if (showTeamCalendar) {
+      closeTeamCalendarModal();
+    }
+  }, [closeTeamCalendarModal, isActiveTeamConversation, showTeamCalendar]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -1674,6 +1767,135 @@ function MessagesPage({
     }
   }, [currentRole, currentUserId]);
 
+  const fetchTeamCalendarEvents = useCallback(async (conversationId) => {
+    if (!conversationId) return null;
+
+    setTeamCalendarLoading(true);
+    setTeamCalendarError('');
+    setTeamCalendarSuccess('');
+
+    try {
+      const params = new URLSearchParams({
+        userId: currentUserId,
+        role: currentRole,
+      });
+      const res = await fetch(
+        `${BASE_URL}/api/messages/team/${encodeURIComponent(conversationId)}/calendar?${params.toString()}`
+      );
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to load group calendar');
+      }
+
+      setTeamCalendarData({
+        conversationId: payload.conversationId || conversationId,
+        teamId: payload.teamId || conversationId,
+        teamName: payload.teamName || 'Group calendar',
+      });
+      setTeamCalendarEvents(Array.isArray(payload?.events) ? payload.events : []);
+      return payload;
+    } catch (error) {
+      console.error('Fetch team calendar error:', error);
+      setTeamCalendarError(error.message || 'Failed to load group calendar');
+      return null;
+    } finally {
+      setTeamCalendarLoading(false);
+    }
+  }, [currentRole, currentUserId]);
+
+  const handleOpenTeamCalendar = useCallback(async () => {
+    if (!isInternalTeamsPage || !activeTeamConversationId) return;
+
+    setShowTeamCalendar(true);
+    setTeamCalendarForm(buildDefaultTeamCalendarForm());
+    await fetchTeamCalendarEvents(activeTeamConversationId);
+  }, [activeTeamConversationId, fetchTeamCalendarEvents, isInternalTeamsPage]);
+
+  const handleCreateTeamCalendarEvent = useCallback(async () => {
+    const conversationId = activeTeamConversationId || teamCalendarData?.conversationId;
+
+    if (!conversationId || teamCalendarSaving) return;
+
+    try {
+      setTeamCalendarSaving(true);
+      setTeamCalendarError('');
+      setTeamCalendarSuccess('');
+
+      const title = String(teamCalendarForm.title || '').trim();
+      const description = String(teamCalendarForm.description || '').trim();
+      const startAt = buildEventDateTime(teamCalendarForm.date, teamCalendarForm.startTime);
+      const endAt = buildEventDateTime(teamCalendarForm.date, teamCalendarForm.endTime);
+
+      if (!title || !teamCalendarForm.date || !teamCalendarForm.startTime || !teamCalendarForm.endTime) {
+        throw new Error('Fill in the event title, date, start time, and end time');
+      }
+
+      const res = await fetch(`${BASE_URL}/api/messages/team/${encodeURIComponent(conversationId)}/calendar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          role: currentRole,
+          title,
+          description,
+          startAt,
+          endAt,
+        }),
+      });
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to create calendar event');
+      }
+
+      setTeamCalendarEvents((prev) => (
+        [...prev, payload].sort((left, right) => new Date(left.startAt) - new Date(right.startAt))
+      ));
+      setTeamCalendarForm(buildDefaultTeamCalendarForm());
+      setTeamCalendarSuccess('Event added to the group calendar');
+    } catch (error) {
+      console.error('Create team calendar event error:', error);
+      setTeamCalendarError(error.message || 'Failed to create calendar event');
+    } finally {
+      setTeamCalendarSaving(false);
+    }
+  }, [activeTeamConversationId, currentRole, currentUserId, teamCalendarData?.conversationId, teamCalendarForm, teamCalendarSaving]);
+
+  const handleDeleteTeamCalendarEvent = useCallback(async (eventId) => {
+    const conversationId = activeTeamConversationId || teamCalendarData?.conversationId;
+    if (!conversationId || !eventId || teamCalendarSaving) return;
+    if (!window.confirm('Delete this event from the group calendar?')) return;
+
+    try {
+      setTeamCalendarSaving(true);
+      setTeamCalendarError('');
+      setTeamCalendarSuccess('');
+
+      const res = await fetch(`${BASE_URL}/api/messages/team/${encodeURIComponent(conversationId)}/calendar/${encodeURIComponent(eventId)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          role: currentRole,
+        }),
+      });
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(payload?.error || 'Failed to delete calendar event');
+      }
+
+      setTeamCalendarEvents((prev) => prev.filter((event) => event._id !== eventId));
+      setTeamCalendarSuccess('Event removed from the group calendar');
+    } catch (error) {
+      console.error('Delete team calendar event error:', error);
+      setTeamCalendarError(error.message || 'Failed to delete calendar event');
+    } finally {
+      setTeamCalendarSaving(false);
+    }
+  }, [activeTeamConversationId, currentRole, currentUserId, teamCalendarData?.conversationId, teamCalendarSaving]);
+
   const toggleTeamDetailsMember = useCallback((agentId) => {
     if (!agentId) return;
 
@@ -2631,6 +2853,9 @@ function MessagesPage({
       .filter((member) => member.agentId !== currentUserId)
       .sort((left, right) => left.name.localeCompare(right.name));
   }, [activeChat?.conversationType, activeChat?.participants, currentUserId, teamDetailsData?.members, teammateOptions]);
+  const sortedTeamCalendarEvents = useMemo(() => (
+    [...teamCalendarEvents].sort((left, right) => new Date(left.startAt) - new Date(right.startAt))
+  ), [teamCalendarEvents]);
 
   const closeSmsModeChooser = () => {
     setShowSmsModeChooser(false);
@@ -3105,6 +3330,7 @@ function MessagesPage({
                 threadLoading={false}
                 showTeamDetailsAction={false}
                 onOpenTeamDetails={handleOpenTeamDetails}
+                onOpenTeamCalendar={handleOpenTeamCalendar}
                 onSwitchNumber={(num) => {
                   setActiveChatId(buildConversationKey('customer', normalize(num)));
                 setActiveCustomerContactId(activeChat?._id || null);
@@ -3136,6 +3362,7 @@ function MessagesPage({
             threadLoading={isInternalTeamsPage && activeChat?.conversationType === 'team' ? teamThreadLoading : false}
             showTeamDetailsAction={isInternalTeamsPage && activeChat?.conversationType === 'team'}
             onOpenTeamDetails={handleOpenTeamDetails}
+            onOpenTeamCalendar={handleOpenTeamCalendar}
             onSwitchNumber={(num) => {
               setActiveChatId(buildConversationKey('customer', normalize(num)));
               setActiveCustomerContactId(activeChat?._id || null);
@@ -3614,6 +3841,167 @@ function MessagesPage({
                   {teamDetailsSaving ? 'Saving…' : 'Save Changes'}
                 </button>
               ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTeamCalendar && (
+        <div
+          className="messages-picker-overlay"
+          onClick={() => !teamCalendarSaving && closeTeamCalendarModal()}
+        >
+          <div
+            className="messages-picker-modal team-calendar-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="messages-picker-header">
+              <h3>Group Calendar</h3>
+              <p>{teamCalendarData?.teamName || activeChat?.teamName || activeChat?.name || 'Shared team events'}.</p>
+            </div>
+
+            <div className="team-calendar-body">
+              {teamCalendarSuccess ? (
+                <div className="internal-teams-details-success">
+                  {teamCalendarSuccess}
+                </div>
+              ) : null}
+
+              {teamCalendarError ? (
+                <div className="internal-teams-details-error">
+                  {teamCalendarError}
+                </div>
+              ) : null}
+
+              <div className="team-calendar-section">
+                <div className="team-calendar-section-head">
+                  <span>Upcoming Events</span>
+                  <span>{sortedTeamCalendarEvents.length}</span>
+                </div>
+
+                {teamCalendarLoading ? (
+                  <div className="messages-picker-empty">Loading calendar events…</div>
+                ) : sortedTeamCalendarEvents.length === 0 ? (
+                  <div className="messages-picker-empty">
+                    No events yet for this group. Add the first one below.
+                  </div>
+                ) : (
+                  <div className="team-calendar-event-list">
+                    {sortedTeamCalendarEvents.map((event) => {
+                      const canDeleteEvent = currentRole === 'admin' || event.createdBy === currentUserId;
+
+                      return (
+                        <div key={event._id} className="team-calendar-event-card">
+                          <div className="team-calendar-event-copy">
+                            <div className="team-calendar-event-title-row">
+                              <div className="team-calendar-event-title">{event.title}</div>
+                              <div className="team-calendar-event-date">{formatCalendarEventDate(event.startAt)}</div>
+                            </div>
+                            <div className="team-calendar-event-time">
+                              {formatCalendarEventTime(event.startAt)} to {formatCalendarEventTime(event.endAt)}
+                            </div>
+                            {event.description ? (
+                              <div className="team-calendar-event-description">{event.description}</div>
+                            ) : null}
+                            <div className="team-calendar-event-meta">
+                              Created by {event.createdByName || event.createdBy || 'Teammate'}
+                            </div>
+                          </div>
+                          {canDeleteEvent ? (
+                            <button
+                              type="button"
+                              className="team-calendar-event-delete"
+                              onClick={() => handleDeleteTeamCalendarEvent(event._id)}
+                              disabled={teamCalendarSaving}
+                            >
+                              Delete
+                            </button>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="team-calendar-section">
+                <div className="team-calendar-section-head">
+                  <span>Add Event</span>
+                </div>
+
+                <div className="team-calendar-form-grid">
+                  <label className="team-calendar-field">
+                    <span>Title</span>
+                    <input
+                      type="text"
+                      value={teamCalendarForm.title}
+                      onChange={(event) => setTeamCalendarForm((prev) => ({ ...prev, title: event.target.value }))}
+                      placeholder="Sprint review"
+                      disabled={teamCalendarSaving}
+                    />
+                  </label>
+
+                  <label className="team-calendar-field">
+                    <span>Date</span>
+                    <input
+                      type="date"
+                      value={teamCalendarForm.date}
+                      onChange={(event) => setTeamCalendarForm((prev) => ({ ...prev, date: event.target.value }))}
+                      disabled={teamCalendarSaving}
+                    />
+                  </label>
+
+                  <label className="team-calendar-field">
+                    <span>Start time</span>
+                    <input
+                      type="time"
+                      value={teamCalendarForm.startTime}
+                      onChange={(event) => setTeamCalendarForm((prev) => ({ ...prev, startTime: event.target.value }))}
+                      disabled={teamCalendarSaving}
+                    />
+                  </label>
+
+                  <label className="team-calendar-field">
+                    <span>End time</span>
+                    <input
+                      type="time"
+                      value={teamCalendarForm.endTime}
+                      onChange={(event) => setTeamCalendarForm((prev) => ({ ...prev, endTime: event.target.value }))}
+                      disabled={teamCalendarSaving}
+                    />
+                  </label>
+
+                  <label className="team-calendar-field is-full">
+                    <span>Description / notes</span>
+                    <textarea
+                      value={teamCalendarForm.description}
+                      onChange={(event) => setTeamCalendarForm((prev) => ({ ...prev, description: event.target.value }))}
+                      placeholder="Agenda, location, or anything teammates should know"
+                      rows={3}
+                      disabled={teamCalendarSaving}
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="messages-picker-footer team-calendar-footer">
+              <button
+                type="button"
+                className="messages-picker-cancel"
+                onClick={closeTeamCalendarModal}
+                disabled={teamCalendarSaving}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="internal-teams-create-btn"
+                onClick={handleCreateTeamCalendarEvent}
+                disabled={teamCalendarSaving}
+              >
+                {teamCalendarSaving ? 'Saving…' : 'Add Event'}
+              </button>
             </div>
           </div>
         </div>
