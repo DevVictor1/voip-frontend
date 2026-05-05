@@ -1,10 +1,35 @@
-import { Check, ChevronDown, Copy, Download, Forward, Pencil, Pin, PinOff, Reply, SmilePlus, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Copy, Download, FileImage, FileSpreadsheet, FileText, Forward, Pencil, Pin, PinOff, Reply, SmilePlus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const REACTION_OPTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 const formatSmsContextNumber = (primary, fallback) => {
   return String(primary || fallback || '').trim() || 'unknown number';
+};
+
+const formatAttachmentSize = (value) => {
+  const size = Number(value || 0);
+  if (!Number.isFinite(size) || size <= 0) return '';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(size < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(size < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+};
+
+const getAttachmentKind = (fileType = '', fileName = '') => {
+  const normalizedType = String(fileType || '').toLowerCase();
+  const lowerName = String(fileName || '').toLowerCase();
+
+  if (normalizedType.startsWith('image/')) return 'image';
+  if (
+    normalizedType.includes('sheet')
+    || lowerName.endsWith('.csv')
+    || lowerName.endsWith('.xls')
+    || lowerName.endsWith('.xlsx')
+  ) {
+    return 'sheet';
+  }
+
+  return 'document';
 };
 
 const formatMessageTimestamp = (value) => {
@@ -76,6 +101,14 @@ function MessageBubble({
     message.direction === 'outbound' ? message.fromFull : message.toFull,
     message.direction === 'outbound' ? message.from : message.to
   );
+  const attachment = message?.attachment && typeof message.attachment === 'object'
+    ? message.attachment
+    : null;
+  const attachmentUrl = String(attachment?.fileUrl || '').trim();
+  const attachmentName = String(attachment?.fileName || '').trim();
+  const attachmentType = String(attachment?.fileType || '').trim();
+  const attachmentSize = formatAttachmentSize(attachment?.fileSize || 0);
+  const attachmentKind = getAttachmentKind(attachmentType, attachmentName);
 
   const getStatusMeta = () => {
     if (message.direction !== 'outbound') return null;
@@ -121,13 +154,20 @@ function MessageBubble({
   );
   const canCopyText = Boolean(message.body?.trim()) && !isDeleted;
   const canReply = Boolean(onReplyMessage);
-  const canDownloadMedia = Boolean(message.media?.[0]);
+  const canDownloadMedia = Boolean(message.media?.[0] || attachmentUrl);
   const canSendAnotherSms = Boolean(onSendAnotherMessage && isTextingGroupMessage && message.direction === 'outbound');
-  const canEdit = Boolean(isOwnInternalMessage && !isDeleted && !isSending && onEditMessage);
+  const canEdit = Boolean(isOwnInternalMessage && !isDeleted && !isSending && String(message.body || '').trim() && onEditMessage);
   const canDelete = Boolean(isOwnInternalMessage && !isDeleted && !isSending && onDeleteMessage);
   const canTogglePin = Boolean(isInternalThread && isInternalMessage && !isDeleted && !isSending && onTogglePinMessage);
   const canReact = Boolean(isInternalThread && isInternalMessage && !isDeleted && !isSending && onToggleReaction);
-  const canForward = Boolean(isInternalThread && isInternalMessage && !isDeleted && !isSending && String(message.body || '').trim() && onStartForwardSelection);
+  const canForward = Boolean(
+    isInternalThread
+    && isInternalMessage
+    && !isDeleted
+    && !isSending
+    && (String(message.body || '').trim() || attachmentUrl)
+    && onStartForwardSelection
+  );
   const isForwardSelectable = Boolean(isForwardSelectionMode && canForward);
   const showPinnedIndicator = Boolean(isInternalThread && isInternalMessage && message.isPinned && !isDeleted);
   const showForwardedLabel = Boolean(isInternalThread && isInternalMessage && message.forwardedFromMessageId && !isDeleted);
@@ -651,7 +691,35 @@ function MessageBubble({
                   className="message-media-preview"
                 />
               )}
-              <div className="message-body">{renderHighlightedBody(message.body)}</div>
+              {attachmentUrl ? (
+                <a
+                  className="message-attachment-card"
+                  href={attachmentUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  download={attachmentName || undefined}
+                >
+                  <span className={`message-attachment-icon is-${attachmentKind}`} aria-hidden="true">
+                    {attachmentKind === 'image' ? (
+                      <FileImage size={18} />
+                    ) : attachmentKind === 'sheet' ? (
+                      <FileSpreadsheet size={18} />
+                    ) : (
+                      <FileText size={18} />
+                    )}
+                  </span>
+                  <span className="message-attachment-copy">
+                    <span className="message-attachment-name">{attachmentName || 'Attachment'}</span>
+                    <span className="message-attachment-meta">
+                      {[attachmentSize, attachmentType].filter(Boolean).join(' • ') || 'Open file'}
+                    </span>
+                  </span>
+                  <span className="message-attachment-action">Open</span>
+                </a>
+              ) : null}
+              {String(message.body || '').trim() ? (
+                <div className="message-body">{renderHighlightedBody(message.body)}</div>
+              ) : null}
             </>
           )}
         </div>
@@ -688,8 +756,8 @@ function MessageBubble({
             {canDownloadMedia ? (
               <a
                 className="message-actions-menu-item"
-                href={message.media[0]}
-                download
+                href={message.media[0] || attachmentUrl}
+                download={attachmentName || true}
                 target="_blank"
                 rel="noreferrer"
                 onClick={closeMenu}

@@ -818,7 +818,9 @@ function ChatWindow({
               teamName: target.conversationType === 'team' ? (target.teamName || target.name || '') : '',
               forwardedFromMessageId: sourceMessage._id,
             },
-            sourceMessage.body
+            sourceMessage.body,
+            undefined,
+            sourceMessage.attachment || undefined
           );
 
           if (
@@ -944,7 +946,7 @@ function ChatWindow({
   };
 
   const handleRetry = async (message) => {
-    if (!message || !message.body) return;
+    if (!message || (!message.body && !message.attachment && !message.media?.[0])) return;
 
     const retryTime = new Date().toISOString();
     setMessages((prev) =>
@@ -965,7 +967,8 @@ function ChatWindow({
           textingGroupId: chat?.textingGroupId || '',
         },
         message.body,
-        message.media?.[0]
+        message.media?.[0],
+        message.attachment || undefined
       );
 
       if (!res) throw new Error('Retry failed');
@@ -1241,7 +1244,7 @@ function ChatWindow({
         teamMentionMembers={chat.conversationType === 'team' ? teamMentionMembers : []}
         textingGroupId={chat?.textingGroupId || ''}
         focusNonce={composerFocusNonce}
-        allowAttachments={isCustomerChat}
+        allowAttachments={isCustomerChat || isInternalThread}
         replyContext={replyTarget}
         onClearReply={() => setReplyTarget(null)}
         setMessages={setMessages}

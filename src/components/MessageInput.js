@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { FileImage, FileSpreadsheet, FileText, Paperclip, X } from 'lucide-react';
 import './MessageInput.css';
 import BASE_URL from '../config/api';
-import { getStoredAuthUser } from '../services/auth';
+import { getStoredAuthToken, getStoredAuthUser } from '../services/auth';
 
-export const sendMessageRequest = async (to, message, mediaUrl) => {
+export const sendMessageRequest = async (to, message, mediaUrl, attachment) => {
   const isCustomerChat = !to?.conversationType || to.conversationType === 'customer';
   const endpoint = isCustomerChat ? '/api/sms/send' : '/api/messages/send';
   const payload = isCustomerChat
@@ -21,6 +22,7 @@ export const sendMessageRequest = async (to, message, mediaUrl) => {
         conversationId: to.chatId,
         userId: to.userId,
         body: message,
+        ...(attachment ? { attachment } : {}),
         ...(to.forwardedFromMessageId ? { forwardedFromMessageId: to.forwardedFromMessageId } : {}),
         ...(to.replyTo ? { replyTo: to.replyTo } : {}),
         ...(to.teamName ? { teamName: to.teamName } : {}),
@@ -38,6 +40,31 @@ export const sendMessageRequest = async (to, message, mediaUrl) => {
   return res.json();
 };
 
+const formatFileSize = (value) => {
+  const size = Number(value || 0);
+  if (!Number.isFinite(size) || size <= 0) return '';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(size < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(size < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+};
+
+const getAttachmentKind = (fileType = '', fileName = '') => {
+  const normalizedType = String(fileType || '').toLowerCase();
+  const lowerName = String(fileName || '').toLowerCase();
+
+  if (normalizedType.startsWith('image/')) return 'image';
+  if (
+    normalizedType.includes('sheet')
+    || lowerName.endsWith('.csv')
+    || lowerName.endsWith('.xls')
+    || lowerName.endsWith('.xlsx')
+  ) {
+    return 'sheet';
+  }
+
+  return 'document';
+};
+
 function MessageInput({
   chatId,
   conversationType = 'customer',
@@ -53,17 +80,22 @@ function MessageInput({
   onSendSuccess,
   onMessageSent,
   setMessages,
-  onFocusInput
+  onFocusInput,
 }) {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [mediaUrl, setMediaUrl] = useState('');
+  const [selectedAttachment, setSelectedAttachment] = useState(null);
+  const [attachmentError, setAttachmentError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [mentionState, setMentionState] = useState({ open: false, query: '', start: -1, end: -1 });
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
+  const authToken = getStoredAuthToken();
   const currentUserName = getStoredAuthUser()?.name || getStoredAuthUser()?.agentId || '';
   const isTeamChat = conversationType === 'team';
+  const isCustomerChat = !conversationType || conversationType === 'customer';
+  const isInternalChat = conversationType === 'internal_dm' || conversationType === 'team';
 
   const filteredMentionMembers = useMemo(() => {
     if (!isTeamChat || !mentionState.open) return [];
@@ -132,6 +164,8 @@ function MessageInput({
   useEffect(() => {
     setText('');
     setMediaUrl('');
+    setSelectedAttachment(null);
+    setAttachmentError('');
     setMentionState({ open: false, query: '', start: -1, end: -1 });
 
     if (fileInputRef.current) {
@@ -173,28 +207,62 @@ function MessageInput({
     onFocusInput?.();
   }, [focusNonce, onFocusInput]);
 
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
+    setAttachmentError('');
 
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch(`${BASE_URL}/api/sms/upload`, {
+      if (isCustomerChat) {
+        const res = await fetch(`${BASE_URL}/api/sms/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!res.ok) throw new Error('Upload failed');
+
+        const data = await res.json();
+        setMediaUrl(data.url);
+        setSelectedAttachment({
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          fileUrl: data.url,
+          kind: getAttachmentKind(file.type, file.name),
+        });
+        return;
+      }
+
+      const res = await fetch(`${BASE_URL}/api/messages/upload`, {
         method: 'POST',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
         body: formData,
       });
 
-      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(data?.error || 'Upload failed');
+      }
 
-      const data = await res.json();
-      setMediaUrl(data.url);
-    } catch (err) {
-      console.error('Upload failed:', err);
+      const attachment = data?.attachment || null;
+      if (!attachment?.fileUrl) {
+        throw new Error('Upload failed');
+      }
+
+      setSelectedAttachment({
+        ...attachment,
+        kind: getAttachmentKind(attachment.fileType, attachment.fileName),
+      });
+    } catch (error) {
+      console.error('Upload failed:', error);
       setMediaUrl('');
+      setSelectedAttachment(null);
+      setAttachmentError(error?.message || 'Upload failed');
     } finally {
       setUploading(false);
     }
@@ -202,6 +270,8 @@ function MessageInput({
 
   const handleRemoveMedia = () => {
     setMediaUrl('');
+    setSelectedAttachment(null);
+    setAttachmentError('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -231,7 +301,7 @@ function MessageInput({
 
   const handleSend = async () => {
     if (sending || uploading) return;
-    if ((!text.trim() && !mediaUrl) || !chatId) return;
+    if ((!text.trim() && !mediaUrl && !selectedAttachment) || !chatId) return;
 
     setSending(true);
 
@@ -240,6 +310,15 @@ function MessageInput({
       _id: tempId,
       body: text,
       media: mediaUrl ? [mediaUrl] : [],
+      attachment: selectedAttachment
+        ? {
+            fileName: selectedAttachment.fileName,
+            fileType: selectedAttachment.fileType,
+            fileSize: selectedAttachment.fileSize,
+            fileUrl: selectedAttachment.fileUrl,
+            storagePath: selectedAttachment.storagePath || '',
+          }
+        : null,
       direction: 'outbound',
       conversationType,
       conversationId: chatId,
@@ -285,7 +364,16 @@ function MessageInput({
             : null,
         },
         text,
-        mediaUrl || undefined
+        mediaUrl || undefined,
+        selectedAttachment
+          ? {
+              fileName: selectedAttachment.fileName,
+              fileType: selectedAttachment.fileType,
+              fileSize: selectedAttachment.fileSize,
+              fileUrl: selectedAttachment.fileUrl,
+              storagePath: selectedAttachment.storagePath || '',
+            }
+          : undefined
       );
 
       const resolvedMessage = {
@@ -298,15 +386,15 @@ function MessageInput({
       if (setMessages) {
         setMessages((prev) => {
           const existingResolvedIndex = prev.findIndex(
-            (m) =>
-              (resolvedMessage._id && m._id === resolvedMessage._id)
-              || (resolvedMessage.sid && m.sid === resolvedMessage.sid)
+            (item) =>
+              (resolvedMessage._id && item._id === resolvedMessage._id)
+              || (resolvedMessage.sid && item.sid === resolvedMessage.sid)
           );
-          const tempIndex = prev.findIndex((m) => m._id === tempId);
+          const tempIndex = prev.findIndex((item) => item._id === tempId);
 
           if (tempIndex !== -1) {
             if (existingResolvedIndex !== -1 && existingResolvedIndex !== tempIndex) {
-              return prev.filter((m) => m._id !== tempId);
+              return prev.filter((item) => item._id !== tempId);
             }
 
             const next = [...prev];
@@ -322,18 +410,19 @@ function MessageInput({
 
       onMessageSent?.(resolvedMessage);
       onSendSuccess?.(resolvedMessage);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error(error);
       if (setMessages) {
         setMessages((prev) =>
-          prev.map((m) =>
-            m._id === tempId ? { ...m, status: 'failed' } : m
-          )
+          prev.map((item) => (
+            item._id === tempId ? { ...item, status: 'failed' } : item
+          ))
         );
       }
     } finally {
       setSending(false);
       setMediaUrl('');
+      setSelectedAttachment(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -362,7 +451,7 @@ function MessageInput({
         </div>
       ) : null}
 
-      {mediaUrl && (
+      {isCustomerChat && mediaUrl ? (
         <div className="mms-preview">
           <button
             type="button"
@@ -375,7 +464,42 @@ function MessageInput({
           <img src={mediaUrl} alt="Selected" />
           <div className="mms-preview-note">Image ready</div>
         </div>
-      )}
+      ) : null}
+
+      {!isCustomerChat && selectedAttachment ? (
+        <div className="message-attachment-preview">
+          <button
+            type="button"
+            className="message-attachment-preview-remove"
+            onClick={handleRemoveMedia}
+            aria-label="Remove selected file"
+          >
+            <X size={14} />
+          </button>
+          <div className={`message-attachment-preview-icon is-${selectedAttachment.kind}`}>
+            {selectedAttachment.kind === 'image' ? (
+              <FileImage size={18} />
+            ) : selectedAttachment.kind === 'sheet' ? (
+              <FileSpreadsheet size={18} />
+            ) : (
+              <FileText size={18} />
+            )}
+          </div>
+          <div className="message-attachment-preview-copy">
+            <div className="message-attachment-preview-name">{selectedAttachment.fileName}</div>
+            <div className="message-attachment-preview-meta">
+              {formatFileSize(selectedAttachment.fileSize)}
+              {selectedAttachment.fileType ? ` • ${selectedAttachment.fileType}` : ''}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {attachmentError ? (
+        <div className="message-attachment-error" role="status" aria-live="polite">
+          {attachmentError}
+        </div>
+      ) : null}
 
       <div className="message-input-row">
         {isTeamChat && mentionState.open ? (
@@ -394,7 +518,7 @@ function MessageInput({
                   aria-selected="false"
                 >
                   <span className="team-mention-option-name">{member.name || member.agentId}</span>
-                  <span className="team-mention-option-meta">@{member.agentId}{member.role ? ` · ${member.role}` : ''}</span>
+                  <span className="team-mention-option-meta">@{member.agentId}{member.role ? ` • ${member.role}` : ''}</span>
                 </button>
               ))
             ) : (
@@ -408,41 +532,43 @@ function MessageInput({
           className="message-input-field"
           placeholder="Type a message..."
           value={text}
-          onChange={(e) => {
-            const nextValue = e.target.value;
+          onChange={(event) => {
+            const nextValue = event.target.value;
             setText(nextValue);
-            updateMentionState(nextValue, e.target.selectionStart);
+            updateMentionState(nextValue, event.target.selectionStart);
           }}
           onFocus={() => onFocusInput?.()}
           rows={1}
-          onKeyDown={(e) => {
+          onKeyDown={(event) => {
             if (sending || uploading) return;
-            if (isTeamChat && mentionState.open && filteredMentionMembers.length > 0 && e.key === 'Enter') {
-              e.preventDefault();
+            if (isTeamChat && mentionState.open && filteredMentionMembers.length > 0 && event.key === 'Enter') {
+              event.preventDefault();
               insertMention(filteredMentionMembers[0]);
               return;
             }
-            if (isTeamChat && mentionState.open && e.key === 'Escape') {
-              e.preventDefault();
+            if (isTeamChat && mentionState.open && event.key === 'Escape') {
+              event.preventDefault();
               setMentionState({ open: false, query: '', start: -1, end: -1 });
               return;
             }
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
               handleSend();
             }
           }}
-          onClick={(e) => updateMentionState(e.currentTarget.value, e.currentTarget.selectionStart)}
-          onKeyUp={(e) => updateMentionState(e.currentTarget.value, e.currentTarget.selectionStart)}
+          onClick={(event) => updateMentionState(event.currentTarget.value, event.currentTarget.selectionStart)}
+          onKeyUp={(event) => updateMentionState(event.currentTarget.value, event.currentTarget.selectionStart)}
         />
 
-        {allowAttachments && (
+        {allowAttachments ? (
           <>
             <input
               ref={fileInputRef}
               className="mms-file-input"
               type="file"
-              accept="image/*"
+              accept={isInternalChat
+                ? '.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.txt,.csv'
+                : 'image/*'}
               onChange={handleFileChange}
               disabled={uploading}
             />
@@ -452,11 +578,12 @@ function MessageInput({
               className="mms-attach-btn"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
+              aria-label={uploading ? 'Uploading attachment' : 'Attach file'}
             >
-              {uploading ? 'Uploading...' : 'Attach'}
+              <Paperclip size={16} />
             </button>
           </>
-        )}
+        ) : null}
 
         <button className="message-send-btn" onClick={handleSend} disabled={sending || uploading}>
           {sending ? 'Sending...' : 'Send'}
