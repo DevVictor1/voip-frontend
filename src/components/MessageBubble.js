@@ -87,9 +87,11 @@ function MessageBubble({
   const [isSavingReaction, setIsSavingReaction] = useState(false);
   const [reactionPickerStyle, setReactionPickerStyle] = useState({});
   const [attachmentAction, setAttachmentAction] = useState('');
+  const [reactionDetails, setReactionDetails] = useState(null);
   const bubbleShellRef = useRef(null);
   const menuRef = useRef(null);
   const reactionPickerRef = useRef(null);
+  const reactionDetailsRef = useRef(null);
   const isInternalMessage = message.conversationType === 'internal_dm' || message.conversationType === 'team';
   const isTextingGroupMessage = Boolean(
     isTextingGroupThread
@@ -200,6 +202,8 @@ function MessageBubble({
   const canOpenMenu = !isDeleted && !isForwardSelectionMode && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete || canTogglePin || canForward);
   const normalizedSearchQuery = String(searchQuery || '').trim().toLowerCase();
   const groupedReactions = useMemo(() => {
+    if (isDeleted) return [];
+
     const rawReactions = Array.isArray(message.reactions) ? message.reactions : [];
     if (rawReactions.length === 0) return [];
 
@@ -207,17 +211,23 @@ function MessageBubble({
     rawReactions.forEach((reaction) => {
       const emoji = String(reaction?.emoji || '').trim();
       if (!emoji) return;
+      const userName = String(reaction?.userName || reaction?.userId || '').trim() || 'Teammate';
 
       const current = groups.get(emoji) || {
         emoji,
         count: 0,
         reactedByCurrentUser: false,
+        users: [],
       };
 
       current.count += 1;
       if (reaction?.userId && reaction.userId === currentUserId) {
         current.reactedByCurrentUser = true;
       }
+      current.users.push({
+        userId: String(reaction?.userId || '').trim(),
+        userName,
+      });
 
       groups.set(emoji, current);
     });
@@ -225,7 +235,7 @@ function MessageBubble({
     return REACTION_OPTIONS
       .filter((emoji) => groups.has(emoji))
       .map((emoji) => groups.get(emoji));
-  }, [currentUserId, message.reactions]);
+  }, [currentUserId, isDeleted, message.reactions]);
 
   const positionReactionPicker = useCallback(() => {
     const pickerNode = reactionPickerRef.current;
@@ -343,12 +353,13 @@ function MessageBubble({
   }, [copyState]);
 
   useEffect(() => {
-    if (!menuState.open && !reactionPickerOpen) return undefined;
+    if (!menuState.open && !reactionPickerOpen && !reactionDetails) return undefined;
 
     const handlePointerDown = (event) => {
       if (
         menuRef.current?.contains(event.target)
         || reactionPickerRef.current?.contains(event.target)
+        || reactionDetailsRef.current?.contains(event.target)
         || bubbleShellRef.current?.contains(event.target)
       ) {
         return;
@@ -356,12 +367,14 @@ function MessageBubble({
 
       setMenuState((current) => ({ ...current, open: false }));
       setReactionPickerOpen(false);
+      setReactionDetails(null);
     };
 
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
         setMenuState((current) => ({ ...current, open: false }));
         setReactionPickerOpen(false);
+        setReactionDetails(null);
       }
     };
 
@@ -372,7 +385,7 @@ function MessageBubble({
       window.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('keydown', handleEscape);
     };
-  }, [menuState.open, reactionPickerOpen]);
+  }, [menuState.open, reactionDetails, reactionPickerOpen]);
 
   useEffect(() => {
     setIsEditing(false);
@@ -383,6 +396,7 @@ function MessageBubble({
     setIsSavingReaction(false);
     setReactionPickerStyle({});
     setAttachmentAction('');
+    setReactionDetails(null);
   }, [message._id, message.body, message.isDeleted, message.reactions]);
 
   useEffect(() => {
@@ -612,6 +626,20 @@ function MessageBubble({
       console.error('Attachment download failed:', error);
       window.alert(error?.message || 'Unable to download attachment.');
     }
+  };
+
+  const handleOpenReactionDetails = (reaction) => {
+    if (!reaction || !Array.isArray(reaction.users) || reaction.users.length === 0) return;
+
+    setReactionPickerOpen(false);
+    setReactionDetails((current) => (
+      current?.emoji === reaction.emoji
+        ? null
+        : {
+            emoji: reaction.emoji,
+            users: reaction.users,
+          }
+    ));
   };
 
   const handleJumpToReply = (event) => {
@@ -980,24 +1008,52 @@ function MessageBubble({
             ))}
           </div>
         ) : null}
+
+        {reactionDetails ? (
+          <div
+            ref={reactionDetailsRef}
+            className={`message-reaction-details ${message.direction}`}
+            role="dialog"
+            aria-label={`People who reacted with ${reactionDetails.emoji}`}
+          >
+            <div className="message-reaction-details-header">
+              <span className="message-reaction-details-emoji">{reactionDetails.emoji}</span>
+              <span className="message-reaction-details-count">
+                {reactionDetails.users.length} reaction{reactionDetails.users.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            <div className="message-reaction-details-list">
+              {reactionDetails.users.map((user, index) => (
+                <div
+                  key={`${reactionDetails.emoji}-${user.userId || user.userName}-${index}`}
+                  className="message-reaction-details-item"
+                >
+                  {user.userName}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {groupedReactions.length > 0 ? (
         <div className="message-reactions" aria-label="Message reactions">
           {groupedReactions.map((reaction) => (
-            <span
+            <button
               key={reaction.emoji}
+              type="button"
               className={`message-reaction-chip${reaction.reactedByCurrentUser ? ' is-owned' : ''}`}
+              onClick={() => handleOpenReactionDetails(reaction)}
               onContextMenu={(event) => {
                 if (!reaction.reactedByCurrentUser || isSavingReaction) return;
                 event.preventDefault();
                 handleReactionSelect(reaction.emoji);
               }}
-              title={reaction.reactedByCurrentUser ? 'Right-click to remove your reaction' : undefined}
+              title={reaction.reactedByCurrentUser ? 'Click to view reactions. Right-click to remove your reaction.' : 'Click to view reactions.'}
             >
               <span className="message-reaction-chip-emoji">{reaction.emoji}</span>
               <span className="message-reaction-chip-count">{reaction.count}</span>
-            </span>
+            </button>
           ))}
         </div>
       ) : null}
