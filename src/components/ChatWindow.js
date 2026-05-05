@@ -315,32 +315,28 @@ function ChatWindow({
   }, [chat?.conversationId, chat?.conversationType, chat?.phone, chat?.textingGroupId, isCustomerChat]);
 
   const handleReplyMessage = useCallback((message) => {
-    if (!message) return;
+    if (!message || !isInternalThread) return;
 
     const conversationType = chat?.conversationType || 'customer';
     const isTeamChat = conversationType === 'team';
-    const isCustomerSms = conversationType === 'customer';
     const isOutbound = message.direction === 'outbound';
 
-    const senderLabel = isCustomerSms
-      ? (isOutbound ? (message.senderName || message.senderId || 'Internal teammate') : 'Customer SMS')
-      : (isOutbound ? 'You' : (message.senderName || message.senderId || (isTeamChat ? 'Teammate' : 'Contact')));
-
-    const contextLabel = isCustomerSms
-      ? (isTextingGroupThread
-        ? (isOutbound ? 'Replying to sent SMS' : 'Replying to received SMS')
-        : (isOutbound ? 'Replying to sent message' : 'Replying to received message'))
-      : (isTeamChat ? 'Replying in team chat' : 'Replying in internal chat');
+    const senderName = isOutbound
+      ? 'You'
+      : (message.senderName || message.senderId || (isTeamChat ? 'Teammate' : 'Contact'));
+    const contextLabel = isTeamChat ? 'Replying in team chat' : 'Replying in internal chat';
 
     setReplyTarget({
       id: message._id || message.sid || `${message.createdAt || Date.now()}`,
-      senderLabel,
+      messageId: message._id || message.sid || `${message.createdAt || Date.now()}`,
+      senderLabel: senderName,
+      senderName,
       contextLabel,
-      body: String(message.body || '').trim(),
+      body: String(message.body || '').trim() || 'No message text',
     });
 
     focusComposerForMessage();
-  }, [chat?.conversationType, focusComposerForMessage, isTextingGroupThread]);
+  }, [chat?.conversationType, focusComposerForMessage, isInternalThread]);
 
   const handleSendAnotherMessage = useCallback(() => {
     setComposerFocusNonce((prev) => prev + 1);
@@ -547,6 +543,33 @@ function ChatWindow({
   }, [searchMatches]);
 
   const scrollToSearchMatch = useCallback((messageId) => {
+    if (!messageId) return;
+
+    suppressAutoScrollUntilRef.current = Date.now() + 1800;
+    isNearBottomRef.current = false;
+
+    const runScroll = () => {
+      const targetNode = messageRefs.current[messageId]
+        || (typeof document !== 'undefined'
+          ? document.querySelector(`[data-message-id="${messageId}"]`)
+          : null);
+
+      if (!targetNode) return;
+
+      targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedMessageId(messageId);
+      window.clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = window.setTimeout(() => {
+        setHighlightedMessageId((current) => (current === messageId ? '' : current));
+      }, 1800);
+    };
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(runScroll);
+    });
+  }, []);
+
+  const scrollToReferencedMessage = useCallback((messageId) => {
     if (!messageId) return;
 
     suppressAutoScrollUntilRef.current = Date.now() + 1800;
@@ -1099,7 +1122,7 @@ function ChatWindow({
                   onRetry={handleRetry}
                   isTextingGroupThread={isTextingGroupThread}
                   showAddUserToContacts={canAddUserToContacts}
-                  onReplyMessage={handleReplyMessage}
+                  onReplyMessage={isInternalThread ? handleReplyMessage : undefined}
                   onSendAnotherMessage={handleSendAnotherMessage}
                   onAddUserToContacts={handleAddUserToContacts}
                   currentUserId={currentUserId}
@@ -1116,6 +1139,7 @@ function ChatWindow({
                   isForwardSelectionMode={isForwardSelectionMode}
                   isForwardSelected={selectedForwardMessageIds.includes(item._id)}
                   onToggleForwardSelection={handleToggleForwardMessage}
+                  onJumpToReplyMessage={scrollToReferencedMessage}
                   messageElementRef={(node) => {
                     if (!item._id) return;
                     if (node) {

@@ -30,6 +30,7 @@ function MessageBubble({
   isForwardSelectionMode = false,
   isForwardSelected = false,
   onToggleForwardSelection,
+  onJumpToReplyMessage,
 }) {
   const [copyState, setCopyState] = useState('idle');
   const [menuState, setMenuState] = useState({ open: false, mode: 'anchored', x: 0, y: 0 });
@@ -112,6 +113,19 @@ function MessageBubble({
   const isForwardSelectable = Boolean(isForwardSelectionMode && canForward);
   const showPinnedIndicator = Boolean(isInternalThread && isInternalMessage && message.isPinned && !isDeleted);
   const showForwardedLabel = Boolean(isInternalThread && isInternalMessage && message.forwardedFromMessageId && !isDeleted);
+  const replyPreview = message?.replyTo && typeof message.replyTo === 'object'
+    ? {
+        messageId: String(message.replyTo.messageId || '').trim(),
+        senderName: String(message.replyTo.senderName || '').trim() || 'Message',
+        body: String(message.replyTo.body || '').trim() || 'No message text',
+      }
+    : null;
+  const showReplyPreview = Boolean(
+    isInternalThread
+    && isInternalMessage
+    && !isDeleted
+    && replyPreview?.messageId
+  );
   const canOpenMenu = !isDeleted && !isForwardSelectionMode && (canReply || canCopyText || canDownloadMedia || canSendAnotherSms || canEdit || canDelete || canTogglePin || canForward);
   const normalizedSearchQuery = String(searchQuery || '').trim().toLowerCase();
   const groupedReactions = useMemo(() => {
@@ -384,6 +398,14 @@ function MessageBubble({
     closeMenu();
   };
 
+  const handleJumpToReply = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!replyPreview?.messageId) return;
+    onJumpToReplyMessage?.(replyPreview.messageId);
+  };
+
   const handleSendAnotherSms = () => {
     onSendAnotherMessage?.(message);
     closeMenu();
@@ -486,6 +508,17 @@ function MessageBubble({
 
           {showForwardedLabel ? (
             <div className="message-forwarded-label">Forwarded</div>
+          ) : null}
+
+          {showReplyPreview ? (
+            <button
+              type="button"
+              className="message-quoted-reply"
+              onClick={handleJumpToReply}
+            >
+              <span className="message-quoted-reply-sender">{replyPreview.senderName}</span>
+              <span className="message-quoted-reply-text">{replyPreview.body}</span>
+            </button>
           ) : null}
 
           {isTextingGroupMessage ? (

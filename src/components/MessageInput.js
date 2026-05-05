@@ -22,6 +22,7 @@ export const sendMessageRequest = async (to, message, mediaUrl) => {
         userId: to.userId,
         body: message,
         ...(to.forwardedFromMessageId ? { forwardedFromMessageId: to.forwardedFromMessageId } : {}),
+        ...(to.replyTo ? { replyTo: to.replyTo } : {}),
         ...(to.teamName ? { teamName: to.teamName } : {}),
         ...(to.textingGroupId ? { textingGroupId: to.textingGroupId } : {}),
         ...(to.senderName ? { senderName: to.senderName } : {}),
@@ -167,6 +168,15 @@ function MessageInput({
       senderId: userId,
       status: 'sending',
       createdAt: new Date().toISOString(),
+      ...(replyContext?.messageId
+        ? {
+            replyTo: {
+              messageId: replyContext.messageId,
+              senderName: replyContext.senderName || replyContext.senderLabel || '',
+              body: replyContext.body || '',
+            },
+          }
+        : {}),
     };
 
     if (setMessages) {
@@ -187,6 +197,13 @@ function MessageInput({
           teamName,
           textingGroupId,
           senderName: currentUserName,
+          replyTo: replyContext?.messageId
+            ? {
+                messageId: replyContext.messageId,
+                senderName: replyContext.senderName || replyContext.senderLabel || '',
+                body: replyContext.body || '',
+              }
+            : null,
         },
         text,
         mediaUrl || undefined
