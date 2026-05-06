@@ -37,14 +37,20 @@ function Header({
   onToggleSearch,
   isSearchOpen = false,
   onOpenInfoPanel,
+  onOpenPinnedItems,
+  onOpenSharedFiles,
+  onOpenNotesPanel,
+  isNotesOpen = false,
 }) {
   const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
   const [assignMenuOpen, setAssignMenuOpen] = useState(false);
+  const [optionsMenuOpen, setOptionsMenuOpen] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [assignmentStatus, setAssignmentStatus] = useState(chat?.assignmentStatus || 'open');
   const [updatingAssignmentStatus, setUpdatingAssignmentStatus] = useState(false);
   const phoneDropdownRef = useRef(null);
   const assignMenuRef = useRef(null);
+  const optionsMenuRef = useRef(null);
 
   const phones = chat?.phones || [];
   const activeNumber = chat?.phone;
@@ -80,6 +86,10 @@ function Header({
       if (assignMenuRef.current && !assignMenuRef.current.contains(e.target)) {
         setAssignMenuOpen(false);
       }
+
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(e.target)) {
+        setOptionsMenuOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -89,6 +99,7 @@ function Header({
   useEffect(() => {
     setAssignMenuOpen(false);
     setPhoneDropdownOpen(false);
+    setOptionsMenuOpen(false);
     setAssigning(false);
     setAssignmentStatus(chat?.assignmentStatus || 'open');
     setUpdatingAssignmentStatus(false);
@@ -143,6 +154,41 @@ function Header({
     );
 
   const canOpenInfoPanel = Boolean(onOpenInfoPanel && !isCustomerChat && !isTextingGroupMode);
+  const canUseNotes = Boolean(!isCustomerChat && !isTextingGroupMode && onOpenNotesPanel);
+  const canUseOptions = Boolean(!isCustomerChat && !isTextingGroupMode);
+  const isTeamConversation = chat?.conversationType === 'team';
+  const optionsItems = canUseOptions ? [
+    {
+      key: 'info',
+      label: isTeamConversation ? 'View Team Information' : 'View User Information',
+      onClick: onOpenInfoPanel,
+      disabled: !onOpenInfoPanel,
+    },
+    {
+      key: 'pinned',
+      label: 'View Pinned Items',
+      onClick: onOpenPinnedItems,
+      disabled: !onOpenPinnedItems,
+    },
+    {
+      key: 'files',
+      label: 'View Shared Files',
+      onClick: onOpenSharedFiles,
+      disabled: !onOpenSharedFiles,
+    },
+    ...(isTeamConversation ? [{
+      key: 'calendar',
+      label: 'Group Calendar',
+      onClick: onOpenTeamCalendar,
+      disabled: !onOpenTeamCalendar,
+    }] : []),
+    {
+      key: 'mute',
+      label: isTeamConversation ? 'Mute notifications soon' : 'Mute conversation soon',
+      onClick: null,
+      disabled: true,
+    },
+  ] : [];
 
   const titleBlock = (
     <div className="header-title-text">
@@ -397,6 +443,49 @@ function Header({
             >
               Group Details
             </button>
+            {canUseNotes ? (
+              <button
+                className={`button-icon${isNotesOpen ? ' is-active' : ''}`}
+                type="button"
+                onClick={onOpenNotesPanel}
+                aria-pressed={isNotesOpen}
+              >
+                Notes
+              </button>
+            ) : null}
+            {canUseOptions ? (
+              <div ref={optionsMenuRef} className="header-options-menu">
+                <button
+                  className={`button-icon${optionsMenuOpen ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={() => setOptionsMenuOpen((prev) => !prev)}
+                  aria-expanded={optionsMenuOpen}
+                  aria-haspopup="menu"
+                >
+                  Options
+                </button>
+                {optionsMenuOpen ? (
+                  <div className="header-options-dropdown" role="menu">
+                    {optionsItems.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className="header-options-item"
+                        role="menuitem"
+                        disabled={item.disabled}
+                        onClick={() => {
+                          if (item.disabled || !item.onClick) return;
+                          setOptionsMenuOpen(false);
+                          item.onClick();
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </>
         ) : !isTextingGroupMode ? (
           <>
@@ -410,8 +499,49 @@ function Header({
                 Search
               </button>
             ) : null}
-            <button className="button-icon" type="button">Notes</button>
-            <button className="button-icon" type="button">Options</button>
+            {canUseNotes ? (
+              <button
+                className={`button-icon${isNotesOpen ? ' is-active' : ''}`}
+                type="button"
+                onClick={onOpenNotesPanel}
+                aria-pressed={isNotesOpen}
+              >
+                Notes
+              </button>
+            ) : null}
+            {canUseOptions ? (
+              <div ref={optionsMenuRef} className="header-options-menu">
+                <button
+                  className={`button-icon${optionsMenuOpen ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={() => setOptionsMenuOpen((prev) => !prev)}
+                  aria-expanded={optionsMenuOpen}
+                  aria-haspopup="menu"
+                >
+                  Options
+                </button>
+                {optionsMenuOpen ? (
+                  <div className="header-options-dropdown" role="menu">
+                    {optionsItems.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className="header-options-item"
+                        role="menuitem"
+                        disabled={item.disabled}
+                        onClick={() => {
+                          if (item.disabled || !item.onClick) return;
+                          setOptionsMenuOpen(false);
+                          item.onClick();
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </>
         ) : null}
 

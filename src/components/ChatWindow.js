@@ -78,6 +78,9 @@ function ChatWindow({
   const pendingScrollActionRef = useRef({ reason: '', chatKey: '' });
   const searchInputRef = useRef(null);
   const commentInputRef = useRef(null);
+  const noteDraftInputRef = useRef(null);
+  const infoPinnedSectionRef = useRef(null);
+  const infoFilesSectionRef = useRef(null);
   const [callLogs, setCallLogs] = useState([]);
   const [callStatus, setCallStatus] = useState(null);
   const [currentCallSid, setCurrentCallSid] = useState(null);
@@ -97,6 +100,9 @@ function ChatWindow({
   const [selectedForwardTargetKeys, setSelectedForwardTargetKeys] = useState([]);
   const [isForwardingMessages, setIsForwardingMessages] = useState(false);
   const [isInfoPanelOpen, setIsInfoPanelOpen] = useState(false);
+  const [isNotesPanelOpen, setIsNotesPanelOpen] = useState(false);
+  const [isFilesPanelOpen, setIsFilesPanelOpen] = useState(false);
+  const [infoPanelFocusSection, setInfoPanelFocusSection] = useState('overview');
   const [activeCommentThreadMessageId, setActiveCommentThreadMessageId] = useState('');
   const [commentThreadRootMessage, setCommentThreadRootMessage] = useState(null);
   const [commentThreadComments, setCommentThreadComments] = useState([]);
@@ -104,6 +110,14 @@ function ChatWindow({
   const [commentThreadError, setCommentThreadError] = useState('');
   const [commentDraft, setCommentDraft] = useState('');
   const [isSendingComment, setIsSendingComment] = useState(false);
+  const [conversationNotes, setConversationNotes] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [notesError, setNotesError] = useState('');
+  const [noteDraft, setNoteDraft] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState('');
+  const [editingNoteBody, setEditingNoteBody] = useState('');
+  const [savingNoteId, setSavingNoteId] = useState('');
+  const [deletingNoteId, setDeletingNoteId] = useState('');
 
   const safeMessages = useMemo(() => messages || [], [messages]);
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
@@ -120,7 +134,7 @@ function ChatWindow({
     || chat?.phone
     || 'Unknown customer';
   const activeCommentThreadCount = Number(commentThreadRootMessage?.commentCount || 0);
-  const isAnySidePanelOpen = isInfoPanelOpen || isCommentThreadOpen;
+  const isAnySidePanelOpen = isInfoPanelOpen || isCommentThreadOpen || isNotesPanelOpen || isFilesPanelOpen;
   const normalizedThreadComments = useMemo(() => (
     (commentThreadComments || []).map((comment) => ({
       ...comment,
@@ -454,6 +468,9 @@ function ChatWindow({
     setSelectedForwardTargetKeys([]);
     setIsForwardingMessages(false);
     setIsInfoPanelOpen(false);
+    setIsNotesPanelOpen(false);
+    setIsFilesPanelOpen(false);
+    setInfoPanelFocusSection('overview');
     setActiveCommentThreadMessageId('');
     setCommentThreadRootMessage(null);
     setCommentThreadComments([]);
@@ -461,6 +478,14 @@ function ChatWindow({
     setCommentThreadError('');
     setCommentDraft('');
     setIsSendingComment(false);
+    setConversationNotes([]);
+    setNotesLoading(false);
+    setNotesError('');
+    setNoteDraft('');
+    setEditingNoteId('');
+    setEditingNoteBody('');
+    setSavingNoteId('');
+    setDeletingNoteId('');
     messageRefs.current = {};
     window.clearTimeout(highlightTimeoutRef.current);
   }, [chat?.conversationId, chat?.phone, chat?.textingGroupId]);
@@ -484,6 +509,14 @@ function ChatWindow({
     input.style.height = '0px';
     input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
   }, [commentDraft, isCommentThreadOpen]);
+
+  useEffect(() => {
+    const input = noteDraftInputRef.current;
+    if (!input) return;
+
+    input.style.height = '0px';
+    input.style.height = `${Math.min(input.scrollHeight, 140)}px`;
+  }, [noteDraft, isNotesPanelOpen]);
 
   useEffect(() => {
     if (!activeCommentThreadMessageId || !isInternalThread) return undefined;
@@ -554,6 +587,20 @@ function ChatWindow({
     return [...comments, nextComment].sort((left, right) => new Date(left?.createdAt || 0) - new Date(right?.createdAt || 0));
   }, []);
 
+  const upsertConversationNote = useCallback((notes = [], nextNote) => {
+    if (!nextNote?._id) return notes;
+    const exists = notes.some((note) => note?._id === nextNote._id);
+    const merged = exists
+      ? notes.map((note) => (note?._id === nextNote._id ? { ...note, ...nextNote } : note))
+      : [...notes, nextNote];
+
+    return merged.sort((left, right) => {
+      const leftTime = new Date(left?.updatedAt || left?.createdAt || 0).getTime();
+      const rightTime = new Date(right?.updatedAt || right?.createdAt || 0).getTime();
+      return rightTime - leftTime;
+    });
+  }, []);
+
   useEffect(() => {
     const handleThreadCommentCreated = (payload) => {
       const parentMessageId = String(payload?.parentMessageId || '').trim();
@@ -580,6 +627,89 @@ function ChatWindow({
     socket.on('messageThreadCommentCreated', handleThreadCommentCreated);
     return () => socket.off('messageThreadCommentCreated', handleThreadCommentCreated);
   }, [activeCommentThreadMessageId, upsertThreadComment]);
+
+  useEffect(() => {
+    if (!isNotesPanelOpen || !isInternalThread || !chat?.conversationId) return undefined;
+
+    let isMounted = true;
+
+    const loadConversationNotes = async () => {
+      try {
+        setNotesLoading(true);
+        setNotesError('');
+        const params = new URLSearchParams({
+          userId: currentUserId,
+          role: currentUserRole,
+          conversationType: chat.conversationType,
+        });
+        const response = await fetch(
+          `${BASE_URL}/api/messages/conversation/${encodeURIComponent(chat.conversationId)}/notes?${params.toString()}`
+        );
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Failed to load notes');
+        }
+
+        if (!isMounted) return;
+        setConversationNotes(Array.isArray(payload?.notes) ? payload.notes : []);
+      } catch (error) {
+        if (!isMounted) return;
+        setNotesError(error?.message || 'Failed to load notes');
+      } finally {
+        if (isMounted) {
+          setNotesLoading(false);
+        }
+      }
+    };
+
+    loadConversationNotes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [chat?.conversationId, chat?.conversationType, currentUserId, currentUserRole, isInternalThread, isNotesPanelOpen]);
+
+  useEffect(() => {
+    if (!isInternalThread || !chat?.conversationId) return undefined;
+
+    const isSameConversation = (payload) => (
+      String(payload?.conversationId || '').trim() === String(chat.conversationId || '').trim()
+      && String(payload?.conversationType || '').trim() === String(chat.conversationType || '').trim()
+    );
+
+    const handleConversationNoteCreated = (payload) => {
+      if (!isSameConversation(payload) || !payload?.note) return;
+      setConversationNotes((prev) => upsertConversationNote(prev, payload.note));
+    };
+
+    const handleConversationNoteUpdated = (payload) => {
+      if (!isSameConversation(payload) || !payload?.note) return;
+      setConversationNotes((prev) => upsertConversationNote(prev, payload.note));
+    };
+
+    const handleConversationNoteDeleted = (payload) => {
+      if (!isSameConversation(payload) || !payload?.noteId) return;
+      setConversationNotes((prev) => prev.filter((note) => note?._id !== payload.noteId));
+      setEditingNoteId((current) => {
+        if (current === payload.noteId) {
+          setEditingNoteBody('');
+          return '';
+        }
+        return current;
+      });
+    };
+
+    socket.on('conversationNoteCreated', handleConversationNoteCreated);
+    socket.on('conversationNoteUpdated', handleConversationNoteUpdated);
+    socket.on('conversationNoteDeleted', handleConversationNoteDeleted);
+
+    return () => {
+      socket.off('conversationNoteCreated', handleConversationNoteCreated);
+      socket.off('conversationNoteUpdated', handleConversationNoteUpdated);
+      socket.off('conversationNoteDeleted', handleConversationNoteDeleted);
+    };
+  }, [chat?.conversationId, chat?.conversationType, isInternalThread, upsertConversationNote]);
 
   const focusComposerForMessage = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -626,6 +756,8 @@ function ChatWindow({
     if (!message?._id || !isInternalThread) return;
 
     setIsInfoPanelOpen(false);
+    setIsNotesPanelOpen(false);
+    setIsFilesPanelOpen(false);
     setActiveCommentThreadMessageId(String(message._id));
     setCommentThreadRootMessage(message);
     setCommentThreadComments([]);
@@ -650,11 +782,64 @@ function ChatWindow({
     setCommentThreadError('');
     setCommentDraft('');
     setIsSendingComment(false);
+    setIsNotesPanelOpen(false);
+    setIsFilesPanelOpen(false);
+    setInfoPanelFocusSection('overview');
+    setIsInfoPanelOpen(true);
+  }, [isInternalThread]);
+
+  const handleOpenInfoPanelSection = useCallback((section = 'overview') => {
+    if (!isInternalThread) return;
+    setActiveCommentThreadMessageId('');
+    setCommentThreadRootMessage(null);
+    setCommentThreadComments([]);
+    setCommentThreadError('');
+    setCommentDraft('');
+    setIsSendingComment(false);
+    setIsNotesPanelOpen(false);
+    setIsFilesPanelOpen(false);
+    setInfoPanelFocusSection(section);
     setIsInfoPanelOpen(true);
   }, [isInternalThread]);
 
   const handleCloseInfoPanel = useCallback(() => {
     setIsInfoPanelOpen(false);
+  }, []);
+
+  const handleOpenNotesPanel = useCallback(() => {
+    if (!isInternalThread) return;
+    setActiveCommentThreadMessageId('');
+    setCommentThreadRootMessage(null);
+    setCommentThreadComments([]);
+    setCommentThreadError('');
+    setCommentDraft('');
+    setIsSendingComment(false);
+    setIsInfoPanelOpen(false);
+    setIsFilesPanelOpen(false);
+    setIsNotesPanelOpen(true);
+    setNotesError('');
+  }, [isInternalThread]);
+
+  const handleCloseNotesPanel = useCallback(() => {
+    setIsNotesPanelOpen(false);
+    setNotesError('');
+  }, []);
+
+  const handleOpenFilesPanel = useCallback(() => {
+    if (!isInternalThread) return;
+    setActiveCommentThreadMessageId('');
+    setCommentThreadRootMessage(null);
+    setCommentThreadComments([]);
+    setCommentThreadError('');
+    setCommentDraft('');
+    setIsSendingComment(false);
+    setIsInfoPanelOpen(false);
+    setIsNotesPanelOpen(false);
+    setIsFilesPanelOpen(true);
+  }, [isInternalThread]);
+
+  const handleCloseFilesPanel = useCallback(() => {
+    setIsFilesPanelOpen(false);
   }, []);
 
   const handleEditMessage = useCallback(async (message, nextBody) => {
@@ -807,6 +992,19 @@ function ChatWindow({
       fileName: String(item?.attachment?.fileName || '').trim(),
     }))
   ), [pinnedMessages]);
+  const sharedFiles = useMemo(() => (
+    isInternalThread
+      ? [...safeMessages]
+        .filter((item) => item?.attachment?.fileName && !item?.isDeleted)
+        .sort((left, right) => new Date(right?.createdAt || 0) - new Date(left?.createdAt || 0))
+        .map((item) => ({
+          ...item,
+          preview: String(item?.body || '').trim() || 'Shared file',
+          fileName: String(item?.attachment?.fileName || '').trim(),
+          fileType: String(item?.attachment?.fileType || '').trim(),
+        }))
+      : []
+  ), [isInternalThread, safeMessages]);
 
   const scrollToPinnedMessage = useCallback(() => {
     const pinnedMessageId = activePinnedMessage?._id;
@@ -916,6 +1114,22 @@ function ChatWindow({
       window.requestAnimationFrame(runScroll);
     });
   }, []);
+
+  useEffect(() => {
+    if (!isInfoPanelOpen) return;
+
+    const sectionNode = infoPanelFocusSection === 'files'
+      ? infoFilesSectionRef.current
+      : infoPanelFocusSection === 'pinned'
+        ? infoPinnedSectionRef.current
+        : null;
+
+    if (!sectionNode) return;
+
+    window.requestAnimationFrame(() => {
+      sectionNode.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [infoPanelFocusSection, isInfoPanelOpen]);
 
   useEffect(() => {
     if (!jumpToMessageId || chat?.conversationType !== 'team') return;
@@ -1214,6 +1428,7 @@ function ChatWindow({
     || (chat.firstName || chat.lastName
       ? `${chat.firstName || ''} ${chat.lastName || ''}`.trim()
       : chat.phone);
+  const sharedFileCount = sharedFiles.length;
   const handleAddUserToContacts = (message = null) => {
     if (!isCustomerChat) return;
 
@@ -1359,6 +1574,136 @@ function ChatWindow({
     }
   };
 
+  const handleCreateNote = async () => {
+    const nextBody = String(noteDraft || '').trim();
+    if (!isInternalThread || !chat?.conversationId || !nextBody || savingNoteId === 'new') {
+      return;
+    }
+
+    try {
+      setSavingNoteId('new');
+      setNotesError('');
+      const response = await fetch(`${BASE_URL}/api/messages/conversation/${encodeURIComponent(chat.conversationId)}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          role: currentUserRole,
+          conversationType: chat.conversationType,
+          body: nextBody,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to create note');
+      }
+
+      setNoteDraft('');
+      if (payload?.note) {
+        setConversationNotes((prev) => upsertConversationNote(prev, payload.note));
+      }
+    } catch (error) {
+      console.error('Create conversation note failed:', error);
+      setNotesError(error?.message || 'Failed to create note');
+    } finally {
+      setSavingNoteId('');
+    }
+  };
+
+  const handleStartEditingNote = (note) => {
+    setEditingNoteId(String(note?._id || ''));
+    setEditingNoteBody(String(note?.body || ''));
+    setNotesError('');
+  };
+
+  const handleCancelEditingNote = () => {
+    setEditingNoteId('');
+    setEditingNoteBody('');
+  };
+
+  const handleSaveEditedNote = async (noteId) => {
+    const nextBody = String(editingNoteBody || '').trim();
+    if (!noteId || !nextBody || !chat?.conversationId) {
+      return;
+    }
+
+    try {
+      setSavingNoteId(String(noteId));
+      setNotesError('');
+      const response = await fetch(
+        `${BASE_URL}/api/messages/conversation/${encodeURIComponent(chat.conversationId)}/notes/${encodeURIComponent(noteId)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUserId,
+            role: currentUserRole,
+            body: nextBody,
+          }),
+        }
+      );
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to update note');
+      }
+
+      if (payload?.note) {
+        setConversationNotes((prev) => upsertConversationNote(prev, payload.note));
+      }
+      setEditingNoteId('');
+      setEditingNoteBody('');
+    } catch (error) {
+      console.error('Update conversation note failed:', error);
+      setNotesError(error?.message || 'Failed to update note');
+    } finally {
+      setSavingNoteId('');
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    if (!noteId || !chat?.conversationId) {
+      return;
+    }
+
+    try {
+      setDeletingNoteId(String(noteId));
+      setNotesError('');
+      const response = await fetch(
+        `${BASE_URL}/api/messages/conversation/${encodeURIComponent(chat.conversationId)}/notes/${encodeURIComponent(noteId)}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUserId,
+            role: currentUserRole,
+          }),
+        }
+      );
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to delete note');
+      }
+
+      const deletedId = String(payload?.noteId || noteId);
+      setConversationNotes((prev) => prev.filter((note) => note?._id !== deletedId));
+      setEditingNoteId((current) => {
+        if (current === deletedId) {
+          setEditingNoteBody('');
+          return '';
+        }
+        return current;
+      });
+    } catch (error) {
+      console.error('Delete conversation note failed:', error);
+      setNotesError(error?.message || 'Failed to delete note');
+    } finally {
+      setDeletingNoteId('');
+    }
+  };
+
   const getCallLabel = () => {
     switch (callStatus) {
       case 'initiated': return 'Calling...';
@@ -1395,6 +1740,10 @@ function ChatWindow({
         onToggleSearch={isInternalThread ? handleToggleSearch : null}
         isSearchOpen={isSearchOpen}
         onOpenInfoPanel={isInternalThread ? handleOpenInfoPanel : null}
+        onOpenPinnedItems={isInternalThread ? () => handleOpenInfoPanelSection('pinned') : null}
+        onOpenSharedFiles={isInternalThread ? handleOpenFilesPanel : null}
+        onOpenNotesPanel={isInternalThread ? handleOpenNotesPanel : null}
+        isNotesOpen={isNotesPanelOpen}
       />
 
       <div className={`chat-window-body${isAnySidePanelOpen ? ' has-side-panel' : ''}`}>
@@ -1695,7 +2044,10 @@ function ChatWindow({
               </div>
             </div>
 
-            <div className="chat-info-panel-section">
+            <div
+              ref={infoPinnedSectionRef}
+              className={`chat-info-panel-section${infoPanelFocusSection === 'pinned' ? ' is-targeted' : ''}`}
+            >
               <div className="chat-info-panel-section-head">
                 <div className="chat-info-panel-section-title">Pinned Items</div>
                 <div className="chat-info-panel-section-count">
@@ -1735,6 +2087,226 @@ function ChatWindow({
                   ))
                 )}
               </div>
+            </div>
+
+            <div
+              ref={infoFilesSectionRef}
+              className={`chat-info-panel-section is-shared-files${infoPanelFocusSection === 'files' ? ' is-targeted' : ''}`}
+            >
+              <div className="chat-info-panel-section-head">
+                <div className="chat-info-panel-section-title">Shared Files</div>
+                <div className="chat-info-panel-section-count">
+                  {sharedFileCount} file{sharedFileCount === 1 ? '' : 's'}
+                </div>
+              </div>
+
+              <div className="chat-info-panel-pinned-list chat-info-panel-files-list">
+                {sharedFiles.length === 0 ? (
+                  <div className="chat-info-panel-empty">
+                    Files shared in this conversation will appear here.
+                  </div>
+                ) : (
+                  sharedFiles.map((item) => (
+                    <button
+                      key={item._id}
+                      type="button"
+                      className="chat-info-panel-pinned-card chat-info-panel-file-card"
+                      onClick={() => scrollToReferencedMessage(item._id)}
+                    >
+                      <div className="chat-info-panel-pinned-topline">
+                        <span className="chat-info-panel-pinned-sender">
+                          {item.senderId === currentUserId ? 'You' : (item.senderName || item.senderId || 'Teammate')}
+                        </span>
+                        <span className="chat-info-panel-pinned-time">
+                          {formatThreadCommentTimestamp(item.createdAt)}
+                        </span>
+                      </div>
+                      <div className="chat-info-panel-pinned-file">
+                        <span className="chat-info-panel-pinned-file-icon">File</span>
+                        <span>{item.fileName}</span>
+                      </div>
+                      <div className="chat-info-panel-pinned-preview">{item.preview}</div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </aside>
+        ) : null}
+
+        {isNotesPanelOpen ? (
+          <aside className="chat-notes-panel">
+            <div className="chat-notes-panel-header">
+              <div className="chat-notes-panel-title-wrap">
+                <div className="chat-notes-panel-title">Notes</div>
+                <div className="chat-notes-panel-subtitle">
+                  Conversation notes for this {chat?.conversationType === 'team' ? 'team chat' : 'personal chat'}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="chat-notes-panel-close"
+                onClick={handleCloseNotesPanel}
+                aria-label="Close notes panel"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="chat-notes-panel-composer">
+              {notesError ? (
+                <div className="chat-notes-panel-error" role="status" aria-live="polite">
+                  {notesError}
+                </div>
+              ) : null}
+              <textarea
+                ref={noteDraftInputRef}
+                className="chat-notes-panel-input"
+                value={noteDraft}
+                onChange={(event) => setNoteDraft(event.target.value)}
+                placeholder="Add a conversation note..."
+                rows={2}
+              />
+              <button
+                type="button"
+                className="chat-notes-panel-submit"
+                onClick={handleCreateNote}
+                disabled={savingNoteId === 'new' || !String(noteDraft || '').trim()}
+              >
+                {savingNoteId === 'new' ? 'Saving...' : 'Add Note'}
+              </button>
+            </div>
+
+            <div className="chat-notes-panel-body">
+              {notesLoading ? (
+                <div className="chat-notes-panel-empty">Loading notes...</div>
+              ) : conversationNotes.length === 0 ? (
+                <div className="chat-notes-panel-empty">
+                  Save reminders, follow-ups, or internal team context for this conversation here.
+                </div>
+              ) : (
+                conversationNotes.map((note) => {
+                  const isEditing = editingNoteId === note._id;
+                  const canManageNote = currentUserRole === 'admin' || note.authorId === currentUserId;
+                  const isSavingThisNote = savingNoteId === note._id;
+                  const isDeletingThisNote = deletingNoteId === note._id;
+
+                  return (
+                    <div key={note._id} className="chat-notes-panel-item">
+                      <div className="chat-notes-panel-item-meta">
+                        <span className="chat-notes-panel-item-author">
+                          {note.authorId === currentUserId ? 'You' : (note.authorName || note.authorId || 'Teammate')}
+                        </span>
+                        <span className="chat-notes-panel-item-time">
+                          {formatThreadCommentTimestamp(note.updatedAt || note.createdAt)}
+                        </span>
+                      </div>
+
+                      {isEditing ? (
+                        <>
+                          <textarea
+                            className="chat-notes-panel-edit-input"
+                            value={editingNoteBody}
+                            onChange={(event) => setEditingNoteBody(event.target.value)}
+                            rows={4}
+                          />
+                          <div className="chat-notes-panel-item-actions">
+                            <button
+                              type="button"
+                              className="chat-notes-panel-action"
+                              onClick={handleCancelEditingNote}
+                              disabled={isSavingThisNote}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className="chat-notes-panel-action is-primary"
+                              onClick={() => handleSaveEditedNote(note._id)}
+                              disabled={isSavingThisNote || !String(editingNoteBody || '').trim()}
+                            >
+                              {isSavingThisNote ? 'Saving...' : 'Save'}
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="chat-notes-panel-item-body">{note.body}</div>
+                          {canManageNote ? (
+                            <div className="chat-notes-panel-item-actions">
+                              <button
+                                type="button"
+                                className="chat-notes-panel-action"
+                                onClick={() => handleStartEditingNote(note)}
+                                disabled={isDeletingThisNote}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="chat-notes-panel-action is-danger"
+                                onClick={() => handleDeleteNote(note._id)}
+                                disabled={isDeletingThisNote}
+                              >
+                                {isDeletingThisNote ? 'Deleting...' : 'Delete'}
+                              </button>
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </aside>
+        ) : null}
+
+        {isFilesPanelOpen ? (
+          <aside className="chat-files-panel">
+            <div className="chat-files-panel-header">
+              <div className="chat-files-panel-title-wrap">
+                <div className="chat-files-panel-title">Shared Files</div>
+                <div className="chat-files-panel-subtitle">
+                  Files shared in this {chat?.conversationType === 'team' ? 'team chat' : 'personal chat'}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="chat-files-panel-close"
+                onClick={handleCloseFilesPanel}
+                aria-label="Close shared files panel"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="chat-files-panel-body">
+              {sharedFiles.length === 0 ? (
+                <div className="chat-files-panel-empty">
+                  Files shared in this conversation will appear here.
+                </div>
+              ) : (
+                sharedFiles.map((item) => (
+                  <button
+                    key={item._id}
+                    type="button"
+                    className="chat-files-panel-item"
+                    onClick={() => scrollToReferencedMessage(item._id)}
+                  >
+                    <div className="chat-files-panel-item-topline">
+                      <span className="chat-files-panel-item-name">{item.fileName}</span>
+                      <span className="chat-files-panel-item-time">
+                        {formatThreadCommentTimestamp(item.createdAt)}
+                      </span>
+                    </div>
+                    <div className="chat-files-panel-item-meta">
+                      {item.senderId === currentUserId ? 'You' : (item.senderName || item.senderId || 'Teammate')}
+                    </div>
+                    <div className="chat-files-panel-item-preview">{item.preview}</div>
+                  </button>
+                ))
+              )}
             </div>
           </aside>
         ) : null}
