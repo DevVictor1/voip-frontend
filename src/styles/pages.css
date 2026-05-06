@@ -1535,6 +1535,36 @@
   overflow: hidden;
 }
 
+.directory-company-shell,
+.directory-clients-shell {
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.directory-company-list,
+.directory-clients-list,
+.directory-company-detail,
+.directory-clients-detail {
+  min-height: 0;
+}
+
+.directory-company-list-scroll,
+.directory-client-list-scroll {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.directory-detail-card,
+.directory-client-detail-card {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .directory-clients-list {
   display: grid;
   gap: 12px;
