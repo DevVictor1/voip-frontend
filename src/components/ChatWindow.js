@@ -281,6 +281,10 @@ function ChatWindow({
     }
 
     window.requestAnimationFrame(() => {
+      const listNode = messageListRef.current;
+      if (listNode) {
+        listNode.scrollTop = listNode.scrollHeight;
+      }
       bottomRef.current?.scrollIntoView({ behavior, block: 'end' });
     });
   }, []);
@@ -357,13 +361,72 @@ function ChatWindow({
 
     if (!shouldScrollToOpenedConversation) return;
 
+    const listNode = messageListRef.current;
+    if (!listNode) return;
+
+    let cancelled = false;
+    let settleTimeoutId = null;
+    let fallbackTimeoutId = null;
+    let resizeObserver = null;
+
+    const scrollListToBottom = () => {
+      const currentListNode = messageListRef.current;
+      if (!currentListNode) return;
+      currentListNode.scrollTop = currentListNode.scrollHeight;
+      bottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+      isNearBottomRef.current = true;
+    };
+
+    const finalizeInitialScroll = () => {
+      if (cancelled) return;
+      pendingInitialScrollChatKeyRef.current = '';
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+        resizeObserver = null;
+      }
+      window.clearTimeout(settleTimeoutId);
+      window.clearTimeout(fallbackTimeoutId);
+    };
+
+    const scheduleSettle = () => {
+      window.clearTimeout(settleTimeoutId);
+      settleTimeoutId = window.setTimeout(() => {
+        scrollListToBottom();
+        finalizeInitialScroll();
+      }, 180);
+    };
+
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
-        scrollToBottom('auto', { force: true });
-        pendingInitialScrollChatKeyRef.current = '';
+        if (cancelled) return;
+        scrollListToBottom();
+        scheduleSettle();
       });
     });
-  }, [activeChatKey, chat?.conversationId, chat?.phone, mergedTimeline.length, scrollToBottom, threadLoading]);
+
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        if (cancelled) return;
+        scrollListToBottom();
+        scheduleSettle();
+      });
+      resizeObserver.observe(listNode);
+    }
+
+    fallbackTimeoutId = window.setTimeout(() => {
+      scrollListToBottom();
+      finalizeInitialScroll();
+    }, 900);
+
+    return () => {
+      cancelled = true;
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      window.clearTimeout(settleTimeoutId);
+      window.clearTimeout(fallbackTimeoutId);
+    };
+  }, [activeChatKey, chat?.conversationId, chat?.phone, mergedTimeline.length, threadLoading]);
 
   useEffect(() => {
     setReplyTarget(null);
