@@ -14,6 +14,8 @@ import {
   getEffectiveRole,
   getStoredAuthToken,
   getStoredAuthUser,
+  storeAuthSession,
+  toggleFavoriteConversationRequest,
 } from '../services/auth';
 import { resolveEffectiveAvailabilityStatus } from '../utils/presence';
 
@@ -620,6 +622,9 @@ const VIEW_MODE_CONFIG = {
 
 const INTERNAL_CHAT_RECENTS_STORAGE_KEY = 'voip_internal_chat_recent_searches';
 const INTERNAL_CHAT_RECENTS_LIMIT = 5;
+const normalizeFavoriteIds = (values = []) => (
+  [...new Set((Array.isArray(values) ? values : []).map((value) => String(value || '').trim()).filter(Boolean))]
+);
 
 function MessagesPage({
   currentRole: providedRole,
@@ -681,10 +686,21 @@ function MessagesPage({
   const currentUserId = providedUserId || getEffectiveAgentId() || 'agent_1';
   const storedAuthUser = getStoredAuthUser();
   const currentAuthUserDbId = storedAuthUser?.id || storedAuthUser?._id || '';
+  const [favoritePersonalChatIds, setFavoritePersonalChatIds] = useState(() => (
+    normalizeFavoriteIds(storedAuthUser?.favoritePersonalChatIds)
+  ));
+  const [favoriteTeamChatIds, setFavoriteTeamChatIds] = useState(() => (
+    normalizeFavoriteIds(storedAuthUser?.favoriteTeamChatIds)
+  ));
 
   useEffect(() => {
     document.title = `${viewConfig.pageTitle} | KAYLAD`;
   }, [viewConfig.pageTitle]);
+
+  useEffect(() => {
+    setFavoritePersonalChatIds(normalizeFavoriteIds(storedAuthUser?.favoritePersonalChatIds));
+    setFavoriteTeamChatIds(normalizeFavoriteIds(storedAuthUser?.favoriteTeamChatIds));
+  }, [storedAuthUser?.favoritePersonalChatIds, storedAuthUser?.favoriteTeamChatIds]);
 
   const isSmsPage = resolvedViewMode === 'customers';
   const isInternalChatPage = resolvedViewMode === 'internal';
@@ -733,6 +749,15 @@ function MessagesPage({
   useEffect(() => {
     messagesRef.current = Array.isArray(messages) ? messages : [];
   }, [messages]);
+
+  const favoritePersonalChatIdSet = useMemo(
+    () => new Set(normalizeFavoriteIds(favoritePersonalChatIds)),
+    [favoritePersonalChatIds]
+  );
+  const favoriteTeamChatIdSet = useMemo(
+    () => new Set(normalizeFavoriteIds(favoriteTeamChatIds)),
+    [favoriteTeamChatIds]
+  );
 
   useEffect(() => () => {
     if (smsContactSuccessTimeoutRef.current) {
@@ -1787,22 +1812,90 @@ function MessagesPage({
     }
   }, [currentUserId, fetchInternalConversations, rememberInternalSearch, startingDirectChat, upsertInternalConversation, workspaceUserDirectory]);
 
-  const conversationList = isSmsPage && smsMode === 'direct'
-    ? buildDirectSmsConversationList({
-        contacts,
-        chats,
-      })
-    : buildConversationList({
-        contacts,
-        chats,
-        internalChats,
-        currentUserId,
-        userDirectory: workspaceUserDirectory,
-      });
+  const conversationList = useMemo(() => {
+    const baseList = isSmsPage && smsMode === 'direct'
+      ? buildDirectSmsConversationList({
+          contacts,
+          chats,
+        })
+      : buildConversationList({
+          contacts,
+          chats,
+          internalChats,
+          currentUserId,
+          userDirectory: workspaceUserDirectory,
+        });
+
+    return baseList.map((item) => ({
+      ...item,
+      isFavorite: item?.conversationType === 'internal_dm'
+        ? favoritePersonalChatIdSet.has(String(item?.conversationId || '').trim())
+        : item?.conversationType === 'team'
+          ? favoriteTeamChatIdSet.has(String(item?.conversationId || '').trim())
+          : false,
+    }));
+  }, [
+    chats,
+    contacts,
+    currentUserId,
+    favoritePersonalChatIdSet,
+    favoriteTeamChatIdSet,
+    internalChats,
+    isSmsPage,
+    smsMode,
+    workspaceUserDirectory,
+  ]);
   const activeInternalChatThreads = conversationList.filter((item) => (
     item?.conversationType === 'internal_dm'
     && hasInternalConversationActivity(item)
   ));
+
+  const handleToggleFavoriteConversation = useCallback(async (conversation) => {
+    const conversationType = String(conversation?.conversationType || '').trim();
+    const conversationId = String(conversation?.conversationId || '').trim();
+    const token = getStoredAuthToken();
+
+    if (!token || !conversationId || !['internal_dm', 'team'].includes(conversationType)) {
+      return;
+    }
+
+    const previousPersonalIds = favoritePersonalChatIds;
+    const previousTeamIds = favoriteTeamChatIds;
+
+    if (conversationType === 'internal_dm') {
+      setFavoritePersonalChatIds((prev) => (
+        prev.includes(conversationId)
+          ? prev.filter((value) => value !== conversationId)
+          : [...prev, conversationId]
+      ));
+    } else {
+      setFavoriteTeamChatIds((prev) => (
+        prev.includes(conversationId)
+          ? prev.filter((value) => value !== conversationId)
+          : [...prev, conversationId]
+      ));
+    }
+
+    try {
+      const payload = await toggleFavoriteConversationRequest(token, {
+        conversationType,
+        conversationId,
+      });
+      const nextUser = payload?.user || null;
+      if (nextUser) {
+        storeAuthSession({
+          token,
+          user: nextUser,
+        });
+        setFavoritePersonalChatIds(normalizeFavoriteIds(nextUser.favoritePersonalChatIds));
+        setFavoriteTeamChatIds(normalizeFavoriteIds(nextUser.favoriteTeamChatIds));
+      }
+    } catch (error) {
+      console.error('Toggle favorite conversation failed:', error);
+      setFavoritePersonalChatIds(previousPersonalIds);
+      setFavoriteTeamChatIds(previousTeamIds);
+    }
+  }, [favoritePersonalChatIds, favoriteTeamChatIds]);
 
   const fetchTeamDetails = useCallback(async (conversationId) => {
     if (!conversationId) return null;
@@ -2259,6 +2352,14 @@ function MessagesPage({
     filteredList = filteredList.filter(
       (item) => !isDirectoryOnlyCustomer(item) && hasUnreadConversation(item)
     );
+  }
+
+  if (isInternalChatPage && internalChatFilter === 'favorites') {
+    filteredList = filteredList.filter((item) => item?.conversationType === 'internal_dm' && item?.isFavorite);
+  }
+
+  if (isInternalTeamsPage && internalTeamsFilter === 'favorites') {
+    filteredList = filteredList.filter((item) => item?.conversationType === 'team' && item?.isFavorite);
   }
 
   if (searchQuery.trim()) {
@@ -3044,6 +3145,16 @@ function MessagesPage({
     : filteredList;
   const threadCount = smsVisibleList.length;
   const unreadThreadCount = smsVisibleList.filter(hasUnreadConversation).length;
+  const internalFavoritesEmptyTitle = isInternalChatPage && internalChatFilter === 'favorites'
+    ? 'No favorites yet.'
+    : isInternalTeamsPage && internalTeamsFilter === 'favorites'
+      ? 'No favorites yet.'
+      : viewConfig.emptyLabel;
+  const internalFavoritesEmptySubtitle = isInternalChatPage && internalChatFilter === 'favorites'
+    ? 'Star personal chats to keep them easy to find here.'
+    : isInternalTeamsPage && internalTeamsFilter === 'favorites'
+      ? 'Star team chats to keep them easy to find here.'
+      : viewConfig.emptySubtitle;
   const canCreateCustomerMessage = activeSection === 'customers';
   const canStartDirectMessage = activeSection === 'internal';
   const hasMoreActions = canStartDirectMessage;
@@ -3530,10 +3641,11 @@ function MessagesPage({
             activeId={activeChatId}
             activeContactId={activeChat?.conversationType === 'customer' ? (activeChat?._id || activeCustomerContactId) : null}
             onSelect={handleSelectChat}
+            onToggleFavorite={handleToggleFavoriteConversation}
             activeSection={activeSection}
             showUnreadOnly={effectiveShowUnreadOnly}
-            emptyTitle={viewConfig.emptyLabel}
-            emptySubtitle={viewConfig.emptySubtitle}
+            emptyTitle={internalFavoritesEmptyTitle}
+            emptySubtitle={internalFavoritesEmptySubtitle}
             hideHeader={isSmsPage || isInternalChatPage || isInternalTeamsPage}
             listVariant={isSmsPage ? 'sms' : isInternalChatPage ? 'internal-chat' : isInternalTeamsPage ? 'internal-teams' : 'default'}
           />

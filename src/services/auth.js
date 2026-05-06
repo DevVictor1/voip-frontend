@@ -224,6 +224,25 @@ export const updateMyAvatarRequest = async (token, avatarDataUrl) => {
   return payload;
 };
 
+export const toggleFavoriteConversationRequest = async (token, { conversationType, conversationId }) => {
+  const response = await fetch(`${BASE_URL}/api/auth/me/favorites`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ conversationType, conversationId }),
+  });
+
+  const payload = await parseJsonResponse(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to update favorites');
+  }
+
+  return payload;
+};
+
 export const createUserRequest = async (token, userData) => {
   const response = await fetch(`${BASE_URL}/api/auth/users`, {
     method: 'POST',

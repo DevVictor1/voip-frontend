@@ -1,4 +1,4 @@
-import { Users, X } from 'lucide-react';
+import { Star, Users, X } from 'lucide-react';
 import BASE_URL from '../config/api';
 import UserAvatar from './UserAvatar';
 import { formatAvailabilityStatus, resolveEffectiveAvailabilityStatus } from '../utils/presence';
@@ -10,6 +10,7 @@ function ContactsList({
   activeId,
   activeContactId = null,
   onSelect,
+  onToggleFavorite,
   activeSection = 'customers',
   showUnreadOnly = false,
   emptyTitle = 'No conversations here yet',
@@ -132,6 +133,11 @@ function ContactsList({
         : (item.lastMessage || item.previewFallback || 'No messages yet');
       const timestamp = formatTimestamp(item.lastMessageAt || item.updatedAt);
       const effectiveAvailabilityStatus = resolveEffectiveAvailabilityStatus(item);
+      const canFavorite = Boolean(
+        onToggleFavorite
+        && (isInternalChatList || isInternalTeamsList)
+        && ['internal_dm', 'team'].includes(item.conversationType)
+      );
       const shouldHighlightOnlineName = (
         isInternalChatList
         && item.conversationType === 'internal_dm'
@@ -177,6 +183,21 @@ function ContactsList({
                     <div className={`contact-name${(isSmsList || isSmsGroupThreadList || isInternalTeamsList) && hasUnread ? ' is-unread' : ''}${shouldHighlightOnlineName ? ' contact-name--online' : ''}`}>
                       {displayName}
                     </div>
+                    {canFavorite ? (
+                      <button
+                        type="button"
+                        className={`contact-favorite-btn${item.isFavorite ? ' is-active' : ''}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onToggleFavorite(item);
+                        }}
+                        aria-pressed={Boolean(item.isFavorite)}
+                        aria-label={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                        title={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                        <Star size={14} fill={item.isFavorite ? 'currentColor' : 'none'} />
+                      </button>
+                    ) : null}
                     {isInternalChatList && item.conversationType === 'internal_dm' ? (
                       <span
                         className={`presence-dot contact-presence-dot is-${effectiveAvailabilityStatus}`}

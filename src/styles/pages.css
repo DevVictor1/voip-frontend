@@ -2738,6 +2738,32 @@
   flex: 1 1 auto;
 }
 
+.contact-favorite-btn {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.contact-favorite-btn:hover,
+.contact-favorite-btn:focus-visible {
+  background: rgba(241, 245, 249, 0.95);
+  color: #475569;
+  outline: none;
+}
+
+.contact-favorite-btn.is-active {
+  color: #f59e0b;
+}
+
 .conversation-dot {
   width: 7px;
   height: 7px;
@@ -4651,6 +4677,11 @@
 
 .contact-card.is-internal-chat-card .contact-indicators {
   padding-right: 4px;
+}
+
+.contact-card.is-internal-chat-card .contact-favorite-btn,
+.contact-card.is-internal-teams-card .contact-favorite-btn {
+  margin-left: 2px;
 }
 
 .contacts-wrapper.is-sms-list {
