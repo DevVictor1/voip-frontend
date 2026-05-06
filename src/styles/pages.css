@@ -1214,16 +1214,23 @@
   gap: 18px;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
   min-height: 560px;
+  height: clamp(560px, calc(100vh - 220px), 760px);
+  align-items: stretch;
+  overflow: hidden;
 }
 
 .directory-company-list,
 .directory-company-detail {
   min-width: 0;
+  min-height: 0;
 }
 
 .directory-company-list {
   display: grid;
   gap: 12px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .directory-company-search {
@@ -1247,10 +1254,16 @@
 .directory-company-list-scroll {
   display: grid;
   gap: 8px;
-  max-height: 100%;
   min-height: 0;
+  height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-right: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.directory-company-detail {
+  overflow: hidden;
 }
 
 .directory-contact-row {
@@ -1353,6 +1366,9 @@
   display: grid;
   gap: 18px;
   align-content: start;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .directory-detail-hero {
