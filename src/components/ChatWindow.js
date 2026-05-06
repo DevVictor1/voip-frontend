@@ -61,6 +61,7 @@ function ChatWindow({
   const isNearBottomRef = useRef(true);
   const previousTimelineSnapshotRef = useRef({ length: 0, lastKey: '' });
   const searchInputRef = useRef(null);
+  const commentInputRef = useRef(null);
   const [callLogs, setCallLogs] = useState([]);
   const [callStatus, setCallStatus] = useState(null);
   const [currentCallSid, setCurrentCallSid] = useState(null);
@@ -369,6 +370,14 @@ function ChatWindow({
       searchInputRef.current?.select();
     });
   }, [isSearchOpen]);
+
+  useEffect(() => {
+    const input = commentInputRef.current;
+    if (!input) return;
+
+    input.style.height = '0px';
+    input.style.height = `${Math.min(input.scrollHeight, 132)}px`;
+  }, [commentDraft, isCommentThreadOpen]);
 
   useEffect(() => {
     if (!activeCommentThreadMessageId || !isInternalThread) return undefined;
@@ -1578,11 +1587,12 @@ function ChatWindow({
                 </div>
               ) : null}
               <textarea
+                ref={commentInputRef}
                 className="chat-comment-thread-input"
                 value={commentDraft}
                 onChange={(event) => setCommentDraft(event.target.value)}
                 placeholder="Add a threaded comment..."
-                rows={3}
+                rows={2}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();
