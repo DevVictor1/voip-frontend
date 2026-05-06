@@ -648,6 +648,7 @@ function MessagesPage({
     : '';
   const [activeCustomerContactId, setActiveCustomerContactId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [loadedMessagesConversationKey, setLoadedMessagesConversationKey] = useState('');
   const [teamThreadLoading, setTeamThreadLoading] = useState(false);
   const [pendingMentionJump, setPendingMentionJump] = useState(null);
   const [mentionNotifications, setMentionNotifications] = useState([]);
@@ -768,6 +769,7 @@ function MessagesPage({
     setActiveChatId(null);
     setActiveCustomerContactId(null);
     setMessages([]);
+    setLoadedMessagesConversationKey('');
     setTeamThreadLoading(false);
     setShowModal(false);
     setSmsMode('direct');
@@ -1014,6 +1016,9 @@ function MessagesPage({
 
       if (!requestKey || activeCustomerRequestRef.current === requestKey) {
         setMessages(nextMessages);
+        if (requestKey) {
+          setLoadedMessagesConversationKey(requestKey);
+        }
       }
 
       return nextMessages;
@@ -1021,6 +1026,9 @@ function MessagesPage({
       console.error('Fetch customer messages error:', err);
       if (!requestKey || activeCustomerRequestRef.current === requestKey) {
         setMessages([]);
+        if (requestKey) {
+          setLoadedMessagesConversationKey(requestKey);
+        }
       }
       return [];
     }
@@ -1032,6 +1040,9 @@ function MessagesPage({
     if (!groupId || !phone) {
       if (!requestKey || activeCustomerRequestRef.current === requestKey) {
         setMessages([]);
+        if (requestKey) {
+          setLoadedMessagesConversationKey(requestKey);
+        }
       }
       return [];
     }
@@ -1049,12 +1060,18 @@ function MessagesPage({
       const data = await res.json();
       if (!requestKey || activeCustomerRequestRef.current === requestKey) {
         setMessages(data || []);
+        if (requestKey) {
+          setLoadedMessagesConversationKey(requestKey);
+        }
       }
       return data || [];
     } catch (err) {
       console.error('Fetch texting group messages error:', err);
       if (!requestKey || activeCustomerRequestRef.current === requestKey) {
         setMessages([]);
+        if (requestKey) {
+          setLoadedMessagesConversationKey(requestKey);
+        }
       }
       return [];
     }
@@ -2413,6 +2430,13 @@ function MessagesPage({
         const requestKey = buildConversationKey(activeConversationType, activeConversationId);
         const isTeamThread = activeConversationType === 'team';
 
+        setLoadedMessagesConversationKey((current) => {
+          if (current === requestKey && isTeamThread && Array.isArray(teamMessagesCacheRef.current[requestKey])) {
+            return current;
+          }
+          return '';
+        });
+
         if (isTeamThread) {
           activeTeamRequestRef.current = requestKey;
           setTeamThreadLoading(true);
@@ -2427,6 +2451,7 @@ function MessagesPage({
           }
 
           setMessages(data || []);
+          setLoadedMessagesConversationKey(requestKey);
         }
 
         await fetch(`${BASE_URL}/api/messages/read/${encodeURIComponent(activeConversationId)}`, {
@@ -2970,12 +2995,14 @@ function MessagesPage({
     if ((normalizedConversation.conversationType || '') === 'customer') {
       activeCustomerRequestRef.current = nextKey;
       setMessages([]);
+      setLoadedMessagesConversationKey('');
       setTeamThreadLoading(false);
       setPendingMentionJump(null);
     } else if ((normalizedConversation.conversationType || '') === 'team') {
       const cachedMessages = teamMessagesCacheRef.current[nextKey];
       activeTeamRequestRef.current = nextKey;
       setMessages(Array.isArray(cachedMessages) ? cachedMessages : []);
+      setLoadedMessagesConversationKey(Array.isArray(cachedMessages) ? nextKey : '');
       setTeamThreadLoading(!Array.isArray(cachedMessages));
       setPendingMentionJump(
         nextMentionMessageId
@@ -2985,6 +3012,7 @@ function MessagesPage({
     } else {
       activeCustomerRequestRef.current = '';
       setMessages([]);
+      setLoadedMessagesConversationKey('');
       setTeamThreadLoading(false);
       setPendingMentionJump(null);
     }
@@ -3574,6 +3602,7 @@ function MessagesPage({
               <ChatWindow
                 chat={activeChat}
                 messages={messages}
+                loadedMessageKey={loadedMessagesConversationKey}
                 setMessages={setMessages}
                 currentUserId={currentUserId}
                 currentUserRole={currentRole}
@@ -3610,6 +3639,7 @@ function MessagesPage({
           <ChatWindow
             chat={activeChat}
             messages={messages}
+            loadedMessageKey={loadedMessagesConversationKey}
             setMessages={setMessages}
             currentUserId={currentUserId}
             currentUserRole={currentRole}

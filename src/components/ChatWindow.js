@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Check, Forward, MessageSquareText, Phone, Search, Send, X } from 'lucide-react';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
@@ -28,6 +28,7 @@ const formatThreadCommentTimestamp = (value) => {
 function ChatWindow({
   chat,
   messages,
+  loadedMessageKey = '',
   setMessages,
   currentUserId,
   currentUserRole = '',
@@ -350,12 +351,13 @@ function ChatWindow({
     isNearBottomRef.current = true;
   }, [activeChatKey, chat?.conversationId, chat?.phone]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const hasActiveConversation = Boolean(chat?.conversationId || chat?.phone);
     const shouldScrollToOpenedConversation = Boolean(
       hasActiveConversation
       && pendingInitialScrollChatKeyRef.current
       && pendingInitialScrollChatKeyRef.current === activeChatKey
+      && loadedMessageKey === activeChatKey
       && !threadLoading
     );
 
@@ -426,7 +428,7 @@ function ChatWindow({
       window.clearTimeout(settleTimeoutId);
       window.clearTimeout(fallbackTimeoutId);
     };
-  }, [activeChatKey, chat?.conversationId, chat?.phone, mergedTimeline.length, threadLoading]);
+  }, [activeChatKey, chat?.conversationId, chat?.phone, loadedMessageKey, mergedTimeline.length, threadLoading]);
 
   useEffect(() => {
     setReplyTarget(null);
