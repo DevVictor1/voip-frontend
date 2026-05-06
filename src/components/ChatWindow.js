@@ -60,6 +60,8 @@ function ChatWindow({
   const suppressAutoScrollUntilRef = useRef(0);
   const isNearBottomRef = useRef(true);
   const previousTimelineSnapshotRef = useRef({ length: 0, lastKey: '' });
+  const previousActiveChatKeyRef = useRef('');
+  const pendingInitialScrollChatKeyRef = useRef('');
   const searchInputRef = useRef(null);
   const commentInputRef = useRef(null);
   const [callLogs, setCallLogs] = useState([]);
@@ -91,6 +93,14 @@ function ChatWindow({
   const safeMessages = useMemo(() => messages || [], [messages]);
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
   const isInternalThread = chat?.conversationType === 'internal_dm' || chat?.conversationType === 'team';
+  const activeChatKey = useMemo(() => (
+    [
+      chat?.conversationType || 'customer',
+      chat?.conversationId || '',
+      chat?.phone || '',
+      chat?.textingGroupId || '',
+    ].join(':')
+  ), [chat?.conversationId, chat?.conversationType, chat?.phone, chat?.textingGroupId]);
   const isCommentThreadOpen = Boolean(isInternalThread && activeCommentThreadMessageId);
   const canAddUserToContacts = Boolean(onAddUserToContacts && isCustomerChat && !hasSavedContact);
   const textingGroupDisplayName = chat?.textingGroupName || selectedTextingGroup?.name || 'Selected texting group';
@@ -321,11 +331,39 @@ function ChatWindow({
   }, [currentUserId, mergedTimeline, scrollToBottom]);
 
   useEffect(() => {
-    if (!chat?.conversationId && !chat?.phone) return;
+    const hasActiveConversation = Boolean(chat?.conversationId || chat?.phone);
+    if (!hasActiveConversation) {
+      previousActiveChatKeyRef.current = '';
+      pendingInitialScrollChatKeyRef.current = '';
+      return;
+    }
+
+    if (previousActiveChatKeyRef.current === activeChatKey) return;
+
+    previousActiveChatKeyRef.current = activeChatKey;
+    pendingInitialScrollChatKeyRef.current = activeChatKey;
     previousTimelineSnapshotRef.current = { length: 0, lastKey: '' };
-    scrollToBottom('auto', { force: true });
     isNearBottomRef.current = true;
-  }, [chat?.conversationId, chat?.phone, scrollToBottom]);
+  }, [activeChatKey, chat?.conversationId, chat?.phone]);
+
+  useEffect(() => {
+    const hasActiveConversation = Boolean(chat?.conversationId || chat?.phone);
+    const shouldScrollToOpenedConversation = Boolean(
+      hasActiveConversation
+      && pendingInitialScrollChatKeyRef.current
+      && pendingInitialScrollChatKeyRef.current === activeChatKey
+      && !threadLoading
+    );
+
+    if (!shouldScrollToOpenedConversation) return;
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        scrollToBottom('auto', { force: true });
+        pendingInitialScrollChatKeyRef.current = '';
+      });
+    });
+  }, [activeChatKey, chat?.conversationId, chat?.phone, mergedTimeline.length, scrollToBottom, threadLoading]);
 
   useEffect(() => {
     setReplyTarget(null);
