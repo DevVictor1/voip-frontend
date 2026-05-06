@@ -11,8 +11,8 @@ import {
 
 const navItems = [
   { label: 'Dashboard', to: '/', icon: LayoutDashboard, roles: ['admin'] },
-  { label: 'Internal Chat', to: '/internal-chat', icon: MessageSquare, roles: ['admin', 'agent'] },
-  { label: 'Internal Teams', to: '/internal-teams', icon: UsersRound, roles: ['admin', 'agent'] },
+  { label: 'Personal Chat', to: '/internal-chat', icon: MessageSquare, roles: ['admin', 'agent'] },
+  { label: 'Team Chat', to: '/internal-teams', icon: UsersRound, roles: ['admin', 'agent'] },
   { label: 'SMS / MMS', to: '/sms-mms', icon: MessagesSquare, roles: ['admin', 'agent'] },
   { label: 'Calls', to: '/calls', icon: Phone, roles: ['admin', 'agent'] },
   { label: 'Directory', to: '/users', icon: Users, roles: ['admin'] },

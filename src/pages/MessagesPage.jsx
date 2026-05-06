@@ -601,20 +601,20 @@ const VIEW_MODE_CONFIG = {
     emptySubtitle: 'Imported contacts and customer threads will appear in this panel.',
   },
   internal: {
-    pageTitle: 'Internal Chat',
-    pageSubtitle: 'Direct teammate conversations only.',
+    pageTitle: 'Personal Chat',
+    pageSubtitle: 'Private 1-on-1 teammate conversations only.',
     section: 'internal',
     primaryActionLabel: 'Message Teammate',
-    emptyLabel: 'No internal chats yet',
-    emptySubtitle: 'Direct teammate chats will appear here once opened.',
+    emptyLabel: 'No personal chats yet',
+    emptySubtitle: 'Private teammate conversations will appear here once opened.',
   },
   teams: {
-    pageTitle: 'Internal Teams',
-    pageSubtitle: 'Shared team and group conversations only.',
+    pageTitle: 'Team Chat',
+    pageSubtitle: 'Shared group and team conversations only.',
     section: 'teams',
     primaryActionLabel: '',
-    emptyLabel: 'No team conversations yet',
-    emptySubtitle: 'Team channels will appear here when available.',
+    emptyLabel: 'No team chats yet',
+    emptySubtitle: 'Shared team conversations will appear here when available.',
   },
 };
 
@@ -680,6 +680,11 @@ function MessagesPage({
   const currentUserId = providedUserId || getEffectiveAgentId() || 'agent_1';
   const storedAuthUser = getStoredAuthUser();
   const currentAuthUserDbId = storedAuthUser?.id || storedAuthUser?._id || '';
+
+  useEffect(() => {
+    document.title = `${viewConfig.pageTitle} | KAYLAD`;
+  }, [viewConfig.pageTitle]);
+
   const isSmsPage = resolvedViewMode === 'customers';
   const isInternalChatPage = resolvedViewMode === 'internal';
   const isInternalTeamsPage = resolvedViewMode === 'teams';
@@ -3185,7 +3190,7 @@ function MessagesPage({
                   type="search"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search or start a new chat"
+                  placeholder="Search personal chats or start a new conversation"
                 />
               </label>
 
@@ -3265,7 +3270,7 @@ function MessagesPage({
                   type="search"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search group chats"
+                  placeholder="Search team chats"
                 />
               </label>
 
@@ -3780,7 +3785,7 @@ function MessagesPage({
           >
             <div className="messages-picker-header">
               <h3>New Group Chat</h3>
-              <p>Create a new internal group chat with your teammates.</p>
+              <p>Create a new team chat with your teammates.</p>
             </div>
 
             <div className="internal-teams-creator-body">
@@ -3898,7 +3903,7 @@ function MessagesPage({
           >
             <div className="messages-picker-header">
               <h3>Group Details</h3>
-              <p>View and manage this internal team chat.</p>
+              <p>View and manage this team chat.</p>
             </div>
 
             <div className="internal-teams-details-body">
@@ -4052,7 +4057,7 @@ function MessagesPage({
                       <div className="internal-teams-danger-copy">
                         <div className="internal-teams-danger-title">Delete Group</div>
                         <div className="internal-teams-danger-text">
-                          Permanently remove this custom group from Internal Teams.
+                          Permanently remove this custom group from Team Chat.
                         </div>
                       </div>
                       <button
@@ -4330,7 +4335,7 @@ function MessagesPage({
           >
             <div className="messages-picker-header">
               <h3>Message teammate</h3>
-              <p>Start or reopen a direct internal chat.</p>
+              <p>Start or reopen a private 1-on-1 teammate conversation.</p>
             </div>
 
             <div className="messages-picker-search">
