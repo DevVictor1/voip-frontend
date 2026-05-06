@@ -9,6 +9,18 @@ import { startCall } from '../services/voice';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 const FINAL_CALL_STATUSES = ['completed', 'failed', 'no-answer', 'busy', 'canceled'];
+const buildChatKey = (conversationType, conversationId, phone = '', textingGroupId = '') => {
+  const type = conversationType || 'customer';
+  const rawId = String(
+    type === 'customer'
+      ? (conversationId || (textingGroupId ? `${textingGroupId}|${phone}` : phone) || '')
+      : (conversationId || '')
+  );
+  const safeId = type === 'customer'
+    ? (rawId.includes('|') ? rawId : normalize(rawId))
+    : rawId;
+  return `${type}:${safeId}`;
+};
 const getTimelineItemKey = (item) => {
   if (!item) return '';
   return String(item._id || item.sid || item.createdAt || '');
@@ -95,12 +107,7 @@ function ChatWindow({
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
   const isInternalThread = chat?.conversationType === 'internal_dm' || chat?.conversationType === 'team';
   const activeChatKey = useMemo(() => (
-    [
-      chat?.conversationType || 'customer',
-      chat?.conversationId || '',
-      chat?.phone || '',
-      chat?.textingGroupId || '',
-    ].join(':')
+    buildChatKey(chat?.conversationType, chat?.conversationId, chat?.phone, chat?.textingGroupId)
   ), [chat?.conversationId, chat?.conversationType, chat?.phone, chat?.textingGroupId]);
   const isCommentThreadOpen = Boolean(isInternalThread && activeCommentThreadMessageId);
   const canAddUserToContacts = Boolean(onAddUserToContacts && isCustomerChat && !hasSavedContact);
