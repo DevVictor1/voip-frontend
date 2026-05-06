@@ -6,6 +6,7 @@ import MessageInput, { sendMessageRequest } from './MessageInput';
 import BASE_URL from '../config/api';
 import socket from '../socket';
 import { startCall } from '../services/voice';
+import UserAvatar from './UserAvatar';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 const FINAL_CALL_STATUSES = ['completed', 'failed', 'no-answer', 'busy', 'canceled'];
@@ -95,6 +96,7 @@ function ChatWindow({
   const [forwardSearchQuery, setForwardSearchQuery] = useState('');
   const [selectedForwardTargetKeys, setSelectedForwardTargetKeys] = useState([]);
   const [isForwardingMessages, setIsForwardingMessages] = useState(false);
+  const [isInfoPanelOpen, setIsInfoPanelOpen] = useState(false);
   const [activeCommentThreadMessageId, setActiveCommentThreadMessageId] = useState('');
   const [commentThreadRootMessage, setCommentThreadRootMessage] = useState(null);
   const [commentThreadComments, setCommentThreadComments] = useState([]);
@@ -118,6 +120,7 @@ function ChatWindow({
     || chat?.phone
     || 'Unknown customer';
   const activeCommentThreadCount = Number(commentThreadRootMessage?.commentCount || 0);
+  const isAnySidePanelOpen = isInfoPanelOpen || isCommentThreadOpen;
   const normalizedThreadComments = useMemo(() => (
     (commentThreadComments || []).map((comment) => ({
       ...comment,
@@ -450,6 +453,7 @@ function ChatWindow({
     setForwardSearchQuery('');
     setSelectedForwardTargetKeys([]);
     setIsForwardingMessages(false);
+    setIsInfoPanelOpen(false);
     setActiveCommentThreadMessageId('');
     setCommentThreadRootMessage(null);
     setCommentThreadComments([]);
@@ -621,6 +625,7 @@ function ChatWindow({
   const handleOpenCommentThread = useCallback((message) => {
     if (!message?._id || !isInternalThread) return;
 
+    setIsInfoPanelOpen(false);
     setActiveCommentThreadMessageId(String(message._id));
     setCommentThreadRootMessage(message);
     setCommentThreadComments([]);
@@ -635,6 +640,21 @@ function ChatWindow({
     setCommentThreadError('');
     setCommentDraft('');
     setIsSendingComment(false);
+  }, []);
+
+  const handleOpenInfoPanel = useCallback(() => {
+    if (!isInternalThread) return;
+    setActiveCommentThreadMessageId('');
+    setCommentThreadRootMessage(null);
+    setCommentThreadComments([]);
+    setCommentThreadError('');
+    setCommentDraft('');
+    setIsSendingComment(false);
+    setIsInfoPanelOpen(true);
+  }, [isInternalThread]);
+
+  const handleCloseInfoPanel = useCallback(() => {
+    setIsInfoPanelOpen(false);
   }, []);
 
   const handleEditMessage = useCallback(async (message, nextBody) => {
@@ -780,6 +800,13 @@ function ChatWindow({
   const pinnedPreview = activePinnedMessage
     ? (String(activePinnedMessage.body || '').trim() || 'Pinned message')
     : '';
+  const pinnedItems = useMemo(() => (
+    pinnedMessages.map((item) => ({
+      ...item,
+      preview: String(item?.body || '').trim() || item?.attachment?.fileName || 'Pinned message',
+      fileName: String(item?.attachment?.fileName || '').trim(),
+    }))
+  ), [pinnedMessages]);
 
   const scrollToPinnedMessage = useCallback(() => {
     const pinnedMessageId = activePinnedMessage?._id;
@@ -1367,9 +1394,10 @@ function ChatWindow({
         showBack={showBack}
         onToggleSearch={isInternalThread ? handleToggleSearch : null}
         isSearchOpen={isSearchOpen}
+        onOpenInfoPanel={isInternalThread ? handleOpenInfoPanel : null}
       />
 
-      <div className={`chat-window-body${isCommentThreadOpen ? ' has-comment-thread' : ''}`}>
+      <div className={`chat-window-body${isAnySidePanelOpen ? ' has-side-panel' : ''}`}>
         <div className="chat-main-column">
 
       {isInternalThread && isSearchOpen ? (
@@ -1620,6 +1648,96 @@ function ChatWindow({
         }}
       />
         </div>
+
+        {isInfoPanelOpen ? (
+          <aside className="chat-info-panel">
+            <div className="chat-info-panel-header">
+              <div className="chat-info-panel-title-wrap">
+                <div className="chat-info-panel-title">
+                  {chat?.conversationType === 'team' ? 'Group Information' : 'User Information'}
+                </div>
+                <div className="chat-info-panel-subtitle">
+                  {chat?.conversationType === 'team'
+                    ? 'Pinned items and shared team context'
+                    : 'Pinned items and teammate details'}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="chat-info-panel-close"
+                onClick={handleCloseInfoPanel}
+                aria-label="Close information panel"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="chat-info-panel-profile">
+              <UserAvatar
+                name={displayName}
+                avatarUrl={chat?.avatarUrl || ''}
+                className={`chat-info-panel-avatar${chat?.conversationType === 'team' ? ' is-team' : ''}`}
+                initialsClassName="chat-info-panel-avatar-initials"
+                fallback={chat?.conversationType === 'team' ? <span className="chat-info-panel-team-fallback">#</span> : null}
+              />
+              <div className="chat-info-panel-profile-copy">
+                <div className="chat-info-panel-profile-name">{displayName}</div>
+                <div className="chat-info-panel-profile-meta">
+                  {chat?.conversationType === 'team'
+                    ? (chat?.teamName || chat?.role || 'Team chat')
+                    : (chat?.role || 'Internal teammate')}
+                </div>
+                {chat?.conversationType === 'team' && Array.isArray(chat?.participants) ? (
+                  <div className="chat-info-panel-profile-note">
+                    {chat.participants.length} member{chat.participants.length === 1 ? '' : 's'}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="chat-info-panel-section">
+              <div className="chat-info-panel-section-head">
+                <div className="chat-info-panel-section-title">Pinned Items</div>
+                <div className="chat-info-panel-section-count">
+                  {pinnedCount} item{pinnedCount === 1 ? '' : 's'}
+                </div>
+              </div>
+
+              <div className="chat-info-panel-pinned-list">
+                {pinnedItems.length === 0 ? (
+                  <div className="chat-info-panel-empty">
+                    Pin messages or files in this chat to keep them easy to find here.
+                  </div>
+                ) : (
+                  pinnedItems.map((item) => (
+                    <button
+                      key={item._id}
+                      type="button"
+                      className="chat-info-panel-pinned-card"
+                      onClick={() => scrollToReferencedMessage(item._id)}
+                    >
+                      <div className="chat-info-panel-pinned-topline">
+                        <span className="chat-info-panel-pinned-sender">
+                          {item.senderId === currentUserId ? 'You' : (item.senderName || item.senderId || 'Teammate')}
+                        </span>
+                        <span className="chat-info-panel-pinned-time">
+                          {formatThreadCommentTimestamp(item.pinnedAt || item.createdAt)}
+                        </span>
+                      </div>
+                      <div className="chat-info-panel-pinned-preview">{item.preview}</div>
+                      {item.fileName ? (
+                        <div className="chat-info-panel-pinned-file">
+                          <span className="chat-info-panel-pinned-file-icon">📎</span>
+                          <span>{item.fileName}</span>
+                        </div>
+                      ) : null}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </aside>
+        ) : null}
 
         {isCommentThreadOpen ? (
           <aside className="chat-comment-thread-panel">

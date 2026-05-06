@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Phone } from 'lucide-react';
 import { formatAgentLabel } from '../config/agents';
+import UserAvatar from './UserAvatar';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 const ASSIGNMENT_STATUS_OPTIONS = [
@@ -8,6 +9,7 @@ const ASSIGNMENT_STATUS_OPTIONS = [
   { value: 'resolved', label: 'Resolved' },
   { value: 'closed', label: 'Closed' },
 ];
+
 const formatAssignmentStatus = (value) => {
   const matched = ASSIGNMENT_STATUS_OPTIONS.find((option) => option.value === value);
   return matched?.label || 'Open';
@@ -34,6 +36,7 @@ function Header({
   assignableAgents = [],
   onToggleSearch,
   isSearchOpen = false,
+  onOpenInfoPanel,
 }) {
   const [phoneDropdownOpen, setPhoneDropdownOpen] = useState(false);
   const [assignMenuOpen, setAssignMenuOpen] = useState(false);
@@ -139,10 +142,153 @@ function Header({
       </span>
     );
 
+  const canOpenInfoPanel = Boolean(onOpenInfoPanel && !isCustomerChat && !isTextingGroupMode);
+
+  const titleBlock = (
+    <div className="header-title-text">
+      <div className="header-title-main">
+        <h3>{title}</h3>
+        {status && <span className="status-pill">{status}</span>}
+      </div>
+
+      {metaLine && <div className="header-meta">{metaLine}</div>}
+
+      {!isTextingGroupMode ? (
+        <div className="header-assignment-row">
+          {contextPill}
+          {isCustomerChat && (
+            <span
+              className={`header-assignment-pill is-status status-${assignmentStatus || 'open'}`}
+              title="Contact assignment status"
+            >
+              {formatAssignmentStatus(assignmentStatus)}
+            </span>
+          )}
+        </div>
+      ) : null}
+
+      {isCustomerChat && !isTextingGroupMode ? (
+        <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted, #6b7280)' }}>Status</span>
+          <select
+            value={assignmentStatus}
+            onChange={handleAssignmentStatusChange}
+            disabled={!hasPersistedContact || updatingAssignmentStatus}
+            title={hasPersistedContact ? 'Update contact status' : 'Status is available after the contact exists in the inbox'}
+            style={{
+              borderRadius: '8px',
+              border: '1px solid var(--border-subtle, #d8dde7)',
+              background: !hasPersistedContact || updatingAssignmentStatus ? '#f3f5f9' : '#fff',
+              color: '#1f2937',
+              padding: '6px 10px',
+              fontSize: '12px',
+              minWidth: '120px',
+              cursor: !hasPersistedContact || updatingAssignmentStatus ? 'not-allowed' : 'pointer',
+              opacity: !hasPersistedContact || updatingAssignmentStatus ? 0.7 : 1,
+            }}
+          >
+            {ASSIGNMENT_STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {updatingAssignmentStatus && option.value === assignmentStatus ? 'Saving...' : option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
+      {isCustomerChat && !isTextingGroupMode && phones.length > 1 ? (
+        <div ref={phoneDropdownRef} style={{ position: 'relative', marginTop: '6px', display: 'inline-block' }}>
+          <button
+            type="button"
+            onClick={() => setPhoneDropdownOpen((prev) => !prev)}
+            style={{
+              background: '#111',
+              color: '#fff',
+              padding: '4px 10px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              border: '1px solid #333',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            {activeLabel.toUpperCase()}
+            <span
+              style={{
+                display: 'inline-block',
+                transition: 'transform 0.2s ease',
+                transform: phoneDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+              }}
+            >
+              ▼
+            </span>
+          </button>
+
+          {phoneDropdownOpen ? (
+            <div
+              style={{
+                position: 'absolute',
+                top: '35px',
+                left: 0,
+                background: '#fff',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                zIndex: 9999,
+                minWidth: '200px',
+                overflow: 'hidden',
+                animation: 'fadeSlide 0.2s ease'
+              }}
+            >
+              {phones.map((phone, index) => {
+                const isActive =
+                  normalize(phone.number) === normalize(activeNumber);
+
+                return (
+                  <div
+                    key={index}
+                    onClick={() => {
+                      if (onSwitchNumber) {
+                        onSwitchNumber(phone.number);
+                      }
+                      setPhoneDropdownOpen(false);
+                    }}
+                    style={{
+                      padding: '10px',
+                      cursor: 'pointer',
+                      background: isActive ? '#f0f4ff' : '#fff',
+                      color: '#000',
+                      borderBottom: '1px solid #eee',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f5f7ff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = isActive ? '#f0f4ff' : '#fff';
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold', fontSize: '12px' }}>
+                      {phone.label.toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: '13px' }}>
+                      {phone.number}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className={`header${isTextingGroupMode ? ' is-texting-group-header' : ''}`}>
       <div className="header-title">
-        {showBack && (
+        {showBack ? (
           <button
             className="header-back"
             type="button"
@@ -150,146 +296,25 @@ function Header({
           >
             Back
           </button>
-        )}
+        ) : null}
 
-        <div className="header-title-text">
-          <div className="header-title-main">
-            <h3>{title}</h3>
-            {status && <span className="status-pill">{status}</span>}
-          </div>
-
-          {metaLine && <div className="header-meta">{metaLine}</div>}
-
-          {!isTextingGroupMode ? (
-            <div className="header-assignment-row">
-              {contextPill}
-              {isCustomerChat && (
-                <span
-                  className={`header-assignment-pill is-status status-${assignmentStatus || 'open'}`}
-                  title="Contact assignment status"
-                >
-                  {formatAssignmentStatus(assignmentStatus)}
-                </span>
-              )}
-            </div>
-          ) : null}
-
-          {isCustomerChat && !isTextingGroupMode ? (
-            <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted, #6b7280)' }}>Status</span>
-              <select
-                value={assignmentStatus}
-                onChange={handleAssignmentStatusChange}
-                disabled={!hasPersistedContact || updatingAssignmentStatus}
-                title={hasPersistedContact ? 'Update contact status' : 'Status is available after the contact exists in the inbox'}
-                style={{
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-subtle, #d8dde7)',
-                  background: !hasPersistedContact || updatingAssignmentStatus ? '#f3f5f9' : '#fff',
-                  color: '#1f2937',
-                  padding: '6px 10px',
-                  fontSize: '12px',
-                  minWidth: '120px',
-                  cursor: !hasPersistedContact || updatingAssignmentStatus ? 'not-allowed' : 'pointer',
-                  opacity: !hasPersistedContact || updatingAssignmentStatus ? 0.7 : 1,
-                }}
-              >
-                {ASSIGNMENT_STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {updatingAssignmentStatus && option.value === assignmentStatus ? 'Saving...' : option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-
-          {isCustomerChat && !isTextingGroupMode && phones.length > 1 && (
-            <div ref={phoneDropdownRef} style={{ position: 'relative', marginTop: '6px', display: 'inline-block' }}>
-              <button
-                type="button"
-                onClick={() => setPhoneDropdownOpen((prev) => !prev)}
-                style={{
-                  background: '#111',
-                  color: '#fff',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  border: '1px solid #333',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                {activeLabel.toUpperCase()}
-                <span
-                  style={{
-                    display: 'inline-block',
-                    transition: 'transform 0.2s ease',
-                    transform: phoneDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)'
-                  }}
-                >
-                  ▼
-                </span>
-              </button>
-
-              {phoneDropdownOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '35px',
-                    left: 0,
-                    background: '#fff',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    zIndex: 9999,
-                    minWidth: '200px',
-                    overflow: 'hidden',
-                    animation: 'fadeSlide 0.2s ease'
-                  }}
-                >
-                  {phones.map((phone, index) => {
-                    const isActive =
-                      normalize(phone.number) === normalize(activeNumber);
-
-                    return (
-                      <div
-                        key={index}
-                        onClick={() => {
-                          if (onSwitchNumber) {
-                            onSwitchNumber(phone.number);
-                          }
-                          setPhoneDropdownOpen(false);
-                        }}
-                        style={{
-                          padding: '10px',
-                          cursor: 'pointer',
-                          background: isActive ? '#f0f4ff' : '#fff',
-                          color: '#000',
-                          borderBottom: '1px solid #eee',
-                          transition: 'background 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#f5f7ff';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = isActive ? '#f0f4ff' : '#fff';
-                        }}
-                      >
-                        <div style={{ fontWeight: 'bold', fontSize: '12px' }}>
-                          {phone.label.toUpperCase()}
-                        </div>
-                        <div style={{ fontSize: '13px' }}>
-                          {phone.number}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {canOpenInfoPanel ? (
+          <button
+            type="button"
+            className="header-identity-button"
+            onClick={onOpenInfoPanel}
+            aria-label={`Open ${chat?.conversationType === 'team' ? 'group' : 'user'} information`}
+          >
+            <UserAvatar
+              name={title}
+              avatarUrl={chat?.avatarUrl || ''}
+              className={`header-identity-avatar${chat?.conversationType === 'team' ? ' is-team' : ''}`}
+              initialsClassName="header-identity-avatar-initials"
+              fallback={chat?.conversationType === 'team' ? <span className="header-team-avatar-fallback">#</span> : null}
+            />
+            {titleBlock}
+          </button>
+        ) : titleBlock}
       </div>
 
       <div className="header-actions">
@@ -303,7 +328,7 @@ function Header({
           </button>
         ) : null}
 
-        {!isTextingGroupMode && isCustomerChat && (
+        {!isTextingGroupMode && isCustomerChat ? (
           <div ref={assignMenuRef} className="header-assign-menu">
             <button
               className="button-icon header-assign-trigger"
@@ -317,7 +342,7 @@ function Header({
               </span>
             </button>
 
-            {assignMenuOpen && (
+            {assignMenuOpen ? (
               <div className="header-assign-dropdown">
                 {assignableAgents.map((agent) => {
                   const agentId = agent.agentId;
@@ -342,9 +367,9 @@ function Header({
                   </div>
                 ) : null}
               </div>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
 
         {!isTextingGroupMode && showTeamDetailsAction ? (
           <>
@@ -390,7 +415,7 @@ function Header({
           </>
         ) : null}
 
-        {!isTextingGroupMode && isCustomerChat && (
+        {!isTextingGroupMode && isCustomerChat ? (
           <button
             className="header-call-button"
             onClick={onCall}
@@ -399,7 +424,7 @@ function Header({
             <Phone size={16} />
             {callLabel || 'Call'}
           </button>
-        )}
+        ) : null}
       </div>
 
       <style>
