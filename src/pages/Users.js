@@ -753,99 +753,101 @@ function Users({ currentUserRole = 'admin', currentUserId = '', mode = 'director
 
           <div className="directory-settings-layout">
             <div className="directory-settings-list">
-              {loading ? (
-                <div className="text-muted">Loading users...</div>
-              ) : filteredUsers.length === 0 ? (
-                <div className="text-muted">No users found.</div>
-              ) : (
-                <div style={{ display: 'grid', gap: '20px' }}>
-                  {departmentGroups.map((group) => (
-                    <section key={group.key} className="directory-group">
-                      <div className="directory-group-header">
-                        <div>
-                          <h4 className="directory-group-title">{group.label}</h4>
-                          <div className="directory-group-subtitle">
-                            {group.activeCount} active of {group.users.length} users
-                          </div>
-                        </div>
-                        <span className="tag">{group.users.length}</span>
-                      </div>
-
-                      <div className="user-grid directory-user-grid">
-                        {group.users.map((user) => {
-                          const deleteRestrictionMessage = getDeleteRestrictionMessage(user, currentUserId, activeAdminCount);
-                          const isDeleteBlocked = Boolean(deleteRestrictionMessage);
-
-                          return (
-                            <div
-                              key={user.id}
-                              className="user-card directory-user-card"
-                              style={selectedUserId === user.id ? activeCardStyle : undefined}
-                            >
-                              <div className="avatar-stack directory-user-identity">
-                                <div className="avatar-circle directory-avatar-circle">
-                                  {getInitials(user.name)}
-                                </div>
-                                <div className="directory-identity-copy">
-                                  <h4>{user.name}</h4>
-                                  <div className="user-role">{formatRole(user.role)}</div>
-                                </div>
-                              </div>
-
-                              <div className="directory-user-tags">
-                                <span className="tag">{user.isActive ? 'Active' : 'Inactive'}</span>
-                                <span className="tag">{getDepartmentLabel(user.department) || group.label}</span>
-                              </div>
-
-                              <div className="text-muted directory-user-email">{user.email}</div>
-
-                              <div className="directory-user-meta">
-                                <div className="directory-meta-item">
-                                  <span className="directory-meta-label">Role</span>
-                                  <strong>{formatRole(user.role)}</strong>
-                                </div>
-                                <div className="directory-meta-item">
-                                  <span className="directory-meta-label">Department</span>
-                                  <strong>{getDepartmentLabel(user.department) || 'Unassigned / Global'}</strong>
-                                </div>
-                                <div className="directory-meta-item">
-                                  <span className="directory-meta-label">Agent ID</span>
-                                  <strong>{user.agentId || 'Not assigned'}</strong>
-                                </div>
-                                <div className="directory-meta-item">
-                                  <span className="directory-meta-label">Status</span>
-                                  <strong>{user.isActive ? 'Active' : 'Inactive'}</strong>
-                                </div>
-                              </div>
-
-                              <div className="directory-card-actions" style={actionsStyle}>
-                                <button type="button" style={secondaryButtonStyle} onClick={() => openUserDetails(user.id)}>
-                                  {selectedUserId === user.id ? 'Hide details' : 'Manage user'}
-                                </button>
-                                <button
-                                  type="button"
-                                  style={isDeleteBlocked ? blockedDangerButtonStyle : dangerButtonStyle}
-                                  onClick={() => handleDeleteUser(user.id)}
-                                  disabled={deletingId === user.id}
-                                  aria-disabled={isDeleteBlocked}
-                                  title={deleteRestrictionMessage}
-                                >
-                                  {deletingId === user.id ? 'Deleting...' : 'Delete'}
-                                </button>
-                              </div>
-                              {isDeleteBlocked ? (
-                                <div className="text-muted" style={helperTextStyle}>
-                                  {deleteRestrictionMessage}
-                                </div>
-                              ) : null}
+              <div className="directory-settings-list-scroll">
+                {loading ? (
+                  <div className="text-muted">Loading users...</div>
+                ) : filteredUsers.length === 0 ? (
+                  <div className="text-muted">No users found.</div>
+                ) : (
+                  <div className="directory-settings-group-list">
+                    {departmentGroups.map((group) => (
+                      <section key={group.key} className="directory-group">
+                        <div className="directory-group-header">
+                          <div>
+                            <h4 className="directory-group-title">{group.label}</h4>
+                            <div className="directory-group-subtitle">
+                              {group.activeCount} active of {group.users.length} users
                             </div>
-                          );
-                        })}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              )}
+                          </div>
+                          <span className="tag">{group.users.length}</span>
+                        </div>
+
+                        <div className="user-grid directory-user-grid">
+                          {group.users.map((user) => {
+                            const deleteRestrictionMessage = getDeleteRestrictionMessage(user, currentUserId, activeAdminCount);
+                            const isDeleteBlocked = Boolean(deleteRestrictionMessage);
+
+                            return (
+                              <div
+                                key={user.id}
+                                className="user-card directory-user-card"
+                                style={selectedUserId === user.id ? activeCardStyle : undefined}
+                              >
+                                <div className="avatar-stack directory-user-identity">
+                                  <div className="avatar-circle directory-avatar-circle">
+                                    {getInitials(user.name)}
+                                  </div>
+                                  <div className="directory-identity-copy">
+                                    <h4>{user.name}</h4>
+                                    <div className="user-role">{formatRole(user.role)}</div>
+                                  </div>
+                                </div>
+
+                                <div className="directory-user-tags">
+                                  <span className="tag">{user.isActive ? 'Active' : 'Inactive'}</span>
+                                  <span className="tag">{getDepartmentLabel(user.department) || group.label}</span>
+                                </div>
+
+                                <div className="text-muted directory-user-email">{user.email}</div>
+
+                                <div className="directory-user-meta">
+                                  <div className="directory-meta-item">
+                                    <span className="directory-meta-label">Role</span>
+                                    <strong>{formatRole(user.role)}</strong>
+                                  </div>
+                                  <div className="directory-meta-item">
+                                    <span className="directory-meta-label">Department</span>
+                                    <strong>{getDepartmentLabel(user.department) || 'Unassigned / Global'}</strong>
+                                  </div>
+                                  <div className="directory-meta-item">
+                                    <span className="directory-meta-label">Agent ID</span>
+                                    <strong>{user.agentId || 'Not assigned'}</strong>
+                                  </div>
+                                  <div className="directory-meta-item">
+                                    <span className="directory-meta-label">Status</span>
+                                    <strong>{user.isActive ? 'Active' : 'Inactive'}</strong>
+                                  </div>
+                                </div>
+
+                                <div className="directory-card-actions" style={actionsStyle}>
+                                  <button type="button" style={secondaryButtonStyle} onClick={() => openUserDetails(user.id)}>
+                                    {selectedUserId === user.id ? 'Hide details' : 'Manage user'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    style={isDeleteBlocked ? blockedDangerButtonStyle : dangerButtonStyle}
+                                    onClick={() => handleDeleteUser(user.id)}
+                                    disabled={deletingId === user.id}
+                                    aria-disabled={isDeleteBlocked}
+                                    title={deleteRestrictionMessage}
+                                  >
+                                    {deletingId === user.id ? 'Deleting...' : 'Delete'}
+                                  </button>
+                                </div>
+                                {isDeleteBlocked ? (
+                                  <div className="text-muted" style={helperTextStyle}>
+                                    {deleteRestrictionMessage}
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="directory-settings-detail">
