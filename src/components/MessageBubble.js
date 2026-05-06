@@ -70,6 +70,7 @@ function MessageBubble({
   onTogglePinMessage,
   onToggleReaction,
   onStartForwardSelection,
+  onOpenCommentThread,
   isHighlighted = false,
   searchQuery = '',
   isSearchMatch = false,
@@ -185,6 +186,13 @@ function MessageBubble({
     && (String(message.body || '').trim() || attachmentUrl)
     && onStartForwardSelection
   );
+  const canCommentThread = Boolean(
+    isInternalThread
+    && isInternalMessage
+    && !isDeleted
+    && !isSending
+    && onOpenCommentThread
+  );
   const isForwardSelectable = Boolean(isForwardSelectionMode && canForward);
   const showPinnedIndicator = Boolean(isInternalThread && isInternalMessage && message.isPinned && !isDeleted);
   const showForwardedLabel = Boolean(isInternalThread && isInternalMessage && message.forwardedFromMessageId && !isDeleted);
@@ -256,7 +264,7 @@ function MessageBubble({
     && !isDeleted
     && !isEditing
     && !isForwardSelectionMode
-    && (canReact || canReply || canForward || canTogglePin || canOpenMenu)
+    && (canReact || canCommentThread || canForward || canTogglePin || canOpenMenu)
   );
 
   const positionReactionPicker = useCallback(() => {
@@ -672,6 +680,11 @@ function MessageBubble({
     closeMenu();
   };
 
+  const handleOpenCommentThread = () => {
+    onOpenCommentThread?.(message);
+    closeMenu();
+  };
+
   const handleQuickLike = async () => {
     if (!canReact || isSavingReaction) return;
 
@@ -988,14 +1001,14 @@ function MessageBubble({
               </button>
             ) : null}
 
-            {canReply ? (
+            {canCommentThread ? (
               <button
                 type="button"
                 className="message-action-bar-button"
-                onClick={handleReply}
+                onClick={handleOpenCommentThread}
               >
                 <MessageCircle size={13} />
-                <span>Comment</span>
+                <span>{Number(message.commentCount || 0) > 0 ? `Comment (${Number(message.commentCount || 0)})` : 'Comment'}</span>
               </button>
             ) : null}
 

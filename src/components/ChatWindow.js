@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Check, Forward, Phone, Search, X } from 'lucide-react';
+import { Check, Forward, MessageSquareText, Phone, Search, Send, X } from 'lucide-react';
 import Header from './Header';
 import MessageBubble from './MessageBubble';
 import MessageInput, { sendMessageRequest } from './MessageInput';
@@ -12,6 +12,17 @@ const FINAL_CALL_STATUSES = ['completed', 'failed', 'no-answer', 'busy', 'cancel
 const getTimelineItemKey = (item) => {
   if (!item) return '';
   return String(item._id || item.sid || item.createdAt || '');
+};
+const formatThreadCommentTimestamp = (value) => {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '';
+
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 };
 
 function ChatWindow({
@@ -68,10 +79,18 @@ function ChatWindow({
   const [forwardSearchQuery, setForwardSearchQuery] = useState('');
   const [selectedForwardTargetKeys, setSelectedForwardTargetKeys] = useState([]);
   const [isForwardingMessages, setIsForwardingMessages] = useState(false);
+  const [activeCommentThreadMessageId, setActiveCommentThreadMessageId] = useState('');
+  const [commentThreadRootMessage, setCommentThreadRootMessage] = useState(null);
+  const [commentThreadComments, setCommentThreadComments] = useState([]);
+  const [commentThreadLoading, setCommentThreadLoading] = useState(false);
+  const [commentThreadError, setCommentThreadError] = useState('');
+  const [commentDraft, setCommentDraft] = useState('');
+  const [isSendingComment, setIsSendingComment] = useState(false);
 
   const safeMessages = useMemo(() => messages || [], [messages]);
   const isCustomerChat = !chat?.conversationType || chat?.conversationType === 'customer';
   const isInternalThread = chat?.conversationType === 'internal_dm' || chat?.conversationType === 'team';
+  const isCommentThreadOpen = Boolean(isInternalThread && activeCommentThreadMessageId);
   const canAddUserToContacts = Boolean(onAddUserToContacts && isCustomerChat && !hasSavedContact);
   const textingGroupDisplayName = chat?.textingGroupName || selectedTextingGroup?.name || 'Selected texting group';
   const textingGroupAssignedNumber = chat?.assignedNumber || selectedTextingGroup?.assignedNumber || '';
@@ -79,6 +98,13 @@ function ChatWindow({
     || [chat?.firstName, chat?.lastName].filter(Boolean).join(' ').trim()
     || chat?.phone
     || 'Unknown customer';
+  const activeCommentThreadCount = Number(commentThreadRootMessage?.commentCount || 0);
+  const normalizedThreadComments = useMemo(() => (
+    (commentThreadComments || []).map((comment) => ({
+      ...comment,
+      direction: comment?.senderId && comment.senderId === currentUserId ? 'outbound' : 'inbound',
+    }))
+  ), [commentThreadComments, currentUserId]);
 
   const formatPhone = (num) => {
     if (!num) return '';
@@ -321,6 +347,13 @@ function ChatWindow({
     setForwardSearchQuery('');
     setSelectedForwardTargetKeys([]);
     setIsForwardingMessages(false);
+    setActiveCommentThreadMessageId('');
+    setCommentThreadRootMessage(null);
+    setCommentThreadComments([]);
+    setCommentThreadLoading(false);
+    setCommentThreadError('');
+    setCommentDraft('');
+    setIsSendingComment(false);
     messageRefs.current = {};
     window.clearTimeout(highlightTimeoutRef.current);
   }, [chat?.conversationId, chat?.phone, chat?.textingGroupId]);
@@ -336,6 +369,102 @@ function ChatWindow({
       searchInputRef.current?.select();
     });
   }, [isSearchOpen]);
+
+  useEffect(() => {
+    if (!activeCommentThreadMessageId || !isInternalThread) return undefined;
+
+    let isMounted = true;
+
+    const loadThreadComments = async () => {
+      try {
+        setCommentThreadLoading(true);
+        setCommentThreadError('');
+
+        const params = new URLSearchParams({
+          userId: currentUserId,
+          role: currentUserRole,
+        });
+        const response = await fetch(
+          `${BASE_URL}/api/messages/message/${encodeURIComponent(activeCommentThreadMessageId)}/comments?${params.toString()}`
+        );
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Failed to load threaded comments');
+        }
+
+        if (!isMounted) return;
+
+        setCommentThreadRootMessage(payload?.rootMessage || null);
+        setCommentThreadComments(Array.isArray(payload?.comments) ? payload.comments : []);
+        if (payload?.rootMessage?._id) {
+          setMessages((prev) => prev.map((item) => (
+            item?._id === payload.rootMessage._id
+              ? { ...item, ...payload.rootMessage }
+              : item
+          )));
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        setCommentThreadError(error?.message || 'Failed to load threaded comments');
+      } finally {
+        if (isMounted) {
+          setCommentThreadLoading(false);
+        }
+      }
+    };
+
+    loadThreadComments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeCommentThreadMessageId, currentUserId, currentUserRole, isInternalThread, setMessages]);
+
+  useEffect(() => {
+    if (!activeCommentThreadMessageId) return;
+
+    const nextRootMessage = safeMessages.find((message) => String(message?._id || '') === activeCommentThreadMessageId);
+    if (!nextRootMessage) return;
+
+    setCommentThreadRootMessage((current) => (current ? { ...current, ...nextRootMessage } : nextRootMessage));
+  }, [activeCommentThreadMessageId, safeMessages]);
+
+  const upsertThreadComment = useCallback((comments = [], nextComment) => {
+    if (!nextComment?._id) return comments;
+    const exists = comments.some((comment) => comment?._id === nextComment._id);
+    if (exists) {
+      return comments.map((comment) => (comment?._id === nextComment._id ? { ...comment, ...nextComment } : comment));
+    }
+    return [...comments, nextComment].sort((left, right) => new Date(left?.createdAt || 0) - new Date(right?.createdAt || 0));
+  }, []);
+
+  useEffect(() => {
+    const handleThreadCommentCreated = (payload) => {
+      const parentMessageId = String(payload?.parentMessageId || '').trim();
+      if (!parentMessageId || parentMessageId !== activeCommentThreadMessageId) {
+        return;
+      }
+
+      if (payload?.comment) {
+        setCommentThreadComments((prev) => upsertThreadComment(prev, payload.comment));
+      }
+
+      if (typeof payload?.commentCount === 'number') {
+        setCommentThreadRootMessage((current) => (
+          current
+            ? {
+                ...current,
+                commentCount: payload.commentCount,
+              }
+            : current
+        ));
+      }
+    };
+
+    socket.on('messageThreadCommentCreated', handleThreadCommentCreated);
+    return () => socket.off('messageThreadCommentCreated', handleThreadCommentCreated);
+  }, [activeCommentThreadMessageId, upsertThreadComment]);
 
   const focusComposerForMessage = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -377,6 +506,25 @@ function ChatWindow({
     setComposerFocusNonce((prev) => prev + 1);
     focusComposerForMessage();
   }, [focusComposerForMessage]);
+
+  const handleOpenCommentThread = useCallback((message) => {
+    if (!message?._id || !isInternalThread) return;
+
+    setActiveCommentThreadMessageId(String(message._id));
+    setCommentThreadRootMessage(message);
+    setCommentThreadComments([]);
+    setCommentThreadError('');
+    setCommentDraft('');
+  }, [isInternalThread]);
+
+  const handleCloseCommentThread = useCallback(() => {
+    setActiveCommentThreadMessageId('');
+    setCommentThreadRootMessage(null);
+    setCommentThreadComments([]);
+    setCommentThreadError('');
+    setCommentDraft('');
+    setIsSendingComment(false);
+  }, []);
 
   const handleEditMessage = useCallback(async (message, nextBody) => {
     if (!isInternalThread || !message?._id) {
@@ -1026,6 +1174,53 @@ function ChatWindow({
     }
   };
 
+  const handleSubmitThreadComment = async () => {
+    const threadMessageId = String(activeCommentThreadMessageId || '').trim();
+    const nextBody = String(commentDraft || '').trim();
+
+    if (!threadMessageId || !nextBody || !isInternalThread || isSendingComment) {
+      return;
+    }
+
+    try {
+      setIsSendingComment(true);
+      setCommentThreadError('');
+
+      const response = await fetch(`${BASE_URL}/api/messages/message/${encodeURIComponent(threadMessageId)}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUserId,
+          role: currentUserRole,
+          body: nextBody,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to add comment');
+      }
+
+      setCommentDraft('');
+      if (payload?.rootMessage) {
+        setCommentThreadRootMessage(payload.rootMessage);
+        setMessages((prev) => prev.map((item) => (
+          item?._id === payload.rootMessage._id
+            ? { ...item, ...payload.rootMessage }
+            : item
+        )));
+      }
+      if (payload?.comment) {
+        setCommentThreadComments((prev) => upsertThreadComment(prev, payload.comment));
+      }
+    } catch (error) {
+      console.error('Create threaded comment failed:', error);
+      setCommentThreadError(error?.message || 'Failed to add comment');
+    } finally {
+      setIsSendingComment(false);
+    }
+  };
+
   const getCallLabel = () => {
     switch (callStatus) {
       case 'initiated': return 'Calling...';
@@ -1062,6 +1257,9 @@ function ChatWindow({
         onToggleSearch={isInternalThread ? handleToggleSearch : null}
         isSearchOpen={isSearchOpen}
       />
+
+      <div className={`chat-window-body${isCommentThreadOpen ? ' has-comment-thread' : ''}`}>
+        <div className="chat-main-column">
 
       {isInternalThread && isSearchOpen ? (
         <div className="chat-search-bar">
@@ -1181,6 +1379,7 @@ function ChatWindow({
                   onEditMessage={handleEditMessage}
                   onDeleteMessage={requestDeleteMessage}
                   onStartForwardSelection={handleStartForwardSelection}
+                  onOpenCommentThread={handleOpenCommentThread}
                   isHighlighted={highlightedMessageId === item._id}
                   jumpToMessageId={jumpToMessageId}
                   searchQuery={isInternalThread ? normalizedSearchQuery : ''}
@@ -1309,6 +1508,101 @@ function ChatWindow({
           });
         }}
       />
+        </div>
+
+        {isCommentThreadOpen ? (
+          <aside className="chat-comment-thread-panel">
+            <div className="chat-comment-thread-header">
+              <div className="chat-comment-thread-title-wrap">
+                <div className="chat-comment-thread-title">Comments</div>
+                <div className="chat-comment-thread-meta">
+                  <MessageSquareText size={14} />
+                  <span>{activeCommentThreadCount} comment{activeCommentThreadCount === 1 ? '' : 's'}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="chat-comment-thread-close"
+                onClick={handleCloseCommentThread}
+                aria-label="Close comments panel"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="chat-comment-thread-root">
+              <div className="chat-comment-thread-root-label">Original message</div>
+              <div className="chat-comment-thread-root-card">
+                <div className="chat-comment-thread-root-author">
+                  {commentThreadRootMessage?.senderName || commentThreadRootMessage?.senderId || 'Teammate'}
+                </div>
+                <div className="chat-comment-thread-root-body">
+                  {commentThreadRootMessage?.isDeleted
+                    ? 'This message was deleted.'
+                    : (commentThreadRootMessage?.body || commentThreadRootMessage?.attachment?.fileName || 'No message text')}
+                </div>
+                <div className="chat-comment-thread-root-time">
+                  {formatThreadCommentTimestamp(commentThreadRootMessage?.createdAt)}
+                </div>
+              </div>
+            </div>
+
+            <div className="chat-comment-thread-body">
+              {commentThreadLoading ? (
+                <div className="chat-comment-thread-empty">
+                  Loading threaded comments...
+                </div>
+              ) : normalizedThreadComments.length === 0 ? (
+                <div className="chat-comment-thread-empty">
+                  Start the first threaded comment for this message.
+                </div>
+              ) : (
+                normalizedThreadComments.map((comment) => (
+                  <div key={comment._id} className={`chat-comment-thread-item ${comment.direction}`}>
+                    <div className="chat-comment-thread-item-author">
+                      {comment.direction === 'outbound' ? 'You' : (comment.senderName || comment.senderId || 'Teammate')}
+                    </div>
+                    <div className="chat-comment-thread-item-body">{comment.body}</div>
+                    <div className="chat-comment-thread-item-time">
+                      {formatThreadCommentTimestamp(comment.createdAt)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="chat-comment-thread-composer">
+              {commentThreadError ? (
+                <div className="chat-comment-thread-error" role="status" aria-live="polite">
+                  {commentThreadError}
+                </div>
+              ) : null}
+              <textarea
+                className="chat-comment-thread-input"
+                value={commentDraft}
+                onChange={(event) => setCommentDraft(event.target.value)}
+                placeholder="Add a threaded comment..."
+                rows={3}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    handleSubmitThreadComment();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="chat-comment-thread-send"
+                onClick={handleSubmitThreadComment}
+                disabled={isSendingComment || !String(commentDraft || '').trim()}
+              >
+                <Send size={14} />
+                <span>{isSendingComment ? 'Sending...' : 'Comment'}</span>
+              </button>
+            </div>
+          </aside>
+        ) : null}
+      </div>
 
       {showForwardPicker ? (
         <div
