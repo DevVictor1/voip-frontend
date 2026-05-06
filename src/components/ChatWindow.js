@@ -62,7 +62,7 @@ function ChatWindow({
   const isNearBottomRef = useRef(true);
   const previousTimelineSnapshotRef = useRef({ length: 0, lastKey: '' });
   const previousActiveChatKeyRef = useRef('');
-  const pendingInitialScrollChatKeyRef = useRef('');
+  const pendingScrollActionRef = useRef({ reason: '', chatKey: '' });
   const searchInputRef = useRef(null);
   const commentInputRef = useRef(null);
   const [callLogs, setCallLogs] = useState([]);
@@ -117,6 +117,17 @@ function ChatWindow({
       direction: comment?.senderId && comment.senderId === currentUserId ? 'outbound' : 'inbound',
     }))
   ), [commentThreadComments, currentUserId]);
+  const firstUnreadMessageId = useMemo(() => {
+    if (!isInternalThread) return '';
+
+    const nextUnreadMessage = safeMessages.find((message) => {
+      if (!message?._id || !message.senderId) return false;
+      if (currentUserId && message.senderId === currentUserId) return false;
+      return !Array.isArray(message.readBy) || !message.readBy.includes(currentUserId);
+    });
+
+    return String(nextUnreadMessage?._id || '').trim();
+  }, [currentUserId, isInternalThread, safeMessages]);
 
   const formatPhone = (num) => {
     if (!num) return '';
@@ -290,6 +301,13 @@ function ChatWindow({
     });
   }, []);
 
+  const scrollMessageNodeIntoView = useCallback((messageId, behavior = 'auto', block = 'center') => {
+    const targetNode = messageRefs.current[messageId];
+    if (!targetNode) return false;
+    targetNode.scrollIntoView({ behavior, block });
+    return true;
+  }, []);
+
   useEffect(() => {
     const node = messageListRef.current;
     if (!node) return undefined;
@@ -339,96 +357,70 @@ function ChatWindow({
     const hasActiveConversation = Boolean(chat?.conversationId || chat?.phone);
     if (!hasActiveConversation) {
       previousActiveChatKeyRef.current = '';
-      pendingInitialScrollChatKeyRef.current = '';
+      pendingScrollActionRef.current = { reason: '', chatKey: '' };
       return;
     }
 
     if (previousActiveChatKeyRef.current === activeChatKey) return;
 
     previousActiveChatKeyRef.current = activeChatKey;
-    pendingInitialScrollChatKeyRef.current = activeChatKey;
+    pendingScrollActionRef.current = { reason: 'open-chat', chatKey: activeChatKey };
     previousTimelineSnapshotRef.current = { length: 0, lastKey: '' };
     isNearBottomRef.current = true;
   }, [activeChatKey, chat?.conversationId, chat?.phone]);
 
   useLayoutEffect(() => {
+    const pendingScroll = pendingScrollActionRef.current;
     const hasActiveConversation = Boolean(chat?.conversationId || chat?.phone);
-    const shouldScrollToOpenedConversation = Boolean(
+    const hasIntentionalJumpTarget = Boolean(
+      chat?.conversationType === 'team'
+      && jumpToMessageId
+      && safeMessages.some((message) => String(message?._id || '') === jumpToMessageId)
+    );
+    const shouldHandleOpenChatScroll = Boolean(
       hasActiveConversation
-      && pendingInitialScrollChatKeyRef.current
-      && pendingInitialScrollChatKeyRef.current === activeChatKey
+      && pendingScroll.reason === 'open-chat'
+      && pendingScroll.chatKey === activeChatKey
       && loadedMessageKey === activeChatKey
       && !threadLoading
     );
 
-    if (!shouldScrollToOpenedConversation) return;
+    if (!shouldHandleOpenChatScroll) return;
 
-    const listNode = messageListRef.current;
-    if (!listNode) return;
-
-    let cancelled = false;
-    let settleTimeoutId = null;
-    let fallbackTimeoutId = null;
-    let resizeObserver = null;
-
-    const scrollListToBottom = () => {
-      const currentListNode = messageListRef.current;
-      if (!currentListNode) return;
-      currentListNode.scrollTop = currentListNode.scrollHeight;
-      bottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-      isNearBottomRef.current = true;
-    };
-
-    const finalizeInitialScroll = () => {
-      if (cancelled) return;
-      pendingInitialScrollChatKeyRef.current = '';
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-        resizeObserver = null;
-      }
-      window.clearTimeout(settleTimeoutId);
-      window.clearTimeout(fallbackTimeoutId);
-    };
-
-    const scheduleSettle = () => {
-      window.clearTimeout(settleTimeoutId);
-      settleTimeoutId = window.setTimeout(() => {
-        scrollListToBottom();
-        finalizeInitialScroll();
-      }, 180);
-    };
-
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        if (cancelled) return;
-        scrollListToBottom();
-        scheduleSettle();
-      });
-    });
-
-    if (typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(() => {
-        if (cancelled) return;
-        scrollListToBottom();
-        scheduleSettle();
-      });
-      resizeObserver.observe(listNode);
+    if (hasIntentionalJumpTarget) {
+      pendingScrollActionRef.current = { reason: '', chatKey: '' };
+      return;
     }
 
-    fallbackTimeoutId = window.setTimeout(() => {
-      scrollListToBottom();
-      finalizeInitialScroll();
-    }, 900);
-
-    return () => {
-      cancelled = true;
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
-      window.clearTimeout(settleTimeoutId);
-      window.clearTimeout(fallbackTimeoutId);
+    const performBottomScroll = () => {
+      const listNode = messageListRef.current;
+      if (!listNode) return false;
+      listNode.scrollTop = listNode.scrollHeight;
+      bottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+      isNearBottomRef.current = true;
+      return true;
     };
-  }, [activeChatKey, chat?.conversationId, chat?.phone, loadedMessageKey, mergedTimeline.length, threadLoading]);
+
+    const didScroll = firstUnreadMessageId
+      ? scrollMessageNodeIntoView(firstUnreadMessageId, 'auto', 'center')
+      : performBottomScroll();
+
+    if (!didScroll) return;
+
+    pendingScrollActionRef.current = { reason: '', chatKey: '' };
+    isNearBottomRef.current = !firstUnreadMessageId;
+  }, [
+    activeChatKey,
+    chat?.conversationId,
+    chat?.conversationType,
+    chat?.phone,
+    firstUnreadMessageId,
+    jumpToMessageId,
+    loadedMessageKey,
+    safeMessages,
+    scrollMessageNodeIntoView,
+    threadLoading,
+  ]);
 
   useEffect(() => {
     setReplyTarget(null);

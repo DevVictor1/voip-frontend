@@ -2970,13 +2970,6 @@ function MessagesPage({
       normalizedConversation.conversationType || 'customer',
       normalizedConversation.conversationId || normalizedConversation.phone
     );
-    const nextMentionMessageId = (
-      (normalizedConversation.conversationType || '') === 'team'
-      && Number(normalizedConversation.unreadMentionCount || 0) > 0
-    )
-      ? String(normalizedConversation.latestUnreadMentionMessageId || '').trim()
-      : '';
-
     if ((normalizedConversation.conversationType || 'customer') === 'customer') {
       setActiveSection('customers');
     } else if ((normalizedConversation.conversationType || '') === 'internal_dm') {
@@ -3004,11 +2997,7 @@ function MessagesPage({
       setMessages(Array.isArray(cachedMessages) ? cachedMessages : []);
       setLoadedMessagesConversationKey(Array.isArray(cachedMessages) ? nextKey : '');
       setTeamThreadLoading(!Array.isArray(cachedMessages));
-      setPendingMentionJump(
-        nextMentionMessageId
-          ? { conversationKey: nextKey, messageId: nextMentionMessageId }
-          : null
-      );
+      setPendingMentionJump(null);
     } else {
       activeCustomerRequestRef.current = '';
       setMessages([]);
