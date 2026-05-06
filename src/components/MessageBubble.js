@@ -415,6 +415,7 @@ function MessageBubble({
       top: `${menuState.y}px`,
     };
   }, [menuState]);
+  const shouldShowCompactMoreMenu = menuState.mode === 'anchored';
 
   useEffect(() => {
     if (copyState !== 'copied') return undefined;
@@ -1054,11 +1055,11 @@ function MessageBubble({
         {menuState.open ? (
           <div
             ref={menuRef}
-            className={`message-actions-menu ${message.direction} ${menuState.mode === 'anchored' ? 'is-anchored' : 'is-context'}`}
+            className={`message-actions-menu ${message.direction} ${menuState.mode === 'anchored' ? 'is-anchored is-compact' : 'is-context'}`}
             style={menuStyle}
             role="menu"
           >
-            {canReply ? (
+            {!shouldShowCompactMoreMenu && canReply ? (
               <button
                 type="button"
                 className="message-actions-menu-item"
@@ -1080,7 +1081,7 @@ function MessageBubble({
                 <span>{copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy text'}</span>
               </button>
             ) : null}
-            {canDownloadMedia ? (
+            {!shouldShowCompactMoreMenu && canDownloadMedia ? (
               attachmentUrl ? (
                 <button
                   type="button"
@@ -1107,7 +1108,7 @@ function MessageBubble({
                 </a>
               )
             ) : null}
-            {canSendAnotherSms ? (
+            {!shouldShowCompactMoreMenu && canSendAnotherSms ? (
               <button
                 type="button"
                 className="message-actions-menu-item"
@@ -1118,7 +1119,7 @@ function MessageBubble({
                 <span>Send another SMS</span>
               </button>
             ) : null}
-            {canTogglePin ? (
+            {!shouldShowCompactMoreMenu && canTogglePin ? (
               <button
                 type="button"
                 className="message-actions-menu-item"
@@ -1129,7 +1130,7 @@ function MessageBubble({
                 <span>{message.isPinned ? 'Unpin message' : 'Pin message'}</span>
               </button>
             ) : null}
-            {canForward ? (
+            {!shouldShowCompactMoreMenu && canForward ? (
               <button
                 type="button"
                 className="message-actions-menu-item"

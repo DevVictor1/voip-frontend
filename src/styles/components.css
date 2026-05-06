@@ -2092,6 +2092,11 @@
   z-index: 5;
 }
 
+.message-actions-menu.is-compact {
+  min-width: 148px;
+  max-width: 180px;
+}
+
 .message-actions-menu.is-anchored.inbound {
   top: 34px;
   left: 0;
