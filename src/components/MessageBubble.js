@@ -7,6 +7,11 @@ const REACTION_OPTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 const MESSAGE_URL_PATTERN = /(https?:\/\/[^\s<>"')]+)/gi;
 const QUICK_LIKE_EMOJI = '\u{1F44D}';
+const normalizeMessageEditorBody = (value = '') => (
+  String(value || '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+);
 
 const formatSmsContextNumber = (primary, fallback) => {
   return String(primary || fallback || '').trim() || 'unknown number';
@@ -761,13 +766,13 @@ function MessageBubble({
   };
 
   const saveEdit = async () => {
-    const nextBody = String(editValue || '').trim();
-    if (!nextBody) {
+    const nextBody = normalizeMessageEditorBody(editValue);
+    if (!nextBody.trim()) {
       setEditError('Message cannot be empty.');
       return;
     }
 
-    if (nextBody === String(message.body || '').trim()) {
+    if (nextBody === normalizeMessageEditorBody(message.body)) {
       cancelEdit();
       return;
     }

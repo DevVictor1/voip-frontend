@@ -65,6 +65,12 @@ const getAttachmentKind = (fileType = '', fileName = '') => {
   return 'document';
 };
 
+const normalizeComposerText = (value = '') => (
+  String(value || '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+);
+
 function MessageInput({
   chatId,
   conversationType = 'customer',
@@ -275,6 +281,27 @@ function MessageInput({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handlePaste = (event) => {
+    const plainText = event.clipboardData?.getData('text/plain');
+    const textarea = textareaRef.current;
+
+    if (!textarea || typeof plainText !== 'string') return;
+
+    event.preventDefault();
+    const normalizedPaste = normalizeComposerText(plainText);
+    const selectionStart = textarea.selectionStart ?? text.length;
+    const selectionEnd = textarea.selectionEnd ?? selectionStart;
+    const nextValue = `${text.slice(0, selectionStart)}${normalizedPaste}${text.slice(selectionEnd)}`;
+    const nextCursor = selectionStart + normalizedPaste.length;
+
+    setText(nextValue);
+    window.requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextCursor, nextCursor);
+      updateMentionState(nextValue, nextCursor);
+    });
   };
 
   const insertMention = (member) => {
@@ -533,10 +560,11 @@ function MessageInput({
           placeholder="Type a message..."
           value={text}
           onChange={(event) => {
-            const nextValue = event.target.value;
+            const nextValue = normalizeComposerText(event.target.value);
             setText(nextValue);
             updateMentionState(nextValue, event.target.selectionStart);
           }}
+          onPaste={handlePaste}
           onFocus={() => onFocusInput?.()}
           rows={1}
           onKeyDown={(event) => {
