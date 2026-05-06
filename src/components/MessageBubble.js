@@ -984,7 +984,7 @@ function MessageBubble({
                 title={isLikedByCurrentUser ? 'Remove your like' : 'Like this message'}
               >
                 <ThumbsUp size={13} />
-                <span>Like</span>
+                <span>{isLikedByCurrentUser ? 'Liked' : 'Like'}</span>
               </button>
             ) : null}
 
@@ -1019,7 +1019,7 @@ function MessageBubble({
                 title={message.isPinned ? 'Unpin message' : 'Pin message'}
               >
                 <Pin size={13} />
-                <span>Pin it</span>
+                <span>{message.isPinned ? 'Pinned' : 'Pin it'}</span>
               </button>
             ) : null}
 

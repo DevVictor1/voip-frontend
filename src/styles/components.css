@@ -1886,7 +1886,7 @@
   font-weight: 600;
   color: #64748b;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, font-weight 0.18s ease;
 }
 
 .message-action-bar-button:hover:not(:disabled),
@@ -1900,6 +1900,7 @@
 .message-action-bar-button.is-active {
   color: #1d4ed8;
   background: rgba(219, 234, 254, 0.72);
+  font-weight: 700;
 }
 
 .message-row.outbound .message-action-bar-button:hover:not(:disabled),
