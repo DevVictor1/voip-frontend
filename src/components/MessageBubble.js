@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Copy, Download, FileImage, FileSpreadsheet, FileText, Forward, Pencil, Pin, PinOff, Reply, SmilePlus, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, Copy, Download, FileImage, FileSpreadsheet, FileText, Forward, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Reply, Share2, SmilePlus, ThumbsUp, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BASE_URL from '../config/api';
 import { getStoredAuthToken } from '../services/auth';
@@ -6,6 +6,7 @@ import { getStoredAuthToken } from '../services/auth';
 const REACTION_OPTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 const MESSAGE_URL_PATTERN = /(https?:\/\/[^\s<>"')]+)/gi;
+const QUICK_LIKE_EMOJI = '\u{1F44D}';
 
 const formatSmsContextNumber = (primary, fallback) => {
   return String(primary || fallback || '').trim() || 'unknown number';
@@ -247,6 +248,16 @@ function MessageBubble({
       .filter((emoji) => groups.has(emoji))
       .map((emoji) => groups.get(emoji));
   }, [currentUserId, isDeleted, message.reactions]);
+  const likedReaction = groupedReactions.find((reaction) => reaction.emoji === QUICK_LIKE_EMOJI) || null;
+  const isLikedByCurrentUser = Boolean(likedReaction?.reactedByCurrentUser);
+  const canShowActionBar = Boolean(
+    isInternalThread
+    && isInternalMessage
+    && !isDeleted
+    && !isEditing
+    && !isForwardSelectionMode
+    && (canReact || canReply || canForward || canTogglePin || canOpenMenu)
+  );
 
   const positionReactionPicker = useCallback(() => {
     const pickerNode = reactionPickerRef.current;
@@ -661,6 +672,12 @@ function MessageBubble({
     closeMenu();
   };
 
+  const handleQuickLike = async () => {
+    if (!canReact || isSavingReaction) return;
+
+    await handleReactionSelect(QUICK_LIKE_EMOJI);
+  };
+
   const handleOpenAttachment = async (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -954,6 +971,72 @@ function MessageBubble({
             </>
           )}
         </div>
+
+        {canShowActionBar ? (
+          <div className={`message-action-bar ${message.direction}`} aria-label="Message actions">
+            {canReact ? (
+              <button
+                type="button"
+                className={`message-action-bar-button${isLikedByCurrentUser ? ' is-active' : ''}`}
+                onClick={handleQuickLike}
+                disabled={isSavingReaction}
+                aria-pressed={isLikedByCurrentUser}
+                title={isLikedByCurrentUser ? 'Remove your like' : 'Like this message'}
+              >
+                <ThumbsUp size={13} />
+                <span>Like</span>
+              </button>
+            ) : null}
+
+            {canReply ? (
+              <button
+                type="button"
+                className="message-action-bar-button"
+                onClick={handleReply}
+              >
+                <MessageCircle size={13} />
+                <span>Comment</span>
+              </button>
+            ) : null}
+
+            {canForward ? (
+              <button
+                type="button"
+                className="message-action-bar-button"
+                onClick={handleStartForward}
+              >
+                <Share2 size={13} />
+                <span>Re-share</span>
+              </button>
+            ) : null}
+
+            {canTogglePin ? (
+              <button
+                type="button"
+                className={`message-action-bar-button${message.isPinned ? ' is-active' : ''}`}
+                onClick={handleTogglePin}
+                aria-pressed={Boolean(message.isPinned)}
+                title={message.isPinned ? 'Unpin message' : 'Pin message'}
+              >
+                <Pin size={13} />
+                <span>Pin it</span>
+              </button>
+            ) : null}
+
+            {canOpenMenu ? (
+              <button
+                type="button"
+                className={`message-action-bar-button${menuState.open ? ' is-active' : ''}`}
+                onClick={openAnchoredMenu}
+                aria-haspopup="menu"
+                aria-expanded={menuState.open}
+              >
+                <MoreHorizontal size={13} />
+                <span>More</span>
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         {menuState.open ? (
           <div
