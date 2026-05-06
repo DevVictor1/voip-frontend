@@ -9,6 +9,10 @@ import { startCall } from '../services/voice';
 
 const normalize = (num) => num?.replace(/\D/g, '').slice(-10);
 const FINAL_CALL_STATUSES = ['completed', 'failed', 'no-answer', 'busy', 'canceled'];
+const getTimelineItemKey = (item) => {
+  if (!item) return '';
+  return String(item._id || item.sid || item.createdAt || '');
+};
 
 function ChatWindow({
   chat,
@@ -44,6 +48,7 @@ function ChatWindow({
   const highlightTimeoutRef = useRef(null);
   const suppressAutoScrollUntilRef = useRef(0);
   const isNearBottomRef = useRef(true);
+  const previousTimelineSnapshotRef = useRef({ length: 0, lastKey: '' });
   const searchInputRef = useRef(null);
   const [callLogs, setCallLogs] = useState([]);
   const [callStatus, setCallStatus] = useState(null);
@@ -260,11 +265,37 @@ function ChatWindow({
   }, [isNearBottom]);
 
   useEffect(() => {
-    scrollToBottom('smooth');
-  }, [mergedTimeline, scrollToBottom]);
+    const previousSnapshot = previousTimelineSnapshotRef.current;
+    const lastTimelineItem = mergedTimeline[mergedTimeline.length - 1] || null;
+    const nextSnapshot = {
+      length: mergedTimeline.length,
+      lastKey: getTimelineItemKey(lastTimelineItem),
+    };
+
+    const hasPreviousSnapshot = previousSnapshot.lastKey || previousSnapshot.length > 0;
+    const hasAppendedEntry = hasPreviousSnapshot
+      && nextSnapshot.length > previousSnapshot.length
+      && nextSnapshot.lastKey !== previousSnapshot.lastKey;
+
+    if (hasAppendedEntry) {
+      const appendedOwnMessage = Boolean(
+        lastTimelineItem?.type === 'message'
+        && lastTimelineItem?.senderId
+        && currentUserId
+        && lastTimelineItem.senderId === currentUserId
+      );
+
+      if (appendedOwnMessage || isNearBottomRef.current) {
+        scrollToBottom('smooth', { force: appendedOwnMessage });
+      }
+    }
+
+    previousTimelineSnapshotRef.current = nextSnapshot;
+  }, [currentUserId, mergedTimeline, scrollToBottom]);
 
   useEffect(() => {
     if (!chat?.conversationId && !chat?.phone) return;
+    previousTimelineSnapshotRef.current = { length: 0, lastKey: '' };
     scrollToBottom('auto', { force: true });
     isNearBottomRef.current = true;
   }, [chat?.conversationId, chat?.phone, scrollToBottom]);
